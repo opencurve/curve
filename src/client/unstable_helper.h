@@ -35,20 +35,17 @@
 namespace curve {
 namespace client {
 
-enum class UnstableState {
-    NoUnstable,
-    ChunkServerUnstable,
-    ServerUnstable
-};
+enum class UnstableState { NoUnstable, ChunkServerUnstable, ServerUnstable };
 
-// 如果chunkserver宕机或者网络不可达, 发往对应chunkserver的rpc会超时
-// 返回之后, 回去refresh leader然后再去发送请求
-// 这种情况下不同copyset上的请求，总会先rpc timedout然后重新refresh leader
-// 为了避免一次多余的rpc timedout
-// 记录一下发往同一个chunkserver上超时请求的次数
-// 如果超过一定的阈值，会发送http请求检查chunkserver是否健康
-// 如果不健康，则通知所有leader在这台chunkserver上的copyset
-// 主动去refresh leader，而不是根据缓存的leader信息直接发送rpc
+// If the chunkserver goes down or the network is unreachable, the RPC sent to
+// the corresponding chunkserver will time out. After returning, go back to the
+// refresh leader and then send the request. In this case, requests on different
+// copysets will always first RPC timeout and then refresh the leader again. To
+// avoid a redundant RPC timeout, record the number of timeout requests sent to
+// the same chunkserver. If the threshold is exceeded, an HTTP request will be
+// sent to check if the chunkserver is healthy. If not healthy, notify all
+// leaders of the copyset on this chunkserver. Actively refresh the leader
+// instead of directly sending RPC based on cached leader information.
 class UnstableHelper {
  public:
     UnstableHelper() = default;
@@ -56,9 +53,7 @@ class UnstableHelper {
     UnstableHelper(const UnstableHelper&) = delete;
     UnstableHelper& operator=(const UnstableHelper&) = delete;
 
-    void Init(const ChunkServerUnstableOption& opt) {
-        option_ = opt;
-    }
+    void Init(const ChunkServerUnstableOption& opt) { option_ = opt; }
 
     void IncreTimeout(ChunkServerID csId) {
         std::unique_lock<decltype(mtx_)> guard(mtx_);
@@ -78,10 +73,10 @@ class UnstableHelper {
 
  private:
     /**
-     * @brief 检查chunkserver状态
+     * @brief Check chunkserver status
      *
-     * @param: endPoint chunkserver的ip:port地址
-     * @return: true 健康 / false 不健康
+     * @param: endPoint: ip:port address of endPoint chunkserver
+     * @return: true healthy/ false unhealthy
      */
     bool CheckChunkServerHealth(const butil::EndPoint& endPoint) const {
         return ServiceHelper::CheckChunkServerHealth(
@@ -92,10 +87,10 @@ class UnstableHelper {
 
     bthread::Mutex mtx_;
 
-    // 同一chunkserver连续超时请求次数
+    // Number of consecutive timeout requests for the same chunkserver
     std::unordered_map<ChunkServerID, uint32_t> timeoutTimes_;
 
-    // 同一server上unstable chunkserver的id
+    // The ID of an unstable chunkserver on the same server
     std::unordered_map<std::string, std::unordered_set<ChunkServerID>>
         serverUnstabledChunkservers_;
 };

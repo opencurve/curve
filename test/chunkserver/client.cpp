@@ -20,49 +20,47 @@
  * Author: wudemiao
  */
 
-#include <glog/logging.h>
-#include <gflags/gflags.h>
-#include <bthread/bthread.h>
 #include <brpc/channel.h>
 #include <brpc/controller.h>
+#include <bthread/bthread.h>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
 
-#include "src/chunkserver/copyset_node.h"
 #include "proto/chunk.pb.h"
 #include "proto/copyset.pb.h"
 #include "src/chunkserver/cli.h"
+#include "src/chunkserver/copyset_node.h"
 #include "test/chunkserver/chunkserver_test_util.h"
 
 DEFINE_int32(request_size, 10, "Size of each requst");
 DEFINE_int32(timeout_ms, 500, "Timeout for each request");
 DEFINE_int32(election_timeout_ms, 3000, "election timeout ms");
 DEFINE_int32(write_percentage, 100, "Percentage of fetch_add");
-DEFINE_string(confs,
-              "127.0.0.1:18200:0,127.0.0.1:18201:0,127.0.0.1:18202:0",
+DEFINE_string(confs, "127.0.0.1:18200:0,127.0.0.1:18201:0,127.0.0.1:18202:0",
               "Configuration of the raft group");
 
-using curve::chunkserver::CopysetRequest;
-using curve::chunkserver::CopysetResponse;
-using curve::chunkserver::CopysetService_Stub;
+using curve::chunkserver::CHUNK_OP_STATUS;
+using curve::chunkserver::CHUNK_OP_TYPE;
 using curve::chunkserver::ChunkRequest;
 using curve::chunkserver::ChunkResponse;
 using curve::chunkserver::ChunkService_Stub;
-using curve::chunkserver::PeerId;
-using curve::chunkserver::LogicPoolID;
-using curve::chunkserver::CopysetID;
 using curve::chunkserver::Configuration;
-using curve::chunkserver::CHUNK_OP_TYPE;
-using curve::chunkserver::CHUNK_OP_STATUS;
 using curve::chunkserver::COPYSET_OP_STATUS;
+using curve::chunkserver::CopysetID;
+using curve::chunkserver::CopysetRequest;
+using curve::chunkserver::CopysetResponse;
+using curve::chunkserver::CopysetService_Stub;
+using curve::chunkserver::LogicPoolID;
+using curve::chunkserver::PeerId;
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-
     LogicPoolID logicPoolId = 1;
-    CopysetID copysetId     = 100001;
-    uint64_t chunkId        = 1;
-    uint64_t sn             = 1;
-    char fillCh             = 'a';
+    CopysetID copysetId = 100001;
+    uint64_t chunkId = 1;
+    uint64_t sn = 1;
+    char fillCh = 'a';
     PeerId leader;
     curve::chunkserver::Configuration conf;
 
@@ -70,9 +68,7 @@ int main(int argc, char *argv[]) {
         LOG(FATAL) << "conf parse failed: " << FLAGS_confs;
     }
 
-
-
-    // 创建 copyset
+    // Create copyset
     {
         std::vector<PeerId> peers;
         conf.list_peers(&peers);
@@ -105,8 +101,10 @@ int main(int argc, char *argv[]) {
             if (cntl.Failed()) {
                 LOG(FATAL) << "create copyset fialed: " << cntl.ErrorText();
             }
-            if (response.status() == COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS       //NOLINT
-                || response.status() == COPYSET_OP_STATUS::COPYSET_OP_STATUS_EXIST) {   //NOLINT
+            if (response.status() ==                                  // NOLINT
+                    COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS      // NOLINT
+                || response.status() ==                               // NOLINT
+                       COPYSET_OP_STATUS::COPYSET_OP_STATUS_EXIST) {  // NOLINT
                 LOG(INFO) << "create copyset success: " << response.status();
             } else {
                 LOG(FATAL) << "create copyset failed: ";
@@ -116,11 +114,9 @@ int main(int argc, char *argv[]) {
 
     // wait leader
     ::usleep(1000 * FLAGS_election_timeout_ms);
-    butil::Status status = curve::chunkserver::WaitLeader(logicPoolId,
-                                                          copysetId,
-                                                          conf,
-                                                          &leader,
-                                                          FLAGS_election_timeout_ms);   //NOLINT
+    butil::Status status =
+        curve::chunkserver::WaitLeader(logicPoolId, copysetId, conf, &leader,
+                                       FLAGS_election_timeout_ms);  // NOLINT
     LOG(INFO) << "leader is: " << leader.to_string();
     if (0 != status.error_code()) {
         LOG(FATAL) << "Wait leader failed";
@@ -176,8 +172,5 @@ int main(int argc, char *argv[]) {
         }
     }
 
-
     return 0;
 }
-
-

@@ -22,10 +22,10 @@
 
 #include "src/chunkserver/cli2.h"
 
-#include <glog/logging.h>
-#include <butil/status.h>
 #include <brpc/channel.h>
 #include <brpc/controller.h>
+#include <butil/status.h>
+#include <glog/logging.h>
 
 #include <string>
 
@@ -34,16 +34,14 @@
 namespace curve {
 namespace chunkserver {
 
-butil::Status GetLeader(const LogicPoolID &logicPoolId,
-                        const CopysetID &copysetId,
-                        const Configuration &conf,
-                        Peer *leader) {
+butil::Status GetLeader(const LogicPoolID& logicPoolId,
+                        const CopysetID& copysetId, const Configuration& conf,
+                        Peer* leader) {
     if (conf.empty()) {
         return butil::Status(EINVAL, "Empty group configuration");
     }
 
-    butil::Status st(-1,
-                     "Fail to get leader of copyset node %s",
+    butil::Status st(-1, "Fail to get leader of copyset node %s",
                      ToGroupIdString(logicPoolId, copysetId).c_str());
     PeerId leaderId;
     Configuration::const_iterator iter = conf.begin();
@@ -53,7 +51,7 @@ butil::Status GetLeader(const LogicPoolID &logicPoolId,
             return butil::Status(-1, "Fail to init channel to %s",
                                  iter->to_string().c_str());
         }
-        Peer *peer = new Peer();
+        Peer* peer = new Peer();
         CliService2_Stub stub(&channel);
         GetLeaderRequest2 request;
         GetLeaderResponse2 response;
@@ -84,11 +82,9 @@ butil::Status GetLeader(const LogicPoolID &logicPoolId,
     return butil::Status::OK();
 }
 
-butil::Status AddPeer(const LogicPoolID &logicPoolId,
-                      const CopysetID &copysetId,
-                      const Configuration &conf,
-                      const Peer &peer,
-                      const braft::cli::CliOptions &options) {
+butil::Status AddPeer(const LogicPoolID& logicPoolId,
+                      const CopysetID& copysetId, const Configuration& conf,
+                      const Peer& peer, const braft::cli::CliOptions& options) {
     Peer leader;
     butil::Status st = GetLeader(logicPoolId, copysetId, conf, &leader);
     BRAFT_RETURN_IF(!st.ok(), st);
@@ -101,10 +97,10 @@ butil::Status AddPeer(const LogicPoolID &logicPoolId,
     AddPeerRequest2 request;
     request.set_logicpoolid(logicPoolId);
     request.set_copysetid(copysetId);
-    Peer *leaderPeer = new Peer();
+    Peer* leaderPeer = new Peer();
     request.set_allocated_leader(leaderPeer);
     *leaderPeer = leader;
-    Peer *addPeer = new Peer();
+    Peer* addPeer = new Peer();
     request.set_allocated_addpeer(addPeer);
     *addPeer = peer;
     AddPeerResponse2 response;
@@ -128,17 +124,15 @@ butil::Status AddPeer(const LogicPoolID &logicPoolId,
         new_conf.add_peer(peer);
     }
     LOG(INFO) << "Configuration of replication group ` "
-              << ToGroupIdString(logicPoolId, copysetId)
-              << " ' changed from " << old_conf
-              << " to " << new_conf;
+              << ToGroupIdString(logicPoolId, copysetId) << " ' changed from "
+              << old_conf << " to " << new_conf;
     return butil::Status::OK();
 }
 
-butil::Status RemovePeer(const LogicPoolID &logicPoolId,
-                         const CopysetID &copysetId,
-                         const Configuration &conf,
-                         const Peer &peer,
-                         const braft::cli::CliOptions &options) {
+butil::Status RemovePeer(const LogicPoolID& logicPoolId,
+                         const CopysetID& copysetId, const Configuration& conf,
+                         const Peer& peer,
+                         const braft::cli::CliOptions& options) {
     Peer leader;
     butil::Status st = GetLeader(logicPoolId, copysetId, conf, &leader);
     BRAFT_RETURN_IF(!st.ok(), st);
@@ -151,10 +145,10 @@ butil::Status RemovePeer(const LogicPoolID &logicPoolId,
     RemovePeerRequest2 request;
     request.set_logicpoolid(logicPoolId);
     request.set_copysetid(copysetId);
-    Peer *leaderPeer = new Peer();
+    Peer* leaderPeer = new Peer();
     request.set_allocated_leader(leaderPeer);
     *leaderPeer = leader;
-    Peer *removePeer = new Peer();
+    Peer* removePeer = new Peer();
     request.set_allocated_removepeer(removePeer);
     *removePeer = peer;
     RemovePeerResponse2 response;
@@ -179,17 +173,15 @@ butil::Status RemovePeer(const LogicPoolID &logicPoolId,
         new_conf.add_peer(peer);
     }
     LOG(INFO) << "Configuration of replication group ` "
-              << ToGroupIdString(logicPoolId, copysetId)
-              << " ' changed from " << old_conf
-              << " to " << new_conf;
+              << ToGroupIdString(logicPoolId, copysetId) << " ' changed from "
+              << old_conf << " to " << new_conf;
     return butil::Status::OK();
 }
 
-butil::Status ChangePeers(const LogicPoolID &logicPoolId,
-                          const CopysetID &copysetId,
-                          const Configuration &conf,
-                          const Configuration &newPeers,
-                          const braft::cli::CliOptions &options) {
+butil::Status ChangePeers(const LogicPoolID& logicPoolId,
+                          const CopysetID& copysetId, const Configuration& conf,
+                          const Configuration& newPeers,
+                          const braft::cli::CliOptions& options) {
     Peer leader;
     butil::Status st = GetLeader(logicPoolId, copysetId, conf, &leader);
     BRAFT_RETURN_IF(!st.ok(), st);
@@ -203,11 +195,11 @@ butil::Status ChangePeers(const LogicPoolID &logicPoolId,
     ChangePeersRequest2 request;
     request.set_logicpoolid(logicPoolId);
     request.set_copysetid(copysetId);
-    Peer *leaderPeer = new Peer();
+    Peer* leaderPeer = new Peer();
     *leaderPeer = leader;
     request.set_allocated_leader(leaderPeer);
-    for (Configuration::const_iterator
-            iter = newPeers.begin(); iter != newPeers.end(); ++iter) {
+    for (Configuration::const_iterator iter = newPeers.begin();
+         iter != newPeers.end(); ++iter) {
         request.add_newpeers()->set_address(iter->to_string());
     }
     ChangePeersResponse2 response;
@@ -229,17 +221,15 @@ butil::Status ChangePeers(const LogicPoolID &logicPoolId,
         new_conf.add_peer(response.newpeers(i).address());
     }
     LOG(INFO) << "Configuration of replication group `"
-              << ToGroupIdString(logicPoolId, copysetId)
-              << "' changed from " << old_conf
-              << " to " << new_conf;
+              << ToGroupIdString(logicPoolId, copysetId) << "' changed from "
+              << old_conf << " to " << new_conf;
     return butil::Status::OK();
 }
 
-butil::Status TransferLeader(const LogicPoolID &logicPoolId,
-                             const CopysetID &copysetId,
-                             const Configuration &conf,
-                             const Peer &peer,
-                             const braft::cli::CliOptions &options) {
+butil::Status TransferLeader(const LogicPoolID& logicPoolId,
+                             const CopysetID& copysetId,
+                             const Configuration& conf, const Peer& peer,
+                             const braft::cli::CliOptions& options) {
     Peer leader;
     butil::Status st = GetLeader(logicPoolId, copysetId, conf, &leader);
     BRAFT_RETURN_IF(!st.ok(), st);
@@ -256,10 +246,10 @@ butil::Status TransferLeader(const LogicPoolID &logicPoolId,
     TransferLeaderRequest2 request;
     request.set_logicpoolid(logicPoolId);
     request.set_copysetid(copysetId);
-    Peer *leaderPeer = new Peer();
+    Peer* leaderPeer = new Peer();
     request.set_allocated_leader(leaderPeer);
     *leaderPeer = leader;
-    Peer *transfereePeer = new Peer();
+    Peer* transfereePeer = new Peer();
     request.set_allocated_transferee(transfereePeer);
     *transfereePeer = peer;
     TransferLeaderResponse2 response;
@@ -274,18 +264,24 @@ butil::Status TransferLeader(const LogicPoolID &logicPoolId,
     return butil::Status::OK();
 }
 
-// reset peer不走一致性协议，直接将peers重置，因此存在一定的风险
-// 应用场景：大多数节点挂掉的极端情况。在这种情况下，该copyset将无法写入，直
-// 到半小时后mds将挂掉的副本上的copyset迁移，因此有一段时间不可用，为了应对这种场景，引入了
-// reset peer工具，直接将复制组成员reset成只包含存活的副本。
-// 注意事项：
-// 1、reset peer之前，需要通过check-copyset工具确认复制组中的大多数副本确实挂掉
-// 2、reset peer的时候，要确保剩下的副本有最新的数据，不然存在丢数据的风险
-// 3、reset peer适用于其他两个副本不能恢复的情况，不然可能会扰乱集群
-butil::Status ResetPeer(const LogicPoolID &logicPoolId,
-                        const CopysetID &copysetId,
-                        const Configuration& newPeers,
-                        const Peer& requestPeer,
+// reset peer does not follow a consistency protocol and directly resets them,
+// thus posing certain risks Application scenario: Extreme situation where most
+// nodes fail. In this case, the copyset will not be able to be written directly
+// After half an hour, MDS will migrate the copyset on the suspended replica,
+// which will be unavailable for a period of time. To cope with this scenario,
+// we have introduced The reset peer tool directly resets replication group
+// members to only contain surviving replicas.
+// Precautions:
+// 1. Before resetting the peer, it is necessary to confirm through the
+//    check-copyset tool that most of the replicas in the replication group have
+//    indeed been suspended.
+// 2. When resetting the peer, ensure that the remaining replicas have the
+//    latest data, otherwise there is a risk of data loss.
+// 3. Reset peer is suitable for situations where the other two replicas cannot
+//    be restored, otherwise it may disrupt the cluster.
+butil::Status ResetPeer(const LogicPoolID& logicPoolId,
+                        const CopysetID& copysetId,
+                        const Configuration& newPeers, const Peer& requestPeer,
                         const braft::cli::CliOptions& options) {
     if (newPeers.empty()) {
         return butil::Status(EINVAL, "new_conf is empty");
@@ -294,7 +290,7 @@ butil::Status ResetPeer(const LogicPoolID &logicPoolId,
     brpc::Channel channel;
     if (channel.Init(requestPeerId.addr, NULL) != 0) {
         return butil::Status(-1, "Fail to init channel to %s",
-                                requestPeerId.to_string().c_str());
+                             requestPeerId.to_string().c_str());
     }
     brpc::Controller cntl;
     cntl.set_timeout_ms(options.timeout_ms);
@@ -302,11 +298,11 @@ butil::Status ResetPeer(const LogicPoolID &logicPoolId,
     ResetPeerRequest2 request;
     request.set_logicpoolid(logicPoolId);
     request.set_copysetid(copysetId);
-    Peer *requestPeerPtr = new Peer();
+    Peer* requestPeerPtr = new Peer();
     *requestPeerPtr = requestPeer;
     request.set_allocated_requestpeer(requestPeerPtr);
-    for (Configuration::const_iterator
-            iter = newPeers.begin(); iter != newPeers.end(); ++iter) {
+    for (Configuration::const_iterator iter = newPeers.begin();
+         iter != newPeers.end(); ++iter) {
         request.add_newpeers()->set_address(iter->to_string());
     }
     ResetPeerResponse2 response;
@@ -318,15 +314,14 @@ butil::Status ResetPeer(const LogicPoolID &logicPoolId,
     return butil::Status::OK();
 }
 
-butil::Status Snapshot(const LogicPoolID &logicPoolId,
-                       const CopysetID &copysetId,
-                       const Peer& peer,
+butil::Status Snapshot(const LogicPoolID& logicPoolId,
+                       const CopysetID& copysetId, const Peer& peer,
                        const braft::cli::CliOptions& options) {
     brpc::Channel channel;
     PeerId peerId(peer.address());
     if (channel.Init(peerId.addr, NULL) != 0) {
         return butil::Status(-1, "Fail to init channel to %s",
-                                peerId.to_string().c_str());
+                             peerId.to_string().c_str());
     }
     brpc::Controller cntl;
     cntl.set_timeout_ms(options.timeout_ms);
@@ -334,7 +329,7 @@ butil::Status Snapshot(const LogicPoolID &logicPoolId,
     SnapshotRequest2 request;
     request.set_logicpoolid(logicPoolId);
     request.set_copysetid(copysetId);
-    Peer *peerPtr = new Peer(peer);
+    Peer* peerPtr = new Peer(peer);
     request.set_allocated_peer(peerPtr);
     SnapshotResponse2 response;
     CliService2_Stub stub(&channel);
@@ -351,7 +346,7 @@ butil::Status SnapshotAll(const Peer& peer,
     PeerId peerId(peer.address());
     if (channel.Init(peerId.addr, NULL) != 0) {
         return butil::Status(-1, "Fail to init channel to %s",
-                                peerId.to_string().c_str());
+                             peerId.to_string().c_str());
     }
     brpc::Controller cntl;
     cntl.set_timeout_ms(options.timeout_ms);

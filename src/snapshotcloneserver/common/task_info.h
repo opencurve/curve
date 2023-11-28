@@ -23,11 +23,10 @@
 #ifndef SRC_SNAPSHOTCLONESERVER_COMMON_TASK_INFO_H_
 #define SRC_SNAPSHOTCLONESERVER_COMMON_TASK_INFO_H_
 
-
-#include <string>
-#include <memory>
-#include <mutex> //NOLINT
 #include <atomic>
+#include <memory>
+#include <mutex>  //NOLINT
+#include <string>
 
 #include "src/common/concurrent/concurrent.h"
 
@@ -36,10 +35,7 @@ namespace snapshotcloneserver {
 
 class TaskInfo {
  public:
-    TaskInfo()
-        : progress_(0),
-          isFinish_(false),
-          isCanceled_(false) {}
+    TaskInfo() : progress_(0), isFinish_(false), isCanceled_(false) {}
 
     virtual ~TaskInfo() {}
     TaskInfo(const TaskInfo&) = delete;
@@ -48,59 +44,47 @@ class TaskInfo {
     TaskInfo& operator=(TaskInfo&&) = default;
 
     /**
-     * @brief 设置任务完成度百分比
+     * @brief Set task completion percentage
      *
-     * @param persent 任务完成度百分比
+     * @param persent: task completion percentage
      */
-    void SetProgress(uint32_t persent) {
-        progress_ = persent;
-    }
+    void SetProgress(uint32_t persent) { progress_ = persent; }
 
     /**
-     * @brief 获取任务完成度百分比
+     * @brief Get task completion percentage
      *
-     * @return 任务完成度百分比
+     * @return Task completion percentage
      */
-    uint32_t GetProgress() const {
-        return progress_;
-    }
+    uint32_t GetProgress() const { return progress_; }
 
     /**
-     * @brief 完成任务
+     * @brief Complete the task
      */
-    void Finish() {
-        isFinish_.store(true);
-    }
+    void Finish() { isFinish_.store(true); }
 
     /**
-     * @brief 获取任务是否完成
+     * @brief: Is the task completed
      *
-     * @retval true 任务完成
-     * @retval false 任务未完成
+     * @retval true: Task completed
+     * @retval false: Task not completed
      */
-    bool IsFinish() const {
-        return isFinish_.load();
-    }
+    bool IsFinish() const { return isFinish_.load(); }
 
     /**
-     * @brief 取消任务
+     * @brief Cancel Task
      */
-    void Cancel() {
-        isCanceled_ = true;
-    }
+    void Cancel() { isCanceled_ = true; }
 
     /**
-     * @brief 获取任务是否取消
+     * @brief: Check if the task is canceled
      *
-     * @retval true 任务已取消
-     * @retval false 任务未取消
+     * @retval true: The task has been canceled
+     * @retval false: The task was not canceled
      */
-    bool IsCanceled() const {
-        return isCanceled_;
-    }
+    bool IsCanceled() const { return isCanceled_; }
 
     /**
-     * @brief 重置任务
+     * @brief reset task
      */
     void Reset() {
         isFinish_.store(false);
@@ -108,26 +92,24 @@ class TaskInfo {
     }
 
     /**
-     * @brief 获取任务锁的引用，以便使用LockGuard加锁解锁
+     * @brief: Obtain a reference to the task lock for unlocking using LockGuard
      *
-     *  用于同步任务完成和取消功能
-     *  1. 任务完成前，先锁定任务，然后判断任务是否取消，
-     *  若已取消，则释放锁，
-     *  否则执行任务完成逻辑之后释放锁。
-     *  2. 任务取消前，先锁定任务，然后判断任务是否完成，
-     *  若已完成，则释放锁，
-     *  否则执行任务取消逻辑之后释放锁。
+     * Used to synchronize task completion and cancellation functions
+     *  1. Before completing the task, first lock the task and then determine
+     *     whether the task is cancelled, If cancelled, release the lock,
+     *     Otherwise, release the lock after completing the logic of the task.
+     *  2. Before canceling a task, first lock the task and then determine
+     *     whether the task is completed, If completed, release the lock,
+     *     Otherwise, execute the task to cancel the logic and release the lock.
      */
-    curve::common::Mutex& GetLockRef() {
-        return lock_;
-    }
+    curve::common::Mutex& GetLockRef() { return lock_; }
 
  private:
-    // 任务完成度百分比
+    // Task completion percentage
     uint32_t progress_;
-    // 任务任务是否结束
+    // Is the task completed
     std::atomic_bool isFinish_;
-    // 任务是否被取消
+    // Has the task been canceled
     bool isCanceled_;
     mutable curve::common::Mutex lock_;
 };

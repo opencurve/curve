@@ -20,21 +20,24 @@
  * Author: lixiaocui
  */
 
-#include <time.h>
-#include <glog/logging.h>
-#include <vector>
 #include "src/chunkserver/trash.h"
-#include "src/common/string_util.h"
-#include "src/chunkserver/datastore/filename_operator.h"
-#include "src/chunkserver/copyset_node.h"
+
+#include <glog/logging.h>
+#include <time.h>
+
+#include <vector>
+
 #include "include/chunkserver/chunkserver_common.h"
-#include "src/common/uri_parser.h"
+#include "src/chunkserver/copyset_node.h"
+#include "src/chunkserver/datastore/filename_operator.h"
 #include "src/chunkserver/raftlog/define.h"
+#include "src/common/string_util.h"
+#include "src/common/uri_parser.h"
 
 using ::curve::chunkserver::RAFT_DATA_DIR;
+using ::curve::chunkserver::RAFT_LOG_DIR;
 using ::curve::chunkserver::RAFT_META_DIR;
 using ::curve::chunkserver::RAFT_SNAP_DIR;
-using ::curve::chunkserver::RAFT_LOG_DIR;
 
 namespace curve {
 namespace chunkserver {
@@ -60,13 +63,13 @@ int Trash::Init(TrashOptions options) {
     walPool_ = options.walPool;
     chunkNum_.store(0);
 
-     // 读取trash目录下的所有目录
+    // Read all directories under the trash directory
     std::vector<std::string> files;
     localFileSystem_->List(trashPath_, &files);
 
-    // 遍历trash下的文件
-    for (auto &file : files) {
-        // 如果不是copyset目录，跳过
+    // Traverse through files under trash
+    for (auto& file : files) {
+        // If it is not a copyset directory, skip
         if (!IsCopysetInTrash(file)) {
             continue;
         }
@@ -100,8 +103,8 @@ int Trash::Fini() {
     return 0;
 }
 
-int Trash::RecycleCopySet(const std::string &dirPath) {
-    // 回收站目录不存在，需要创建
+int Trash::RecycleCopySet(const std::string& dirPath) {
+    // The recycle bin directory does not exist and needs to be created
     if (!localFileSystem_->DirExists(trashPath_)) {
         LOG(INFO) << "Copyset recyler directory " << trashPath_
                   << " does not exist, creating it";
@@ -113,10 +116,11 @@ int Trash::RecycleCopySet(const std::string &dirPath) {
         }
     }
 
-    // 如果回收站已存在该目录，本次删除失败
-    std::string dst = trashPath_ + "/" +
-        dirPath.substr(dirPath.find_last_of('/', dirPath.length()) + 1) +
-        '.' + std::to_string(std::time(nullptr));
+    // If the directory already exists in the recycle bin, this deletion failed
+    std::string dst =
+        trashPath_ + "/" +
+        dirPath.substr(dirPath.find_last_of('/', dirPath.length()) + 1) + '.' +
+        std::to_string(std::time(nullptr));
     if (localFileSystem_->DirExists(dst)) {
         LOG(WARNING) << "recycle error: " << dst << " already exist in "
                      << trashPath_;
@@ -137,28 +141,28 @@ int Trash::RecycleCopySet(const std::string &dirPath) {
 }
 
 void Trash::DeleteEligibleFileInTrashInterval() {
-     while (sleeper_.wait_for(std::chrono::seconds(scanPeriodSec_))) {
-        // 扫描回收站
-         DeleteEligibleFileInTrash();
-     }
+    while (sleeper_.wait_for(std::chrono::seconds(scanPeriodSec_))) {
+        // Scan Recycle Bin
+        DeleteEligibleFileInTrash();
+    }
 }
 
 void Trash::DeleteEligibleFileInTrash() {
-    // trash目录暂不存在
+    // The trash directory does not currently exist
     if (!localFileSystem_->DirExists(trashPath_)) {
         return;
     }
 
-    // 读取trash目录下的所有目录
+    // Read all directories under the trash directory
     std::vector<std::string> files;
     if (0 != localFileSystem_->List(trashPath_, &files)) {
         LOG(ERROR) << "Trash failed list files in " << trashPath_;
         return;
     }
 
-    // 遍历trash下的文件
-    for (auto &file : files) {
-        // 如果不是copyset目录，跳过
+    // Traverse through files under trash
+    for (auto& file : files) {
+        // If it is not a copyset directory, skip
         if (!IsCopysetInTrash(file)) {
             continue;
         }
@@ -172,7 +176,7 @@ void Trash::DeleteEligibleFileInTrash() {
             continue;
         }
 
-        // 删除copyset目录
+        // Delete copyset directory
         if (0 != localFileSystem_->Delete(copysetDir)) {
             LOG(ERROR) << "Trash fail to delete " << copysetDir;
             return;
@@ -180,10 +184,10 @@ void Trash::DeleteEligibleFileInTrash() {
     }
 }
 
-bool Trash::IsCopysetInTrash(const std::string &dirName) {
-    // 合法的copyset目录: 高32位PoolId(>0)组成， 低32位由copysetId(>0)组成
-    // 目录是十进制形式
-    // 例如：2860448220024 (poolId: 666, copysetId: 888)
+bool Trash::IsCopysetInTrash(const std::string& dirName) {
+    // Legal copyset directory: composed of high 32-bit PoolId(>0), and low
+    // 32-bit composed of copysetId(>0) The directory is in decimal form For
+    // example: 2860448220024 (poolId: 666, copysetId: 888)
     uint64_t groupId;
     auto n = dirName.find(".");
     if (n == std::string::npos) {
@@ -196,7 +200,7 @@ bool Trash::IsCopysetInTrash(const std::string &dirName) {
     return GetPoolID(groupId) >= 1 && GetCopysetID(groupId) >= 1;
 }
 
-bool Trash::NeedDelete(const std::string &copysetDir) {
+bool Trash::NeedDelete(const std::string& copysetDir) {
     int fd = localFileSystem_->Open(copysetDir, O_RDONLY);
     if (0 > fd) {
         LOG(ERROR) << "Trash fail open " << copysetDir;
@@ -219,15 +223,15 @@ bool Trash::NeedDelete(const std::string &copysetDir) {
     return true;
 }
 
-bool Trash::IsChunkOrSnapShotFile(const std::string &chunkName) {
+bool Trash::IsChunkOrSnapShotFile(const std::string& chunkName) {
     return FileNameOperator::FileType::UNKNOWN !=
-        FileNameOperator::ParseFileName(chunkName).type;
+           FileNameOperator::ParseFileName(chunkName).type;
 }
 
-bool Trash::RecycleChunksAndWALInDir(
-    const std::string &copysetPath, const std::string &filename) {
+bool Trash::RecycleChunksAndWALInDir(const std::string& copysetPath,
+                                     const std::string& filename) {
     bool isDir = localFileSystem_->DirExists(copysetPath);
-    // 是文件看是否需要回收
+    // It's a file, check if recycling is required.
     if (!isDir) {
         if (IsChunkOrSnapShotFile(filename)) {
             return RecycleChunkfile(copysetPath, filename);
@@ -238,18 +242,18 @@ bool Trash::RecycleChunksAndWALInDir(
         }
     }
 
-    // 是目录，继续list
+    // It's a directory, continue with the list
     std::vector<std::string> files;
     if (0 != localFileSystem_->List(copysetPath, &files)) {
         LOG(ERROR) << "Trash failed to list files in " << copysetPath;
         return false;
     }
 
-    // 遍历子文件
+    // Traverse sub files
     bool ret = true;
-    for (auto &file : files) {
+    for (auto& file : files) {
         std::string filePath = copysetPath + "/" + file;
-        // recycle 失败不应该中断其他文件的recycle
+        // recycle, failure should not interrupt the recycle of other files
         if (!RecycleChunksAndWALInDir(filePath, file)) {
             ret = false;
         }
@@ -257,13 +261,13 @@ bool Trash::RecycleChunksAndWALInDir(
     return ret;
 }
 
-bool Trash::RecycleChunkfile(
-    const std::string &filepath, const std::string &filename) {
+bool Trash::RecycleChunkfile(const std::string& filepath,
+                             const std::string& filename) {
     (void)filename;
     LockGuard lg(mtx_);
     if (0 != chunkFilePool_->RecycleFile(filepath)) {
         LOG(ERROR) << "Trash  failed recycle chunk " << filepath
-                    << " to FilePool";
+                   << " to FilePool";
         return false;
     }
 
@@ -271,13 +275,12 @@ bool Trash::RecycleChunkfile(
     return true;
 }
 
-bool Trash::RecycleWAL(
-    const std::string &filepath, const std::string &filename) {
+bool Trash::RecycleWAL(const std::string& filepath,
+                       const std::string& filename) {
     (void)filename;
     LockGuard lg(mtx_);
     if (walPool_ != nullptr && 0 != walPool_->RecycleFile(filepath)) {
-        LOG(ERROR) << "Trash  failed recycle WAL " << filepath
-                    << " to WALPool";
+        LOG(ERROR) << "Trash  failed recycle WAL " << filepath << " to WALPool";
         return false;
     }
 
@@ -285,12 +288,12 @@ bool Trash::RecycleWAL(
     return true;
 }
 
-bool Trash::IsWALFile(const std::string &fileName) {
+bool Trash::IsWALFile(const std::string& fileName) {
     int match = 0;
     int64_t first_index = 0;
     int64_t last_index = 0;
-    match = sscanf(fileName.c_str(), CURVE_SEGMENT_CLOSED_PATTERN,
-                  &first_index, &last_index);
+    match = sscanf(fileName.c_str(), CURVE_SEGMENT_CLOSED_PATTERN, &first_index,
+                   &last_index);
     if (match == 2) {
         LOG(INFO) << "recycle closed segment wal file, path: " << fileName
                   << " first_index: " << first_index
@@ -298,8 +301,7 @@ bool Trash::IsWALFile(const std::string &fileName) {
         return true;
     }
 
-    match = sscanf(fileName.c_str(), CURVE_SEGMENT_OPEN_PATTERN,
-                   &first_index);
+    match = sscanf(fileName.c_str(), CURVE_SEGMENT_OPEN_PATTERN, &first_index);
     if (match == 1) {
         LOG(INFO) << "recycle open segment wal file, path: " << fileName
                   << " first_index: " << first_index;
@@ -308,7 +310,7 @@ bool Trash::IsWALFile(const std::string &fileName) {
     return false;
 }
 
-uint32_t Trash::CountChunkNumInCopyset(const std::string &copysetPath) {
+uint32_t Trash::CountChunkNumInCopyset(const std::string& copysetPath) {
     std::vector<std::string> files;
     if (0 != localFileSystem_->List(copysetPath, &files)) {
         LOG(ERROR) << "Trash failed to list files in " << copysetPath;
@@ -317,15 +319,14 @@ uint32_t Trash::CountChunkNumInCopyset(const std::string &copysetPath) {
 
     // Traverse subdirectories
     uint32_t chunkNum = 0;
-    for (auto &file : files) {
+    for (auto& file : files) {
         std::string filePath = copysetPath + "/" + file;
         bool isDir = localFileSystem_->DirExists(filePath);
         if (!isDir) {
             // valid: chunkfile, snapshotfile, walfile
-            if (!(IsChunkOrSnapShotFile(file) ||
-                  IsWALFile(file))) {
-                LOG(WARNING) << "Trash find a illegal file:"
-                             << file << " in " << copysetPath;
+            if (!(IsChunkOrSnapShotFile(file) || IsWALFile(file))) {
+                LOG(WARNING) << "Trash find a illegal file:" << file << " in "
+                             << copysetPath;
                 continue;
             }
             ++chunkNum;

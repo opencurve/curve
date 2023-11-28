@@ -28,8 +28,8 @@
 #include <google/protobuf/stubs/callback.h>
 
 #include <string>
-#include <vector>
 #include <unordered_set>
+#include <vector>
 
 #include "include/client/libcurve.h"
 #include "src/common/throttle.h"
@@ -53,7 +53,7 @@ constexpr uint64_t KiB = 1024;
 constexpr uint64_t MiB = 1024 * KiB;
 constexpr uint64_t GiB = 1024 * MiB;
 
-// 操作类型
+// Operation type
 enum class OpType {
     READ = 0,
     WRITE,
@@ -67,7 +67,7 @@ enum class OpType {
 };
 
 /**
- * 与nameserver.proto中的FileStatus一一对应
+ * Corresponds one-to-one with FileStatus in nameserver.proto
  */
 enum class FileStatus {
     Created = 0,
@@ -90,12 +90,10 @@ typedef struct ChunkIDInfo {
     ChunkIDInfo(ChunkID cid, LogicPoolID lpid, CopysetID cpid)
         : cid_(cid), cpid_(cpid), lpid_(lpid) {}
 
-    bool Valid() const {
-        return lpid_ > 0 && cpid_ > 0;
-    }
+    bool Valid() const { return lpid_ > 0 && cpid_ > 0; }
 } ChunkIDInfo_t;
 
-// 保存每个chunk对应的版本信息
+// Save the version information corresponding to each chunk
 typedef struct ChunkInfoDetail {
     std::vector<uint64_t> chunkSn;
 } ChunkInfoDetail_t;
@@ -106,7 +104,8 @@ typedef struct LeaseSession {
     uint64_t createTime;
 } LeaseSession_t;
 
-// 保存logicalpool中segment对应的copysetid信息
+// Save the copysetid information corresponding to
+// the segment in the logicalpool
 typedef struct LogicalPoolCopysetIDInfo {
     LogicPoolID lpid;
     std::vector<CopysetID> cpidVec;
@@ -117,7 +116,7 @@ typedef struct LogicalPoolCopysetIDInfo {
     }
 } LogicalPoolCopysetIDInfo_t;
 
-// 保存每个segment的基本信息
+// Save basic information for each segment
 typedef struct SegmentInfo {
     uint32_t segmentsize;
     uint32_t chunksize;
@@ -147,9 +146,9 @@ typedef struct FInfo {
     uint64_t length;
     uint64_t ctime;
     uint64_t seqnum;
-    // userinfo是当前操作这个文件的用户信息
+    // userinfo is the user information currently operating on this file
     UserInfo_t userinfo;
-    // owner是当前文件所属信息
+    // owner is the information to which the current file belongs
     std::string owner;
     std::string filename;
     std::string fullPathName;
@@ -162,7 +161,7 @@ typedef struct FInfo {
     uint64_t stripeCount;
     std::string poolset;
 
-    OpenFlags       openflags;
+    OpenFlags openflags;
     common::ReadWriteThrottleParams throttleParams;
 
     FInfo() {
@@ -187,10 +186,10 @@ typedef struct FileEpoch {
     }
 } FileEpoch_t;
 
-// PeerAddr 代表一个copyset group里的一个chunkserver节点
-// 与braft中的PeerID对应
+// PeerAddr represents a chunkserver node in a copyset group
+// Corresponds to PeerID in braft
 struct PeerAddr {
-    // 节点的地址信息
+    // Address information of nodes
     EndPoint addr_;
 
     PeerAddr() = default;
@@ -198,17 +197,17 @@ struct PeerAddr {
 
     bool IsEmpty() const {
         return (addr_.ip == butil::IP_ANY && addr_.port == 0) &&
-                addr_.socket_file.empty();
+               addr_.socket_file.empty();
     }
 
-    // 重置当前地址信息
+    // Reset current address information
     void Reset() {
         addr_.ip = butil::IP_ANY;
         addr_.port = 0;
     }
 
-    // 从字符串中将地址信息解析出来
-    int Parse(const std::string &str) {
+    // Parse address information from a string
+    int Parse(const std::string& str) {
         int idx;
         char ip_str[64];
         if (2 > sscanf(str.c_str(), "%[^:]%*[:]%d%*[:]%d", ip_str, &addr_.port,
@@ -224,8 +223,9 @@ struct PeerAddr {
         return 0;
     }
 
-    // 将该节点地址信息转化为字符串形式
-    // 在get leader调用中可以将该值直接传入request
+    // Convert the node address information into a string format.
+    // In the get leader call, this value can be directly passed
+    // into the request.
     std::string ToString() const {
         char str[128];
         snprintf(str, sizeof(str), "%s:%d", butil::endpoint2str(addr_).c_str(),
@@ -233,32 +233,32 @@ struct PeerAddr {
         return std::string(str);
     }
 
-    bool operator==(const PeerAddr &other) const {
+    bool operator==(const PeerAddr& other) const {
         return addr_ == other.addr_;
     }
 };
 
-inline const char *OpTypeToString(OpType optype) {
+inline const char* OpTypeToString(OpType optype) {
     switch (optype) {
-    case OpType::READ:
-        return "Read";
-    case OpType::WRITE:
-        return "Write";
-    case OpType::READ_SNAP:
-        return "ReadSnapshot";
-    case OpType::DELETE_SNAP:
-        return "DeleteSnapshot";
-    case OpType::CREATE_CLONE:
-        return "CreateCloneChunk";
-    case OpType::RECOVER_CHUNK:
-        return "RecoverChunk";
-    case OpType::GET_CHUNK_INFO:
-        return "GetChunkInfo";
-    case OpType::DISCARD:
-        return "Discard";
-    case OpType::UNKNOWN:
-    default:
-        return "Unknown";
+        case OpType::READ:
+            return "Read";
+        case OpType::WRITE:
+            return "Write";
+        case OpType::READ_SNAP:
+            return "ReadSnapshot";
+        case OpType::DELETE_SNAP:
+            return "DeleteSnapshot";
+        case OpType::CREATE_CLONE:
+            return "CreateCloneChunk";
+        case OpType::RECOVER_CHUNK:
+            return "RecoverChunk";
+        case OpType::GET_CHUNK_INFO:
+            return "GetChunkInfo";
+        case OpType::DISCARD:
+            return "Discard";
+        case OpType::UNKNOWN:
+        default:
+            return "Unknown";
     }
 }
 
@@ -279,16 +279,14 @@ class SnapCloneClosure : public google::protobuf::Closure {
 
 class ClientDummyServerInfo {
  public:
-    static ClientDummyServerInfo &GetInstance() {
+    static ClientDummyServerInfo& GetInstance() {
         static ClientDummyServerInfo clientInfo;
         return clientInfo;
     }
 
-    void SetIP(const std::string &ip) { localIP_ = ip; }
+    void SetIP(const std::string& ip) { localIP_ = ip; }
 
-    std::string GetIP() const {
-        return localIP_;
-    }
+    std::string GetIP() const { return localIP_; }
 
     void SetPort(uint32_t port) { localPort_ = port; }
 
@@ -309,22 +307,22 @@ class ClientDummyServerInfo {
 
 inline void TrivialDeleter(void*) {}
 
-inline const char *FileStatusToName(FileStatus status) {
+inline const char* FileStatusToName(FileStatus status) {
     switch (status) {
-    case FileStatus::Created:
-        return "Created";
-    case FileStatus::Deleting:
-        return "Deleting";
-    case FileStatus::Cloning:
-        return "Cloning";
-    case FileStatus::CloneMetaInstalled:
-        return "CloneMetaInstalled";
-    case FileStatus::Cloned:
-        return "Cloned";
-    case FileStatus::BeingCloned:
-        return "BeingCloned";
-    default:
-        return "Unknown";
+        case FileStatus::Created:
+            return "Created";
+        case FileStatus::Deleting:
+            return "Deleting";
+        case FileStatus::Cloning:
+            return "Cloning";
+        case FileStatus::CloneMetaInstalled:
+            return "CloneMetaInstalled";
+        case FileStatus::Cloned:
+            return "Cloned";
+        case FileStatus::BeingCloned:
+            return "BeingCloned";
+        default:
+            return "Unknown";
     }
 }
 
@@ -359,7 +357,7 @@ struct CreateFileContext {
     std::string poolset;
 };
 
-}   // namespace client
-}   // namespace curve
+}  // namespace client
+}  // namespace curve
 
 #endif  // SRC_CLIENT_CLIENT_COMMON_H_

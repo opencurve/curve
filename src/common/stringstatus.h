@@ -20,28 +20,28 @@
  * Author: lixiaocui
  */
 
-
-#ifndef  SRC_COMMON_STRINGSTATUS_H_
-#define  SRC_COMMON_STRINGSTATUS_H_
+#ifndef SRC_COMMON_STRINGSTATUS_H_
+#define SRC_COMMON_STRINGSTATUS_H_
 
 #include <bvar/bvar.h>
-#include <string>
+
 #include <map>
+#include <string>
 
 namespace curve {
 namespace common {
 class StringStatus {
  public:
     /**
-     * @brief ExposeAs 用于初始化bvar
+     * @brief ExposeAs: Used to initialize bvar
      *
-     * @param[in] prefix, 前缀
-     * @param[in] name, 名字
+     * @param[in] prefix: Prefix
+     * @param[in] name: Name
      */
-    void ExposeAs(const std::string &prefix, const std::string &name);
+    void ExposeAs(const std::string& prefix, const std::string& name);
 
     /**
-     * @brief Set 设置每项key-value信息
+     * @brief Set: sets the key-value information for each item
      *
      * @param[in] key
      * @param[in] value
@@ -49,30 +49,31 @@ class StringStatus {
     void Set(const std::string& key, const std::string& value);
 
     /**
-     * @brief Update 把当前key-value map中的键值对以json string的形式设置到status中 //NOLINT
+     * @brief Update: Sets the key-value pairs in the current // NOLINT
+     *        key-value map to status as JSON strings         // NOLINT
      */
     void Update();
 
     /**
-     * @brief GetValueByKey 获取指定key对应的value
+     * @brief GetValueByKey: Get the value corresponding to the specified key
      *
-     * @param[in] key 指定key
+     * @param[in] key: Specify the key
      */
-    std::string GetValueByKey(const std::string &key);
+    std::string GetValueByKey(const std::string& key);
 
     /**
-     * @brief JsonBody 获取当前key-value map对应的json形式字符串
+     * @brief JsonBody: obtains the JSON format string corresponding to the
+     *        current key-value map
      */
     std::string JsonBody();
 
  private:
-    // 需要导出的结构体的key-value map
+    // The key-value map of the structure to be exported
     std::map<std::string, std::string> kvs_;
-    // 该导出项对应的status
+    // The status corresponding to the exported item
     bvar::Status<std::string> status_;
 };
 }  // namespace common
 }  // namespace curve
 
 #endif  // SRC_COMMON_STRINGSTATUS_H_
-

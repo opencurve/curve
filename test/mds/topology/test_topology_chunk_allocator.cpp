@@ -20,30 +20,28 @@
  * Author: xuchaojie
  */
 
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include <memory>
 
-
-#include "src/mds/topology/topology_chunk_allocator.h"
-#include "src/mds/common/mds_define.h"
-#include "test/mds/topology/mock_topology.h"
-#include "test/mds/mock/mock_topology.h"
 #include "proto/nameserver2.pb.h"
 #include "src/common/timeutility.h"
+#include "src/mds/common/mds_define.h"
+#include "src/mds/topology/topology_chunk_allocator.h"
 #include "test/mds/mock/mock_alloc_statistic.h"
+#include "test/mds/mock/mock_topology.h"
+#include "test/mds/topology/mock_topology.h"
 
 namespace curve {
 namespace mds {
 namespace topology {
 
-using ::testing::Return;
 using ::testing::_;
 using ::testing::AnyOf;
-using ::testing::SetArgPointee;
 using ::testing::Invoke;
-
+using ::testing::Return;
+using ::testing::SetArgPointee;
 
 class TestTopologyChunkAllocator : public ::testing::Test {
  protected:
@@ -54,21 +52,17 @@ class TestTopologyChunkAllocator : public ::testing::Test {
         tokenGenerator_ = std::make_shared<MockTokenGenerator>();
         storage_ = std::make_shared<MockStorage>();
         topology_ = std::make_shared<TopologyImpl>(idGenerator_,
-                                               tokenGenerator_,
-                                               storage_);
+                                                   tokenGenerator_, storage_);
         TopologyOption option;
         topoStat_ = std::make_shared<TopologyStatImpl>(topology_);
-        chunkFilePoolAllocHelp_ =
-                std::make_shared<ChunkFilePoolAllocHelp>();
+        chunkFilePoolAllocHelp_ = std::make_shared<ChunkFilePoolAllocHelp>();
         chunkFilePoolAllocHelp_->UpdateChunkFilePoolAllocConfig(true, true, 15);
         option.PoolUsagePercentLimit = 85;
         option.enableLogicalPoolStatus = true;
         allocStatistic_ = std::make_shared<MockAllocStatistic>();
-        testObj_ = std::make_shared<TopologyChunkAllocatorImpl>(topology_,
-        allocStatistic_,
-        topoStat_,
-        chunkFilePoolAllocHelp_,
-        option);
+        testObj_ = std::make_shared<TopologyChunkAllocatorImpl>(
+            topology_, allocStatistic_, topoStat_, chunkFilePoolAllocHelp_,
+            option);
     }
 
     virtual void TearDown() {
@@ -85,53 +79,37 @@ class TestTopologyChunkAllocator : public ::testing::Test {
                            const std::string& type = "SSD",
                            const std::string& desc = "descPoolset") {
         Poolset poolset(pid, name, type, desc);
-        EXPECT_CALL(*storage_, StoragePoolset(_))
-            .WillOnce(Return(true));
+        EXPECT_CALL(*storage_, StoragePoolset(_)).WillOnce(Return(true));
 
         int ret = topology_->AddPoolset(poolset);
         ASSERT_EQ(kTopoErrCodeSuccess, ret);
     }
 
-    void PrepareAddLogicalPool(PoolIdType id = 0x01,
-            const std::string &name = "testLogicalPool",
-            PoolIdType phyPoolId = 0x11,
-            LogicalPoolType  type = PAGEFILE,
-            const LogicalPool::RedundanceAndPlaceMentPolicy &rap =
-                LogicalPool::RedundanceAndPlaceMentPolicy(),
-            const LogicalPool::UserPolicy &policy = LogicalPool::UserPolicy(),
-            uint64_t createTime = 0x888
-            ) {
-        LogicalPool pool(id,
-                name,
-                phyPoolId,
-                type,
-                rap,
-                policy,
-                createTime,
-                true,
-                true);
+    void PrepareAddLogicalPool(
+        PoolIdType id = 0x01, const std::string& name = "testLogicalPool",
+        PoolIdType phyPoolId = 0x11, LogicalPoolType type = PAGEFILE,
+        const LogicalPool::RedundanceAndPlaceMentPolicy& rap =
+            LogicalPool::RedundanceAndPlaceMentPolicy(),
+        const LogicalPool::UserPolicy& policy = LogicalPool::UserPolicy(),
+        uint64_t createTime = 0x888) {
+        LogicalPool pool(id, name, phyPoolId, type, rap, policy, createTime,
+                         true, true);
 
-        EXPECT_CALL(*storage_, StorageLogicalPool(_))
-            .WillOnce(Return(true));
+        EXPECT_CALL(*storage_, StorageLogicalPool(_)).WillOnce(Return(true));
 
         int ret = topology_->AddLogicalPool(pool);
         ASSERT_EQ(kTopoErrCodeSuccess, ret)
             << "should have PrepareAddPhysicalPool()";
     }
 
-
     void PrepareAddPhysicalPool(PoolIdType id = 0x11,
-                 const std::string &name = "testPhysicalPool",
-                 PoolsetIdType pid = 0x61,
-                 const std::string &desc = "descPhysicalPool",
-                 uint64_t diskCapacity = 10240) {
-        PhysicalPool pool(id,
-                name,
-                pid,
-                desc);
+                                const std::string& name = "testPhysicalPool",
+                                PoolsetIdType pid = 0x61,
+                                const std::string& desc = "descPhysicalPool",
+                                uint64_t diskCapacity = 10240) {
+        PhysicalPool pool(id, name, pid, desc);
         pool.SetDiskCapacity(diskCapacity);
-        EXPECT_CALL(*storage_, StoragePhysicalPool(_))
-            .WillOnce(Return(true));
+        EXPECT_CALL(*storage_, StoragePhysicalPool(_)).WillOnce(Return(true));
 
         int ret = topology_->AddPhysicalPool(pool);
         ASSERT_EQ(kTopoErrCodeSuccess, ret)
@@ -139,78 +117,56 @@ class TestTopologyChunkAllocator : public ::testing::Test {
     }
 
     void PrepareAddZone(ZoneIdType id = 0x21,
-            const std::string &name = "testZone",
-            PoolIdType physicalPoolId = 0x11,
-            const std::string &desc = "descZone") {
+                        const std::string& name = "testZone",
+                        PoolIdType physicalPoolId = 0x11,
+                        const std::string& desc = "descZone") {
         Zone zone(id, name, physicalPoolId, desc);
-        EXPECT_CALL(*storage_, StorageZone(_))
-            .WillOnce(Return(true));
+        EXPECT_CALL(*storage_, StorageZone(_)).WillOnce(Return(true));
         int ret = topology_->AddZone(zone);
-        ASSERT_EQ(kTopoErrCodeSuccess, ret) <<
-            "should have PrepareAddPhysicalPool()";
+        ASSERT_EQ(kTopoErrCodeSuccess, ret)
+            << "should have PrepareAddPhysicalPool()";
     }
 
     void PrepareAddServer(ServerIdType id = 0x31,
-           const std::string &hostName = "testServer",
-           const std::string &internalHostIp = "testInternalIp",
-           const std::string &externalHostIp = "testExternalIp",
-           ZoneIdType zoneId = 0x21,
-           PoolIdType physicalPoolId = 0x11,
-           const std::string &desc = "descServer") {
-        Server server(id,
-                hostName,
-                internalHostIp,
-                0,
-                externalHostIp,
-                0,
-                zoneId,
-                physicalPoolId,
-                desc);
-        EXPECT_CALL(*storage_, StorageServer(_))
-            .WillOnce(Return(true));
+                          const std::string& hostName = "testServer",
+                          const std::string& internalHostIp = "testInternalIp",
+                          const std::string& externalHostIp = "testExternalIp",
+                          ZoneIdType zoneId = 0x21,
+                          PoolIdType physicalPoolId = 0x11,
+                          const std::string& desc = "descServer") {
+        Server server(id, hostName, internalHostIp, 0, externalHostIp, 0,
+                      zoneId, physicalPoolId, desc);
+        EXPECT_CALL(*storage_, StorageServer(_)).WillOnce(Return(true));
         int ret = topology_->AddServer(server);
         ASSERT_EQ(kTopoErrCodeSuccess, ret) << "should have PrepareAddZone()";
     }
 
-    void PrepareAddChunkServer(ChunkServerIdType id = 0x41,
-                const std::string &token = "testToken",
-                const std::string &diskType = "nvme",
-                ServerIdType serverId = 0x31,
-                const std::string &hostIp = "testInternalIp",
-                uint32_t port = 0,
-                const std::string &diskPath = "/",
-                uint64_t diskUsed = 512,
-                uint64_t diskCapacity = 1024) {
-            ChunkServer cs(id,
-                    token,
-                    diskType,
-                    serverId,
-                    hostIp,
-                    port,
-                    diskPath);
-            ChunkServerState state;
-            state.SetDiskCapacity(diskCapacity);
-            state.SetDiskUsed(diskUsed);
-            cs.SetChunkServerState(state);
-            EXPECT_CALL(*storage_, StorageChunkServer(_))
-                .WillOnce(Return(true));
+    void PrepareAddChunkServer(
+        ChunkServerIdType id = 0x41, const std::string& token = "testToken",
+        const std::string& diskType = "nvme", ServerIdType serverId = 0x31,
+        const std::string& hostIp = "testInternalIp", uint32_t port = 0,
+        const std::string& diskPath = "/", uint64_t diskUsed = 512,
+        uint64_t diskCapacity = 1024) {
+        ChunkServer cs(id, token, diskType, serverId, hostIp, port, diskPath);
+        ChunkServerState state;
+        state.SetDiskCapacity(diskCapacity);
+        state.SetDiskUsed(diskUsed);
+        cs.SetChunkServerState(state);
+        EXPECT_CALL(*storage_, StorageChunkServer(_)).WillOnce(Return(true));
         int ret = topology_->AddChunkServer(cs);
         ChunkServerStat stat;
-        stat.chunkFilepoolSize = diskCapacity-diskUsed;
+        stat.chunkFilepoolSize = diskCapacity - diskUsed;
         topoStat_->UpdateChunkServerStat(id, stat);
         ASSERT_EQ(kTopoErrCodeSuccess, ret) << "should have PrepareAddServer()";
     }
 
-    void PrepareAddCopySet(CopySetIdType copysetId,
-        PoolIdType logicalPoolId,
-        const std::set<ChunkServerIdType> &members,
-        bool availFlag = true) {
-        CopySetInfo cs(logicalPoolId,
-            copysetId);
+    void PrepareAddCopySet(CopySetIdType copysetId, PoolIdType logicalPoolId,
+                           const std::set<ChunkServerIdType>& members,
+                           bool availFlag = true) {
+        CopySetInfo cs(logicalPoolId, copysetId);
         cs.SetCopySetMembers(members);
         cs.SetAvailableFlag(availFlag);
-        EXPECT_CALL(*storage_, StorageCopySet(_))
-            .WillOnce(Return(true));
+        EXPECT_CALL(*storage_, StorageCopySet(_)).WillOnce(Return(true));
         int ret = topology_->AddCopySet(cs);
         ASSERT_EQ(kTopoErrCodeSuccess, ret)
             << "should have PrepareAddLogicalPool()";
@@ -228,7 +184,7 @@ class TestTopologyChunkAllocator : public ::testing::Test {
 };
 
 TEST_F(TestTopologyChunkAllocator,
-    Test_AllocateChunkRandomInSingleLogicalPool_success) {
+       Test_AllocateChunkRandomInSingleLogicalPool_success) {
     std::vector<CopysetIdInfo> infos;
 
     PrepareAddPoolset();
@@ -247,7 +203,7 @@ TEST_F(TestTopologyChunkAllocator,
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
     PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId,
-        PAGEFILE);
+                          PAGEFILE);
     std::set<ChunkServerIdType> replicas;
     replicas.insert(0x41);
     replicas.insert(0x42);
@@ -258,12 +214,8 @@ TEST_F(TestTopologyChunkAllocator,
     EXPECT_CALL(*allocStatistic_, GetAllocByLogicalPool(_, _))
         .WillRepeatedly(Return(true));
 
-    bool ret =
-        testObj_->AllocateChunkRandomInSingleLogicalPool(INODE_PAGEFILE,
-            "testPoolset",
-            2,
-            1024,
-            &infos);
+    bool ret = testObj_->AllocateChunkRandomInSingleLogicalPool(
+        INODE_PAGEFILE, "testPoolset", 2, 1024, &infos);
 
     ASSERT_TRUE(ret);
 
@@ -275,20 +227,16 @@ TEST_F(TestTopologyChunkAllocator,
 }
 
 TEST_F(TestTopologyChunkAllocator,
-    Test_AllocateChunkRandomInSingleLogicalPool_logicalPoolNotFound) {
+       Test_AllocateChunkRandomInSingleLogicalPool_logicalPoolNotFound) {
     std::vector<CopysetIdInfo> infos;
-    bool ret =
-        testObj_->AllocateChunkRandomInSingleLogicalPool(INODE_PAGEFILE,
-            "testPoolset",
-            1,
-            1024,
-            &infos);
+    bool ret = testObj_->AllocateChunkRandomInSingleLogicalPool(
+        INODE_PAGEFILE, "testPoolset", 1, 1024, &infos);
 
     ASSERT_FALSE(ret);
 }
 
 TEST_F(TestTopologyChunkAllocator,
-    Test_AllocateChunkRandomInSingleLogicalPool_shouldfail) {
+       Test_AllocateChunkRandomInSingleLogicalPool_shouldfail) {
     std::vector<CopysetIdInfo> infos;
 
     PoolIdType logicalPoolId = 0x01;
@@ -304,7 +252,7 @@ TEST_F(TestTopologyChunkAllocator,
     PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
     PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
     PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId,
-        PAGEFILE);
+                          PAGEFILE);
     std::set<ChunkServerIdType> replicas;
     replicas.insert(0x41);
     replicas.insert(0x42);
@@ -315,12 +263,8 @@ TEST_F(TestTopologyChunkAllocator,
     EXPECT_CALL(*allocStatistic_, GetAllocByLogicalPool(_, _))
         .WillRepeatedly(Return(true));
 
-    bool ret =
-        testObj_->AllocateChunkRandomInSingleLogicalPool(INODE_PAGEFILE,
-            "testPoolset",
-            2,
-            1024,
-            &infos);
+    bool ret = testObj_->AllocateChunkRandomInSingleLogicalPool(
+        INODE_PAGEFILE, "testPoolset", 2, 1024, &infos);
 
     ASSERT_FALSE(ret);
 
@@ -328,12 +272,8 @@ TEST_F(TestTopologyChunkAllocator,
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
 
-        ret =
-    testObj_->AllocateChunkRandomInSingleLogicalPool(INODE_PAGEFILE,
-        "testPoolset",
-        2,
-        1024,
-        &infos);
+    ret = testObj_->AllocateChunkRandomInSingleLogicalPool(
+        INODE_PAGEFILE, "testPoolset", 2, 1024, &infos);
 
     ASSERT_TRUE(ret);
 
@@ -343,18 +283,14 @@ TEST_F(TestTopologyChunkAllocator,
     topoStat_->UpdateChunkServerStat(0x42, stat);
     topoStat_->UpdateChunkServerStat(0x43, stat);
 
-        ret =
-    testObj_->AllocateChunkRandomInSingleLogicalPool(INODE_PAGEFILE,
-        "testPoolset",
-        2,
-        1024,
-        &infos);
+    ret = testObj_->AllocateChunkRandomInSingleLogicalPool(
+        INODE_PAGEFILE, "testPoolset", 2, 1024, &infos);
 
     ASSERT_FALSE(ret);
 }
 
 TEST_F(TestTopologyChunkAllocator,
-    Test_GetRemainingSpaceInLogicalPool_UseChunkFilePool) {
+       Test_GetRemainingSpaceInLogicalPool_UseChunkFilePool) {
     std::vector<CopysetIdInfo> infos;
 
     PoolIdType logicalPoolId = 0x01;
@@ -370,7 +306,7 @@ TEST_F(TestTopologyChunkAllocator,
     PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
     PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
     PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId,
-        PAGEFILE);
+                          PAGEFILE);
     std::set<ChunkServerIdType> replicas;
     replicas.insert(0x41);
     replicas.insert(0x42);
@@ -385,16 +321,16 @@ TEST_F(TestTopologyChunkAllocator,
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
     std::map<PoolIdType, double> enoughsize;
-    std::vector<PoolIdType> pools ={0x01};
+    std::vector<PoolIdType> pools = {0x01};
     for (int i = 0; i < 10; i++) {
-        testObj_->GetRemainingSpaceInLogicalPool(pools,
-                                                 &enoughsize, "testPoolset");
+        testObj_->GetRemainingSpaceInLogicalPool(pools, &enoughsize,
+                                                 "testPoolset");
         ASSERT_EQ(enoughsize[logicalPoolId], 1109);
     }
 }
 
 TEST_F(TestTopologyChunkAllocator,
-    Test_AllocateChunkRoundRobinInSingleLogicalPool_success) {
+       Test_AllocateChunkRoundRobinInSingleLogicalPool_success) {
     std::vector<CopysetIdInfo> infos;
 
     PrepareAddPoolset();
@@ -412,7 +348,7 @@ TEST_F(TestTopologyChunkAllocator,
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
     PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId,
-        PAGEFILE);
+                          PAGEFILE);
     std::set<ChunkServerIdType> replicas;
     replicas.insert(0x41);
     replicas.insert(0x42);
@@ -423,16 +359,11 @@ TEST_F(TestTopologyChunkAllocator,
     PrepareAddCopySet(0x54, logicalPoolId, replicas);
     PrepareAddCopySet(0x55, logicalPoolId, replicas);
 
-
     EXPECT_CALL(*allocStatistic_, GetAllocByLogicalPool(_, _))
         .WillRepeatedly(Return(true));
 
-    bool ret =
-        testObj_->AllocateChunkRoundRobinInSingleLogicalPool(INODE_PAGEFILE,
-            "testPoolset",
-            3,
-            1024,
-            &infos);
+    bool ret = testObj_->AllocateChunkRoundRobinInSingleLogicalPool(
+        INODE_PAGEFILE, "testPoolset", 3, 1024, &infos);
 
     ASSERT_TRUE(ret);
 
@@ -443,12 +374,8 @@ TEST_F(TestTopologyChunkAllocator,
 
     // second time
     std::vector<CopysetIdInfo> infos2;
-    ret =
-        testObj_->AllocateChunkRoundRobinInSingleLogicalPool(INODE_PAGEFILE,
-            "testPoolset",
-            3,
-            1024,
-            &infos2);
+    ret = testObj_->AllocateChunkRoundRobinInSingleLogicalPool(
+        INODE_PAGEFILE, "testPoolset", 3, 1024, &infos2);
 
     ASSERT_TRUE(ret);
 
@@ -493,20 +420,16 @@ TEST_F(TestTopologyChunkAllocator,
 }
 
 TEST_F(TestTopologyChunkAllocator,
-    Test_AllocateChunkRoundRobinInSingleLogicalPool_logicalPoolNotFound) {
+       Test_AllocateChunkRoundRobinInSingleLogicalPool_logicalPoolNotFound) {
     std::vector<CopysetIdInfo> infos;
-    bool ret =
-        testObj_->AllocateChunkRoundRobinInSingleLogicalPool(INODE_PAGEFILE,
-            "testPoolset",
-            1,
-            1024,
-            &infos);
+    bool ret = testObj_->AllocateChunkRoundRobinInSingleLogicalPool(
+        INODE_PAGEFILE, "testPoolset", 1, 1024, &infos);
 
     ASSERT_FALSE(ret);
 }
 
 TEST_F(TestTopologyChunkAllocator,
-    Test_AllocateChunkRoundRobinInSingleLogicalPool_copysetEmpty) {
+       Test_AllocateChunkRoundRobinInSingleLogicalPool_copysetEmpty) {
     std::vector<CopysetIdInfo> infos;
     PrepareAddPoolset();
     PoolIdType logicalPoolId = 0x01;
@@ -514,18 +437,14 @@ TEST_F(TestTopologyChunkAllocator,
 
     PrepareAddPhysicalPool(physicalPoolId);
     PrepareAddLogicalPool(logicalPoolId);
-    bool ret =
-        testObj_->AllocateChunkRoundRobinInSingleLogicalPool(INODE_PAGEFILE,
-            "testPoolset",
-            1,
-            1024,
-            &infos);
+    bool ret = testObj_->AllocateChunkRoundRobinInSingleLogicalPool(
+        INODE_PAGEFILE, "testPoolset", 1, 1024, &infos);
 
     ASSERT_FALSE(ret);
 }
 
 TEST_F(TestTopologyChunkAllocator,
-    Test_AllocateChunkRoundRobinInSingleLogicalPool_logicalPoolIsDENY) {
+       Test_AllocateChunkRoundRobinInSingleLogicalPool_logicalPoolIsDENY) {
     std::vector<CopysetIdInfo> infos;
     PrepareAddPoolset();
     PoolIdType logicalPoolId = 0x01;
@@ -542,7 +461,7 @@ TEST_F(TestTopologyChunkAllocator,
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
     PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId,
-        PAGEFILE);
+                          PAGEFILE);
     std::set<ChunkServerIdType> replicas;
     replicas.insert(0x41);
     replicas.insert(0x42);
@@ -553,27 +472,23 @@ TEST_F(TestTopologyChunkAllocator,
     PrepareAddCopySet(0x54, logicalPoolId, replicas);
     PrepareAddCopySet(0x55, logicalPoolId, replicas);
 
-    EXPECT_CALL(*storage_, UpdateLogicalPool(_))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, UpdateLogicalPool(_)).WillOnce(Return(true));
 
-    topology_->UpdateLogicalPoolAllocateStatus(
-        AllocateStatus::DENY, logicalPoolId);
+    topology_->UpdateLogicalPoolAllocateStatus(AllocateStatus::DENY,
+                                               logicalPoolId);
 
     EXPECT_CALL(*allocStatistic_, GetAllocByLogicalPool(_, _))
         .WillRepeatedly(Return(true));
 
-    bool ret =
-        testObj_->AllocateChunkRoundRobinInSingleLogicalPool(INODE_PAGEFILE,
-            "testPoolset",
-            3,
-            1024,
-            &infos);
+    bool ret = testObj_->AllocateChunkRoundRobinInSingleLogicalPool(
+        INODE_PAGEFILE, "testPoolset", 3, 1024, &infos);
 
     ASSERT_FALSE(ret);
 }
 
 TEST(TestAllocateChunkPolicy, TestAllocateChunkRandomInSingleLogicalPoolPoc) {
-    // 2000个copyset分配100000次，每次分配64个chunk
+    // 2000 copysets are allocated 100000 times, with 64 chunks allocated each
+    // time
     std::vector<CopySetIdType> copySetIds;
     std::map<CopySetIdType, int> copySetMap;
     for (int i = 0; i < 2000; i++) {
@@ -584,12 +499,8 @@ TEST(TestAllocateChunkPolicy, TestAllocateChunkRandomInSingleLogicalPoolPoc) {
     for (int i = 0; i < 100000; i++) {
         int chunkNumber = 64;
         std::vector<CopysetIdInfo> infos;
-        bool ret =
-            AllocateChunkPolicy::AllocateChunkRandomInSingleLogicalPool(
-            copySetIds,
-            1,
-            chunkNumber,
-            &infos);
+        bool ret = AllocateChunkPolicy::AllocateChunkRandomInSingleLogicalPool(
+            copySetIds, 1, chunkNumber, &infos);
         ASSERT_TRUE(ret);
         ASSERT_EQ(chunkNumber, infos.size());
         for (int j = 0; j < chunkNumber; j++) {
@@ -598,7 +509,7 @@ TEST(TestAllocateChunkPolicy, TestAllocateChunkRandomInSingleLogicalPoolPoc) {
     }
     int minCount = copySetMap[0];
     int maxCount = copySetMap[0];
-    for (auto &pair : copySetMap) {
+    for (auto& pair : copySetMap) {
         if (pair.second > maxCount) {
             maxCount = pair.second;
         }
@@ -610,10 +521,8 @@ TEST(TestAllocateChunkPolicy, TestAllocateChunkRandomInSingleLogicalPoolPoc) {
     double minPercent = static_cast<double>(avg - minCount) / avg;
     double maxPercent = static_cast<double>(maxCount - avg) / avg;
     LOG(INFO) << "AllocateChunkRandomInSingleLogicalPool poc"
-              <<", minCount = " << minCount
-              <<", maxCount = " << maxCount
-              << ", avg = " << avg
-              << ", minPercent = " << minPercent
+              << ", minCount = " << minCount << ", maxCount = " << maxCount
+              << ", avg = " << avg << ", minPercent = " << minPercent
               << ", maxPercent = " << maxPercent;
 
     ASSERT_TRUE(minPercent < 0.1);
@@ -621,7 +530,8 @@ TEST(TestAllocateChunkPolicy, TestAllocateChunkRandomInSingleLogicalPoolPoc) {
 }
 
 TEST(TestAllocateChunkPolicy, TestAllocateChunkRandomInSingleLogicalPoolTps) {
-    // 2000个copyset分配100000次，每次分配64个chunk
+    // 2000 copysets are allocated 100000 times,
+    // with 64 chunks allocated each time
     std::vector<CopySetIdType> copySetIds;
     for (int i = 0; i < 2000; i++) {
         copySetIds.push_back(i);
@@ -632,23 +542,19 @@ TEST(TestAllocateChunkPolicy, TestAllocateChunkRandomInSingleLogicalPoolTps) {
         int chunkNumber = 64;
         std::vector<CopysetIdInfo> infos;
         AllocateChunkPolicy::AllocateChunkRandomInSingleLogicalPool(
-        copySetIds,
-        1,
-        chunkNumber,
-        &infos);
+            copySetIds, 1, chunkNumber, &infos);
     }
     uint64_t stoptime = curve::common::TimeUtility::GetTimeofDayUs();
 
     double usetime = stoptime - startime;
-    double tps = 1000000.0 * 100000.0/usetime;
+    double tps = 1000000.0 * 100000.0 / usetime;
 
-    std::cout << "TestAllocateChunkRandomInSingleLogicalPool, TPS = "
-              << tps
+    std::cout << "TestAllocateChunkRandomInSingleLogicalPool, TPS = " << tps
               << " * 64 chunk per second.";
 }
 
 TEST(TestAllocateChunkPolicy,
-    TestAllocateChunkRoundRobinInSingleLogicalPoolSuccess) {
+     TestAllocateChunkRoundRobinInSingleLogicalPoolSuccess) {
     std::vector<CopySetIdType> copySetIds;
     std::map<CopySetIdType, int> copySetMap;
     for (int i = 0; i < 20; i++) {
@@ -657,13 +563,8 @@ TEST(TestAllocateChunkPolicy,
     uint32_t nextIndex = 15;
     int chunkNumber = 10;
     std::vector<CopysetIdInfo> infos;
-    bool ret =
-        AllocateChunkPolicy::AllocateChunkRoundRobinInSingleLogicalPool(
-        copySetIds,
-        1,
-        &nextIndex,
-        chunkNumber,
-        &infos);
+    bool ret = AllocateChunkPolicy::AllocateChunkRoundRobinInSingleLogicalPool(
+        copySetIds, 1, &nextIndex, chunkNumber, &infos);
     ASSERT_TRUE(ret);
     ASSERT_EQ(5, nextIndex);
     ASSERT_EQ(chunkNumber, infos.size());
@@ -680,26 +581,20 @@ TEST(TestAllocateChunkPolicy,
 }
 
 TEST(TestAllocateChunkPolicy,
-    TestAllocateChunkRoundRobinInSingleLogicalPoolEmpty) {
+     TestAllocateChunkRoundRobinInSingleLogicalPoolEmpty) {
     std::vector<CopySetIdType> copySetIds;
     std::map<CopySetIdType, int> copySetMap;
     uint32_t nextIndex = 15;
     int chunkNumber = 10;
     std::vector<CopysetIdInfo> infos;
-    bool ret =
-        AllocateChunkPolicy::AllocateChunkRoundRobinInSingleLogicalPool(
-        copySetIds,
-        1,
-        &nextIndex,
-        chunkNumber,
-        &infos);
+    bool ret = AllocateChunkPolicy::AllocateChunkRoundRobinInSingleLogicalPool(
+        copySetIds, 1, &nextIndex, chunkNumber, &infos);
     ASSERT_FALSE(ret);
     ASSERT_EQ(15, nextIndex);
     ASSERT_EQ(0, infos.size());
 }
 
-TEST(TestAllocateChunkPolicy,
-    TestChooseSingleLogicalPoolByWeightPoc) {
+TEST(TestAllocateChunkPolicy, TestChooseSingleLogicalPoolByWeightPoc) {
     std::map<PoolIdType, double> poolWeightMap;
     std::map<PoolIdType, int> poolMap;
     for (int i = 0; i < 5; i++) {
@@ -709,8 +604,8 @@ TEST(TestAllocateChunkPolicy,
 
     for (int i = 0; i < 100000; i++) {
         PoolIdType pid;
-        AllocateChunkPolicy::ChooseSingleLogicalPoolByWeight(
-            poolWeightMap, &pid);
+        AllocateChunkPolicy::ChooseSingleLogicalPoolByWeight(poolWeightMap,
+                                                             &pid);
         poolMap[pid]++;
     }
 
@@ -719,7 +614,8 @@ TEST(TestAllocateChunkPolicy,
     ASSERT_TRUE(poolMap[1] < poolMap[2]);
     ASSERT_TRUE(poolMap[2] < poolMap[3]);
     ASSERT_TRUE(poolMap[3] < poolMap[4]);
-    // 5个池大概分布因该是0, 10000，20000，30000，40000
+    // The approximate distribution of 5 pools should be
+    // 0, 10000, 20000, 30000, 40000
     LOG(INFO) << "pool0 : " << poolMap[0] << std::endl
               << "pool1 : " << poolMap[1] << std::endl
               << "pool2 : " << poolMap[2] << std::endl
@@ -727,8 +623,7 @@ TEST(TestAllocateChunkPolicy,
               << "pool4 : " << poolMap[4] << std::endl;
 }
 
-TEST(TestAllocateChunkPolicy,
-    TestChooseSingleLogicalPoolByWeightPoc2) {
+TEST(TestAllocateChunkPolicy, TestChooseSingleLogicalPoolByWeightPoc2) {
     std::map<PoolIdType, double> poolMap;
     poolMap[0] = 100000;
     poolMap[1] = 90000;
@@ -738,12 +633,11 @@ TEST(TestAllocateChunkPolicy,
 
     for (int i = 0; i < 100000; i++) {
         PoolIdType pid;
-        AllocateChunkPolicy::ChooseSingleLogicalPoolByWeight(
-            poolMap, &pid);
+        AllocateChunkPolicy::ChooseSingleLogicalPoolByWeight(poolMap, &pid);
         poolMap[pid] -= 1;
     }
 
-    // 测试是否能逐渐拉平pool之间差距
+    // Test to see if it is possible to gradually equalize the gap between pools
     LOG(INFO) << "pool0 : " << poolMap[0] << std::endl
               << "pool1 : " << poolMap[1] << std::endl
               << "pool2 : " << poolMap[2] << std::endl
@@ -751,9 +645,8 @@ TEST(TestAllocateChunkPolicy,
               << "pool4 : " << poolMap[4] << std::endl;
 }
 
-// 测试能否随机到每个pool
-TEST(TestAllocateChunkPolicy,
-    TestChooseSingleLogicalPoolRandom) {
+// Test to see if random allocation to each pool is possible
+TEST(TestAllocateChunkPolicy, TestChooseSingleLogicalPoolRandom) {
     std::vector<PoolIdType> pools = {1, 2, 3, 4, 5};
     std::map<PoolIdType, int> allocMap;
     allocMap[1] = 0;

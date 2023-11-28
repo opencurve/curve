@@ -48,8 +48,8 @@ int VersionTool::GetAndCheckMdsVersion(std::string* version,
     return ret;
 }
 
-int VersionTool::GetAndCheckChunkServerVersion(std::string* version,
-                                        std::vector<std::string>* failedList) {
+int VersionTool::GetAndCheckChunkServerVersion(
+    std::string* version, std::vector<std::string>* failedList) {
     std::vector<ChunkServerInfo> chunkServers;
     int res = mdsClient_->ListChunkServersInCluster(&chunkServers);
     if (res != 0) {
@@ -78,8 +78,8 @@ int VersionTool::GetAndCheckChunkServerVersion(std::string* version,
     return ret;
 }
 
-int VersionTool::GetAndCheckSnapshotCloneVersion(std::string* version,
-                                        std::vector<std::string>* failedList) {
+int VersionTool::GetAndCheckSnapshotCloneVersion(
+    std::string* version, std::vector<std::string>* failedList) {
     const auto& dummyServerMap = snapshotClient_->GetDummyServerMap();
     std::vector<std::string> dummyServers;
     for (const auto& item : dummyServerMap) {
@@ -123,9 +123,8 @@ void VersionTool::FetchClientProcessMap(const std::vector<std::string>& addrVec,
                                         ProcessMapType* processMap) {
     for (const auto& addr : addrVec) {
         std::string cmd;
-        MetricRet res = metricClient_->GetMetric(addr,
-                                            kProcessCmdLineMetricName,
-                                            &cmd);
+        MetricRet res =
+            metricClient_->GetMetric(addr, kProcessCmdLineMetricName, &cmd);
         if (res != MetricRet::kOK) {
             continue;
         }
@@ -156,10 +155,11 @@ void VersionTool::GetVersionMap(const std::vector<std::string>& addrVec,
     failedList->clear();
     for (const auto& addr : addrVec) {
         std::string version;
-        MetricRet res = metricClient_->GetMetric(addr, kCurveVersionMetricName,
-                                           &version);
+        MetricRet res =
+            metricClient_->GetMetric(addr, kCurveVersionMetricName, &version);
         if (res != MetricRet::kOK) {
-            // 0.0.5.2版本之前没有curve_version的metric，因此再判断一下
+            // Before version 0.0.5.2, there was no "curve_version" metric, so
+            // let's double-check.
             if (res == MetricRet::kNotFound) {
                 version = kOldVersion;
             } else {

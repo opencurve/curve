@@ -22,18 +22,18 @@
 #ifndef SRC_SNAPSHOTCLONESERVER_CLONE_CLONE_SERVICE_MANAGER_H_
 #define SRC_SNAPSHOTCLONESERVER_CLONE_CLONE_SERVICE_MANAGER_H_
 
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
 
+#include "src/common/concurrent/dlock.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/common/wait_interval.h"
+#include "src/snapshotcloneserver/clone/clone_closure.h"
 #include "src/snapshotcloneserver/clone/clone_core.h"
 #include "src/snapshotcloneserver/clone/clone_task.h"
 #include "src/snapshotcloneserver/clone/clone_task_manager.h"
-#include "src/common/snapshotclone/snapshotclone_define.h"
 #include "src/snapshotcloneserver/common/config.h"
-#include "src/snapshotcloneserver/clone/clone_closure.h"
-#include "src/common/concurrent/dlock.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -44,26 +44,16 @@ class TaskCloneInfo {
  public:
     TaskCloneInfo() = default;
 
-    TaskCloneInfo(const CloneInfo &cloneInfo,
-        uint32_t progress)
-        : cloneInfo_(cloneInfo),
-          cloneProgress_(progress) {}
+    TaskCloneInfo(const CloneInfo& cloneInfo, uint32_t progress)
+        : cloneInfo_(cloneInfo), cloneProgress_(progress) {}
 
-    void SetCloneInfo(const CloneInfo &cloneInfo) {
-        cloneInfo_ = cloneInfo;
-    }
+    void SetCloneInfo(const CloneInfo& cloneInfo) { cloneInfo_ = cloneInfo; }
 
-    CloneInfo GetCloneInfo() const {
-        return cloneInfo_;
-    }
+    CloneInfo GetCloneInfo() const { return cloneInfo_; }
 
-    void SetCloneProgress(uint32_t progress) {
-        cloneProgress_ = progress;
-    }
+    void SetCloneProgress(uint32_t progress) { cloneProgress_ = progress; }
 
-    uint32_t GetCloneProgress() const {
-        return cloneProgress_;
-    }
+    uint32_t GetCloneProgress() const { return cloneProgress_; }
 
     Json::Value ToJsonObj() const {
         Json::Value cloneTaskObj;
@@ -72,88 +62,76 @@ class TaskCloneInfo {
         cloneTaskObj["User"] = info.GetUser();
         cloneTaskObj["File"] = info.GetDest();
         cloneTaskObj["Src"] = info.GetSrc();
-        cloneTaskObj["TaskType"] = static_cast<int> (
-            info.GetTaskType());
-        cloneTaskObj["TaskStatus"] = static_cast<int> (
-            info.GetStatus());
+        cloneTaskObj["TaskType"] = static_cast<int>(info.GetTaskType());
+        cloneTaskObj["TaskStatus"] = static_cast<int>(info.GetStatus());
         cloneTaskObj["IsLazy"] = info.GetIsLazy();
-        cloneTaskObj["NextStep"] = static_cast<int> (info.GetNextStep());
+        cloneTaskObj["NextStep"] = static_cast<int>(info.GetNextStep());
         cloneTaskObj["Time"] = info.GetTime();
         cloneTaskObj["Progress"] = GetCloneProgress();
-        cloneTaskObj["FileType"] = static_cast<int> (info.GetFileType());
+        cloneTaskObj["FileType"] = static_cast<int>(info.GetFileType());
         return cloneTaskObj;
     }
 
-    void LoadFromJsonObj(const Json::Value &jsonObj) {
+    void LoadFromJsonObj(const Json::Value& jsonObj) {
         CloneInfo info;
         info.SetTaskId(jsonObj["UUID"].asString());
         info.SetUser(jsonObj["User"].asString());
         info.SetDest(jsonObj["File"].asString());
         info.SetSrc(jsonObj["Src"].asString());
-        info.SetTaskType(static_cast<CloneTaskType>(
-            jsonObj["TaskType"].asInt()));
-        info.SetStatus(static_cast<CloneStatus>(
-            jsonObj["TaskStatus"].asInt()));
+        info.SetTaskType(
+            static_cast<CloneTaskType>(jsonObj["TaskType"].asInt()));
+        info.SetStatus(static_cast<CloneStatus>(jsonObj["TaskStatus"].asInt()));
         info.SetIsLazy(jsonObj["IsLazy"].asBool());
         info.SetNextStep(static_cast<CloneStep>(jsonObj["NextStep"].asInt()));
         info.SetTime(jsonObj["Time"].asUInt64());
-        info.SetFileType(static_cast<CloneFileType>(
-            jsonObj["FileType"].asInt()));
+        info.SetFileType(
+            static_cast<CloneFileType>(jsonObj["FileType"].asInt()));
         SetCloneInfo(info);
     }
 
  private:
-     CloneInfo cloneInfo_;
-     uint32_t cloneProgress_;
+    CloneInfo cloneInfo_;
+    uint32_t cloneProgress_;
 };
 
 class CloneFilterCondition {
  public:
     CloneFilterCondition()
-                   : uuid_(nullptr),
-                    source_(nullptr),
-                    destination_(nullptr),
-                    user_(nullptr),
-                    status_(nullptr),
-                    type_(nullptr) {}
+        : uuid_(nullptr),
+          source_(nullptr),
+          destination_(nullptr),
+          user_(nullptr),
+          status_(nullptr),
+          type_(nullptr) {}
 
-    CloneFilterCondition(const std::string *uuid, const std::string *source,
-                        const std::string *destination, const std::string *user,
-                        const std::string *status, const std::string *type)
-                   : uuid_(uuid),
-                    source_(source),
-                    destination_(destination),
-                    user_(user),
-                    status_(status),
-                    type_(type) {}
-    bool IsMatchCondition(const CloneInfo &cloneInfo);
+    CloneFilterCondition(const std::string* uuid, const std::string* source,
+                         const std::string* destination,
+                         const std::string* user, const std::string* status,
+                         const std::string* type)
+        : uuid_(uuid),
+          source_(source),
+          destination_(destination),
+          user_(user),
+          status_(status),
+          type_(type) {}
+    bool IsMatchCondition(const CloneInfo& cloneInfo);
 
-    void SetUuid(const std::string *uuid) {
-        uuid_ = uuid;
-    }
-    void SetSource(const std::string *source) {
-        source_ = source;
-    }
-    void SetDestination(const std::string *destination) {
+    void SetUuid(const std::string* uuid) { uuid_ = uuid; }
+    void SetSource(const std::string* source) { source_ = source; }
+    void SetDestination(const std::string* destination) {
         destination_ = destination;
     }
-    void SetUser(const std::string *user) {
-        user_ = user;
-    }
-    void SetStatus(const std::string *status) {
-        status_ = status;
-    }
-    void SetType(const std::string *type) {
-        type_ = type;
-    }
+    void SetUser(const std::string* user) { user_ = user; }
+    void SetStatus(const std::string* status) { status_ = status; }
+    void SetType(const std::string* type) { type_ = type; }
 
  private:
-    const std::string *uuid_;
-    const std::string *source_;
-    const std::string *destination_;
-    const std::string *user_;
-    const std::string *status_;
-    const std::string *type_;
+    const std::string* uuid_;
+    const std::string* source_;
+    const std::string* destination_;
+    const std::string* user_;
+    const std::string* status_;
+    const std::string* type_;
 };
 class CloneServiceManagerBackend {
  public:
@@ -161,7 +139,8 @@ class CloneServiceManagerBackend {
     virtual ~CloneServiceManagerBackend() {}
 
     /**
-     * @brief 后台扫描线程执行函数，扫描克隆卷是否存在
+     * @brief Background scan thread execution function to scan for the
+     * existence of cloned volumes
      *
      */
     virtual void Func() = 0;
@@ -177,12 +156,9 @@ class CloneServiceManagerBackendImpl : public CloneServiceManagerBackend {
  public:
     explicit CloneServiceManagerBackendImpl(
         std::shared_ptr<CloneCore> cloneCore)
-          : cloneCore_(cloneCore),
-            isStop_(true) {
-    }
+        : cloneCore_(cloneCore), isStop_(true) {}
 
-    ~CloneServiceManagerBackendImpl() {
-    }
+    ~CloneServiceManagerBackendImpl() {}
 
     void Func() override;
     void Init(uint32_t recordIntevalMs, uint32_t roundIntevalMs) override;
@@ -191,13 +167,14 @@ class CloneServiceManagerBackendImpl : public CloneServiceManagerBackend {
 
  private:
     std::shared_ptr<CloneCore> cloneCore_;
-    // 后台扫描线程，扫描clone卷是否存在
+    // Background scan thread to check if clone volume exists
     std::thread backEndReferenceScanThread_;
-    // 当前后台扫描是否停止，用于支持start，stop功能
+    // Is the current background scanning stopped? Used to
+    // support start and stop functions
     std::atomic_bool isStop_;
-    // 后台扫描线程记录使用定时器
+    // Using a timer for background scanning thread records
     common::WaitInterval recordWaitInterval_;
-    // 后台扫描线程每轮使用定时器
+    // The backend scanning thread uses a timer for each round
     common::WaitInterval roundWaitInterval_;
 };
 
@@ -207,250 +184,242 @@ class CloneServiceManager {
         std::shared_ptr<CloneTaskManager> cloneTaskMgr,
         std::shared_ptr<CloneCore> cloneCore,
         std::shared_ptr<CloneServiceManagerBackend> cloneServiceManagerBackend)
-          : cloneTaskMgr_(cloneTaskMgr),
-            cloneCore_(cloneCore),
-            cloneServiceManagerBackend_(cloneServiceManagerBackend) {
+        : cloneTaskMgr_(cloneTaskMgr),
+          cloneCore_(cloneCore),
+          cloneServiceManagerBackend_(cloneServiceManagerBackend) {
         destFileLock_ = std::make_shared<NameLock>();
     }
     virtual ~CloneServiceManager() {}
 
     /**
-     * @brief 初始化
+     * @brief initialization
      *
-     * @return 错误码
+     * @return error code
      */
-    virtual int Init(const SnapshotCloneServerOptions &option);
+    virtual int Init(const SnapshotCloneServerOptions& option);
 
     /**
-     * @brief 启动服务
+     * @brief Start Service
      *
-     * @return 错误码
+     * @return error code
      */
     virtual int Start();
 
     /**
-     * @brief 停止服务
+     * @brief Stop service
      *
      */
     virtual void Stop();
 
     /**
-     * @brief 从文件或快照克隆出一个文件
+     * @brief Clone a file from a file or snapshot
      *
-     * @param source  文件或快照的uuid
-     * @param user  文件或快照的用户
-     * @param destination 目标文件
-     * @param lazyFlag  是否lazy模式
-     * @param closure 异步回调实体
-     * @param[out] taskId 任务ID
+     * @param source: Uuid of file or snapshot
+     * @param user: The user of the file or snapshot
+     * @param destination: Destination file
+     * @param lazyFlag: Is in lazy mode
+     * @param closure: Asynchronous callback entity
+     * @param[out] taskId: Task ID
      *
-     * @return 错误码
+     * @return error code
      */
-    virtual int CloneFile(const UUID &source,
-        const std::string &user,
-        const std::string &destination,
-        const std::string &poolset,
-        bool lazyFlag,
-        std::shared_ptr<CloneClosure> closure,
-        TaskIdType *taskId);
+    virtual int CloneFile(const UUID& source, const std::string& user,
+                          const std::string& destination,
+                          const std::string& poolset, bool lazyFlag,
+                          std::shared_ptr<CloneClosure> closure,
+                          TaskIdType* taskId);
 
     /**
-     * @brief 从文件或快照恢复一个文件
+     * @brief Restore a file from a file or snapshot
      *
-     * @param source  文件或快照的uuid
-     * @param user  文件或快照的用户
-     * @param destination 目标文件名
-     * @param lazyFlag  是否lazy模式
-     * @param closure 异步回调实体
-     * @param[out] taskId 任务ID
+     * @param source: Uuid of file or snapshot
+     * @param user: The user of the file or snapshot
+     * @param destination: Destination file name
+     * @param lazyFlag: Is in lazy mode
+     * @param closure: Asynchronous callback entity
+     * @param[out] taskId: Task ID
      *
-     * @return 错误码
+     * @return error code
      */
-    virtual int RecoverFile(const UUID &source,
-        const std::string &user,
-        const std::string &destination,
-        bool lazyFlag,
-        std::shared_ptr<CloneClosure> closure,
-        TaskIdType *taskId);
+    virtual int RecoverFile(const UUID& source, const std::string& user,
+                            const std::string& destination, bool lazyFlag,
+                            std::shared_ptr<CloneClosure> closure,
+                            TaskIdType* taskId);
 
     /**
-     * @brief 安装克隆文件的数据，用于Lazy克隆
+     * @brief Install data from clone files for Lazy cloning
      *
-     * @param user 用户
-     * @param taskId 任务ID
+     * @param user: user
+     * @param taskId: Task ID
      *
-     * @return 错误码
+     * @return error code
      */
-    virtual int Flatten(
-        const std::string &user,
-        const TaskIdType &taskId);
+    virtual int Flatten(const std::string& user, const TaskIdType& taskId);
 
     /**
-     * @brief 查询某个用户的克隆/恢复任务信息
+     * @brief Query the clone/restore task information of a certain user
      *
-     * @param user 用户名
-     * @param info 克隆/恢复任务信息
+     * @param user: username
+     * @param info: Clone/Restore Task Information
      *
-     * @return 错误码
+     * @return error code
      */
-    virtual int GetCloneTaskInfo(const std::string &user,
-        std::vector<TaskCloneInfo> *info);
+    virtual int GetCloneTaskInfo(const std::string& user,
+                                 std::vector<TaskCloneInfo>* info);
 
     /**
-     * @brief 通过Id查询某个用户的克隆/恢复任务信息
+     * @brief Query the clone/restore task information of a certain user
+     * through ID
      *
-     * @param user 用户名
-     * @param taskId 指定的任务Id
-     * @param info 克隆/恢复任务信息
+     * @param user: username
+     * @param taskId: Task Id specified
+     * @param info: Clone/Restore Task Information
      *
-     * @return 错误码
+     * @return error code
      */
-    virtual int GetCloneTaskInfoById(
-        const std::string &user,
-        const TaskIdType &taskId,
-        std::vector<TaskCloneInfo> *info);
+    virtual int GetCloneTaskInfoById(const std::string& user,
+                                     const TaskIdType& taskId,
+                                     std::vector<TaskCloneInfo>* info);
 
     /**
-     * @brief 通过文件名查询某个用户的克隆/恢复任务信息
+     * @brief Query the clone/restore task information of a certain user through
+     * a file name
      *
-     * @param user 用户名
-     * @param fileName 指定的文件名
-     * @param info 克隆/恢复任务信息
+     * @param user: username
+     * @param fileName: The file name specified
+     * @param info: Clone/Restore Task Information
      *
-     * @return 错误码
+     * @return error code
      */
-    virtual int GetCloneTaskInfoByName(
-        const std::string &user,
-        const std::string &fileName,
-        std::vector<TaskCloneInfo> *info);
+    virtual int GetCloneTaskInfoByName(const std::string& user,
+                                       const std::string& fileName,
+                                       std::vector<TaskCloneInfo>* info);
 
     /**
-     * @brief 通过过滤条件查询某个用户的克隆/恢复任务信息
+     * @brief: Query a user's clone/restore task information through filtering
+     * criteria
      *
-     * @param filter 过滤条件
-     * @param info 克隆/恢复任务信息
+     * @param filter: filtering conditions
+     * @param info: Clone/Restore Task Information
      *
-     * @return 错误码
+     * @return error code
      */
-    virtual int GetCloneTaskInfoByFilter(const CloneFilterCondition &filter,
-                            std::vector<TaskCloneInfo> *info);
+    virtual int GetCloneTaskInfoByFilter(const CloneFilterCondition& filter,
+                                         std::vector<TaskCloneInfo>* info);
 
     /**
-     * @brief 查询src是否有依赖
+     * @brief: Check if src has dependencies
      *
-     * @param src 指定的文件名
-     * @param refStatus 0表示没有依赖，1表示有依赖，2表示需要进一步确认
-     * @param needCheckFiles 需要进一步确认的文件列表
+     * @param src: specified file name
+     * @param refStatus: 0 indicates no dependencies, 1 indicates dependencies,
+     * and 2 indicates further confirmation is needed
+     * @param needCheckFiles: List of files that require further confirmation
      *
-     * @return 错误码
+     * @return error code
      */
-    virtual int GetCloneRefStatus(const std::string &src,
-        CloneRefStatus *refStatus,
-        std::vector<CloneInfo> *needCheckFiles);
+    virtual int GetCloneRefStatus(const std::string& src,
+                                  CloneRefStatus* refStatus,
+                                  std::vector<CloneInfo>* needCheckFiles);
 
     /**
-     * @brief 清除失败的clone/Recover任务、状态、文件
+     * @brief Clear failed clone/recover tasks, status, files
      *
-     * @param user 用户名
-     * @param taskId 任务Id
+     * @param user: username
+     * @param taskId: Task Id
      *
-     * @return 错误码
+     * @return error code
      */
-    virtual int CleanCloneTask(const std::string &user,
-        const TaskIdType &taskId);
+    virtual int CleanCloneTask(const std::string& user,
+                               const TaskIdType& taskId);
 
     /**
-     * @brief 重启后恢复未完成clone和recover任务
+     * @brief Restore unfinished clone and recover tasks after restarting
      *
-     * @return 错误码
+     * @return error code
      */
     virtual int RecoverCloneTask();
 
     // for test
-    void SetDLock(std::shared_ptr<DLock> dlock) {
-        dlock_ = dlock;
-    }
+    void SetDLock(std::shared_ptr<DLock> dlock) { dlock_ = dlock; }
 
  private:
     /**
-     * @brief 从给定的任务列表中获取指定用户的任务集
+     * @brief Get the task set of the specified user from the given task list
      *
-     * @param cloneInfos 克隆/恢复信息
-     * @param user 用户信息
-     * @param[out] info 克隆/恢复任务信息
+     * @param cloneInfos: Clone/Restore Information
+     * @param user: User information
+     * @param[out] info: Clone/restore task information
      *
-     * @return 错误码
+     * @return error code
      */
     int GetCloneTaskInfoInner(std::vector<CloneInfo> cloneInfos,
-        const std::string &user,
-        std::vector<TaskCloneInfo> *info);
+                              const std::string& user,
+                              std::vector<TaskCloneInfo>* info);
 
     /**
-     * @brief 从给定的任务列表中获取符合过滤条件的任务集
+     * @brief Retrieve task sets that meet the filtering criteria from the given
+     * task list
      *
-     * @param cloneInfos 克隆/恢复信息
-     * @param filter 过滤条件
-     * @param[out] info 克隆/恢复任务信息
+     * @param cloneInfos: Clone/Restore Information
+     * @param filter: Filtering conditions
+     * @param[out] info: Clone/restore task information
      *
-     * @return 错误码
+     * @return error code
      */
     int GetCloneTaskInfoInner(std::vector<CloneInfo> cloneInfos,
-        CloneFilterCondition filter,
-        std::vector<TaskCloneInfo> *info);
+                              CloneFilterCondition filter,
+                              std::vector<TaskCloneInfo>* info);
 
     /**
-     * @brief 获取已经完成任务信息
+     * @brief to obtain completed task information
      *
-     * @param taskId 任务ID
-     * @param taskCloneInfoOut 克隆任务信息
+     * @param taskId: Task ID
+     * @param taskCloneInfoOut: Clone task information
      *
-     * @return 错误码
+     * @return error code
      */
-    int GetFinishedCloneTask(
-        const TaskIdType &taskId,
-        TaskCloneInfo *taskCloneInfoOut);
+    int GetFinishedCloneTask(const TaskIdType& taskId,
+                             TaskCloneInfo* taskCloneInfoOut);
 
     /**
-     * @brief 根据克隆任务信息恢复克隆任务
+     * @brief Restore clone task based on clone task information
      *
-     * @param cloneInfo 克隆任务信息
+     * @param cloneInfo: Clone task information
      *
-     * @return 错误码
+     * @return error code
      */
-    int RecoverCloneTaskInternal(const CloneInfo &cloneInfo);
+    int RecoverCloneTaskInternal(const CloneInfo& cloneInfo);
 
     /**
-     * @brief 根据克隆任务信息恢复清除克隆任务
+     * @brief Restore and clear clone tasks based on clone task information
      *
-     * @param cloneInfo 克隆任务信息
+     * @param cloneInfo: Clone task information
      *
-     * @return 错误码
+     * @return error code
      */
-    int RecoverCleanTaskInternal(const CloneInfo &cloneInfo);
+    int RecoverCleanTaskInternal(const CloneInfo& cloneInfo);
 
     /**
-     * @brief 构建和push Lazy的任务
+     * @brief Task of building and pushing Lazy
      *
-     * @param cloneInfo 克隆任务信息
-     * @param closure 异步回调实体
+     * @param cloneInfo: Clone task information
+     * @param closure: Asynchronous callback entity
      *
-     * @return 错误码
+     * @return error code
      */
     int BuildAndPushCloneOrRecoverLazyTask(
-        CloneInfo cloneInfo,
-        std::shared_ptr<CloneClosure> closure);
+        CloneInfo cloneInfo, std::shared_ptr<CloneClosure> closure);
 
     /**
-     * @brief 构建和push 非Lazy的任务
+     * @brief Build and push non Lazy tasks
      *
-     * @param cloneInfo 克隆任务信息
-     * @param closure 异步回调实体
+     * @param cloneInfo: Clone task information
+     * @param closure: Asynchronous callback entity
      *
-     * @return 错误码
+     * @return error code
      */
     int BuildAndPushCloneOrRecoverNotLazyTask(
-        CloneInfo cloneInfo,
-        std::shared_ptr<CloneClosure> closure);
+        CloneInfo cloneInfo, std::shared_ptr<CloneClosure> closure);
 
  private:
     std::shared_ptr<DLockOpts> dlockOpts_;
@@ -460,8 +429,6 @@ class CloneServiceManager {
     std::shared_ptr<CloneCore> cloneCore_;
     std::shared_ptr<CloneServiceManagerBackend> cloneServiceManagerBackend_;
 };
-
-
 
 }  // namespace snapshotcloneserver
 }  // namespace curve
