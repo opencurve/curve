@@ -346,7 +346,11 @@ int Ext4FileSystemImpl::Write(int fd,
                 continue;
             }
             LOG(ERROR) << "IOBuf::pcut_into_file_descriptor failed: "
-                       << strerror(errno);
+                       << strerror(errno)
+                       << ", fd: " << fd
+                       << ", offset: " << offset
+                       << ", remainLength: " << remainLength
+                       << ", length: " << length;
             return -errno;
         }
 

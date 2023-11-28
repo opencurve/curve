@@ -250,11 +250,17 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
     // leftWalSegmentSize will be 0 when CHUNK and WAL share file pool
     uint64_t leftWalSegmentSize = metric->GetWalSegmentLeftCount()
                                 * walSegmentFileSize;
-    uint64_t chunkPoolSize = options_.chunkFilePool->Capacity() *
-                options_.chunkFilePool->GetFilePoolOpt().fileSize;
-    stats->set_chunkfilepoolsize(chunkPoolSize);
-    stats->set_chunksizeusedbytes(usedChunkSize+usedWalSegmentSize);
-    stats->set_chunksizeleftbytes(leftChunkSize+leftWalSegmentSize);
+    // CHUNK and WAL share file pool
+    uint64_t totalSize = 0;
+    if (options_.useChunkFilePoolAsWalPool) {
+        totalSize = usedChunkSize + usedWalSegmentSize +
+            leftChunkSize + leftWalSegmentSize;
+    } else {
+        totalSize = usedChunkSize + leftChunkSize;
+    }
+    stats->set_chunkfilepoolsize(totalSize);
+    stats->set_chunksizeusedbytes(usedChunkSize + usedWalSegmentSize);
+    stats->set_chunksizeleftbytes(leftChunkSize + leftWalSegmentSize);
     stats->set_chunksizetrashedbytes(trashedChunkSize);
     req->set_allocated_stats(stats);
 
