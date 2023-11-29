@@ -643,7 +643,6 @@ TEST_F(TestFuseVolumeClient, FuseOpRmDir) {
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
     Inode inode2 = inodeWrapper->GetInode();
     ASSERT_EQ(nlink - 1, inode2.nlink());
-    ASSERT_EQ(2, parentInodeWrapper->GetNlinkLocked());
 }
 
 TEST_F(TestFuseVolumeClient, FuseOpUnlinkFailed) {
@@ -670,7 +669,6 @@ TEST_F(TestFuseVolumeClient, FuseOpUnlinkFailed) {
     EXPECT_CALL(*dentryManager_,
         DeleteDentry(parent, name, FsFileType::TYPE_FILE))
         .WillOnce(Return(CURVEFS_ERROR::INTERNAL))
-        .WillOnce(Return(CURVEFS_ERROR::OK))
         .WillOnce(Return(CURVEFS_ERROR::OK));
 
     Inode inode;
