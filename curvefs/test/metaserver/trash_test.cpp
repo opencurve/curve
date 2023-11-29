@@ -53,9 +53,14 @@ using ::curvefs::metaserver::storage::RandomStoragePath;
 using ::curvefs::metaserver::storage::RocksDBStorage;
 using ::curvefs::metaserver::storage::StorageOptions;
 
+DECLARE_uint32(trash_expiredAfterSec);
+DECLARE_uint32(trash_scanPeriodSec);
+
 class TestTrash : public ::testing::Test {
  protected:
     void SetUp() override {
+        FLAGS_trash_scanPeriodSec = 1;
+        FLAGS_trash_expiredAfterSec = 1;
         dataDir_ = RandomStoragePath();
         StorageOptions options;
         options.dataDir = dataDir_;
@@ -143,8 +148,6 @@ class TestTrash : public ::testing::Test {
 
 TEST_F(TestTrash, testAdd3ItemAndDelete) {
     TrashOption option;
-    option.scanPeriodSec = 1;
-    option.expiredAfterSec = 1;
     option.mdsClient = std::make_shared<MockMdsClient>();
     option.s3Adaptor = std::make_shared<MockS3ClientAdaptor>();
     trashManager_->Init(option);
@@ -177,8 +180,6 @@ TEST_F(TestTrash, testAdd3ItemAndDelete) {
 
 TEST_F(TestTrash, testAdd3ItemAndNoDelete) {
     TrashOption option;
-    option.scanPeriodSec = 1;
-    option.expiredAfterSec = 1;
     option.mdsClient = std::make_shared<MockMdsClient>();
     option.s3Adaptor = std::make_shared<MockS3ClientAdaptor>();
     trashManager_->Init(option);
