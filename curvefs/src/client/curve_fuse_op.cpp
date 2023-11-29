@@ -23,6 +23,8 @@
 
 #include "curvefs/src/client/curve_fuse_op.h"
 
+#include <fmt/format.h>
+
 #include <cstring>
 #include <memory>
 #include <string>
@@ -285,8 +287,9 @@ void QueryWarmupTask(fuse_ino_t key, std::string *data) {
     if (!ret) {
         *data = "finished";
     } else {
-        *data = std::to_string(progress.GetFinished()) + "/" +
-                std::to_string(progress.GetTotal());
+        *data =
+            fmt::format("{}/{}/{}", progress.GetFinished(), progress.GetTotal(),
+                        progress.GetWarmupStorageErr());
     }
     VLOG(9) << "Warmup [" << key << "]" << *data;
 }

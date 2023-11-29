@@ -46,8 +46,18 @@ class DiskCacheRead : public DiskCacheBase {
     virtual ~DiskCacheRead() {}
     virtual void Init(std::shared_ptr<PosixWrapper> posixWrapper,
                       const std::string cacheDir, uint32_t objectPrefix);
-    virtual int ReadDiskFile(const std::string name, char *buf, uint64_t offset,
+    virtual int ReadDiskFile(const std::string name, char* buf, uint64_t offset,
                              uint64_t length);
+    /**
+     * @brief
+     *
+     * @param fileName
+     * @param buf
+     * @param length
+     * @return int
+      -1: write fail
+      >=0: write success 
+     */
     virtual int WriteDiskFile(const std::string fileName, const char *buf,
                               uint64_t length);
     virtual int LinkWriteToRead(const std::string fileName,

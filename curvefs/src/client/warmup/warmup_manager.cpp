@@ -777,9 +777,14 @@ void WarmupManagerS3Impl::PutObjectToCache(
         case curvefs::client::common::WarmupStorageType::kWarmupStorageTypeDisk:
             ret = s3Adaptor_->GetDiskCacheManager()->WriteReadDirect(
                 context->key, context->buf, context->len);
-            if (ret < 0) {
+            if (ret == -1) {
+                iter->second.SetWarmupStorageErrorType(
+                    WarmupStorageErrorType::WriteFail);
                 LOG_EVERY_SECOND(INFO)
                     << "write read directly failed, key: " << context->key;
+            } else if (ret == -2) {
+                iter->second.SetWarmupStorageErrorType(
+                    WarmupStorageErrorType::Full);
             }
             delete[] context->buf;
             break;
@@ -788,7 +793,19 @@ void WarmupManagerS3Impl::PutObjectToCache(
             if (kvClientManager_ != nullptr) {
                 kvClientManager_->Set(std::make_shared<SetKVCacheTask>(
                     context->key, context->buf, context->len,
-                    [context](const std::shared_ptr<SetKVCacheTask>&) {
+                    [context, this,
+                     key](const std::shared_ptr<SetKVCacheTask>& task) {
+                        {
+                            ReadLockGuard lock(inode2ProgressMutex_);
+                            auto iter = FindWarmupProgressByKeyLocked(key);
+                            if (iter->second.GetStorageType() ==
+                                    curvefs::client::common::WarmupStorageType::
+                                        kWarmupStorageTypeKvClient &&
+                                !task->res) {
+                                iter->second.SetWarmupStorageErrorType(
+                                    WarmupStorageErrorType::WriteFail);
+                            }
+                        }
                         delete[] context->buf;
                     }));
             }
