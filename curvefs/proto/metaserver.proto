@@ -267,7 +267,7 @@ message Inode {
     optional uint64 rdev = 16;
     // field 17 is left for compatibility
     map<uint64, S3ChunkInfoList> s3ChunkInfoMap = 18; // TYPE_S3 only, first is chunk index
-    optional uint32 dtime = 19;
+    optional uint64 dtime = 19;
     optional uint32 openmpcount = 20; // openmpcount mount points had the file open
     map<string, bytes> xattr = 21;
     repeated uint64 parent = 22;
