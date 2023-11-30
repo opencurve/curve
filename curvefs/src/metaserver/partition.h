@@ -138,8 +138,6 @@ class Partition {
     virtual MetaStatusCode GetAllBlockGroup(
         std::vector<DeallocatableBlockGroup>* deallocatableBlockGroupVec);
 
-    MetaStatusCode InsertInode(const Inode& inode, int64_t logIndex);
-
     bool GetInodeIdList(std::list<uint64_t>* InodeIdList);
 
     // if partition has no inode or no dentry, it is deletable
@@ -167,9 +165,9 @@ class Partition {
     // if no available inode id in this partiton ,return UINT64_MAX
     uint64_t GetNewInodeId();
 
-    uint32_t GetInodeNum();
+    uint64_t GetInodeNum();
 
-    uint32_t GetDentryNum();
+    uint64_t GetDentryNum();
 
     bool EmptyInodeStorage();
 

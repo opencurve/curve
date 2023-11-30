@@ -405,12 +405,6 @@ TEST_F(PartitionTest, PARTITION_ID_MISSMATCH_ERROR) {
     UpdateInodeRequest inode3Request = MakeUpdateInodeRequestFromInode(inode3);
     ASSERT_EQ(partition1.UpdateInode(inode3Request, logIndex_++),
               MetaStatusCode::PARTITION_ID_MISSMATCH);
-
-    // test InsertInode
-    ASSERT_EQ(partition1.InsertInode(inode2, logIndex_++),
-              MetaStatusCode::PARTITION_ID_MISSMATCH);
-    ASSERT_EQ(partition1.InsertInode(inode3, logIndex_++),
-              MetaStatusCode::PARTITION_ID_MISSMATCH);
 }
 
 TEST_F(PartitionTest, testGetInodeAttr) {

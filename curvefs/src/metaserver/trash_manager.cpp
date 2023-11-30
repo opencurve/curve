@@ -49,6 +49,13 @@ void TrashManager::Fini() {
     LOG(INFO) << "stop trash manager ok.";
 }
 
+void TrashManager::Add(uint32_t partitionId,
+    const std::shared_ptr<Trash> &trash) {
+    curve::common::WriteLockGuard lg(rwLock_);
+    trash->Init(options_);
+    trashs_.emplace(partitionId, trash);
+}
+
 void TrashManager::ScanLoop() {
     while (sleeper_.wait_for(std::chrono::seconds(FLAGS_trash_scanPeriodSec))) {
         ScanEveryTrash();
@@ -82,18 +89,17 @@ void TrashManager::Remove(uint32_t partitionId) {
     }
 }
 
-void TrashManager::ListItems(std::list<TrashItem> *items) {
-    items->clear();
+uint64_t TrashManager::Size() {
+    uint64_t size = 0;
     std::map<uint32_t, std::shared_ptr<Trash>> temp;
     {
         curve::common::ReadLockGuard lg(rwLock_);
         temp = trashs_;
     }
     for (auto &pair : temp) {
-        std::list<TrashItem> newItems;
-        pair.second->ListItems(&newItems);
-        items->splice(items->end(), newItems);
+        size += pair.second->Size();
     }
+    return size;
 }
 
 }  // namespace metaserver

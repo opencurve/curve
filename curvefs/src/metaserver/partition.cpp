@@ -69,7 +69,9 @@ Partition::Partition(PartitionInfo partition,
     dentryStorage_ =
         std::make_shared<DentryStorage>(kvStorage_, nameGen_, nDentry);
 
-    auto trash = std::make_shared<TrashImpl>(inodeStorage_);
+    auto trash = std::make_shared<TrashImpl>(inodeStorage_,
+        partitionInfo_.fsid(), partitionInfo_.poolid(),
+        partitionInfo_.copysetid(), partitionInfo_.partitionid());
     inodeManager_ = std::make_shared<InodeManager>(
         inodeStorage_, trash, partitionInfo_.mutable_filetype2inodenum());
     txManager_ = std::make_shared<TxManager>(dentryStorage_, partitionInfo_);
@@ -359,15 +361,6 @@ MetaStatusCode Partition::PaddingInodeS3ChunkInfo(int32_t fsId,
     return inodeManager_->PaddingInodeS3ChunkInfo(fsId, inodeId, m, limit);
 }
 
-MetaStatusCode Partition::InsertInode(const Inode& inode, int64_t logIndex) {
-    PRECHECK(inode.fsid(), inode.inodeid());
-    auto ret = inodeManager_->InsertInode(inode, logIndex);
-    if (ret == MetaStatusCode::IDEMPOTENCE_OK) {
-        ret = MetaStatusCode::OK;
-    }
-    return ret;
-}
-
 bool Partition::GetInodeIdList(std::list<uint64_t>* InodeIdList) {
     return inodeManager_->GetInodeIdList(InodeIdList);
 }
@@ -470,12 +463,12 @@ uint64_t Partition::GetNewInodeId() {
     return newInodeId;
 }
 
-uint32_t Partition::GetInodeNum() {
-    return static_cast<uint32_t>(inodeStorage_->Size());
+uint64_t Partition::GetInodeNum() {
+    return inodeStorage_->Size();
 }
 
-uint32_t Partition::GetDentryNum() {
-    return static_cast<uint32_t>(dentryStorage_->Size());
+uint64_t Partition::GetDentryNum() {
+    return dentryStorage_->Size();
 }
 
 bool Partition::EmptyInodeStorage() { return inodeStorage_->Empty(); }

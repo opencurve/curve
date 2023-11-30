@@ -30,6 +30,8 @@
 #include "src/fs/ext4_filesystem_impl.h"
 #include "curvefs/test/client/rpcclient/mock_mds_client.h"
 #include "curvefs/test/metaserver/mock_metaserver_s3_adaptor.h"
+#include "src/common/timeutility.h"
+#include "curvefs/test/metaserver/copyset/mock/mock_copyset_node.h"
 
 using ::testing::_;
 using ::testing::AtLeast;
@@ -39,6 +41,7 @@ using ::testing::ReturnArg;
 using ::testing::SaveArg;
 using ::testing::SetArgPointee;
 using ::testing::StrEq;
+using ::testing::Invoke;
 
 namespace curvefs {
 namespace metaserver {
@@ -47,11 +50,15 @@ namespace {
 auto localfs = curve::fs::Ext4FileSystemImpl::getInstance();
 }
 
+DECLARE_uint32(trash_expiredAfterSec);
+DECLARE_uint32(trash_scanPeriodSec);
+
 using ::curvefs::client::rpcclient::MockMdsClient;
 using ::curvefs::metaserver::storage::KVStorage;
 using ::curvefs::metaserver::storage::RandomStoragePath;
 using ::curvefs::metaserver::storage::RocksDBStorage;
 using ::curvefs::metaserver::storage::StorageOptions;
+using ::curvefs::metaserver::copyset::MockCopysetNode;
 
 DECLARE_uint32(trash_expiredAfterSec);
 DECLARE_uint32(trash_scanPeriodSec);
@@ -59,8 +66,6 @@ DECLARE_uint32(trash_scanPeriodSec);
 class TestTrash : public ::testing::Test {
  protected:
     void SetUp() override {
-        FLAGS_trash_scanPeriodSec = 1;
-        FLAGS_trash_expiredAfterSec = 1;
         dataDir_ = RandomStoragePath();
         StorageOptions options;
         options.dataDir = dataDir_;
@@ -73,6 +78,9 @@ class TestTrash : public ::testing::Test {
             std::make_shared<InodeStorage>(kvStorage_, nameGenerator, 0);
         trashManager_ = std::make_shared<TrashManager>();
         logIndex_ = 0;
+        copysetNode_ = std::make_shared<MockCopysetNode>();
+        mdsClient_ = std::make_shared<MockMdsClient>();
+        s3Adaptor_ = std::make_shared<MockS3ClientAdaptor>();
     }
 
     void TearDown() override {
@@ -143,63 +151,79 @@ class TestTrash : public ::testing::Test {
     std::shared_ptr<KVStorage> kvStorage_;
     std::shared_ptr<InodeStorage> inodeStorage_;
     std::shared_ptr<TrashManager> trashManager_;
+    std::shared_ptr<MockCopysetNode> copysetNode_;
+    std::shared_ptr<MockMdsClient> mdsClient_;
+    std::shared_ptr<MockS3ClientAdaptor> s3Adaptor_;
     int64_t logIndex_;
 };
 
 TEST_F(TestTrash, testAdd3ItemAndDelete) {
     TrashOption option;
-    option.mdsClient = std::make_shared<MockMdsClient>();
-    option.s3Adaptor = std::make_shared<MockS3ClientAdaptor>();
+    option.mdsClient = mdsClient_;
+    option.s3Adaptor = s3Adaptor_;
+    FLAGS_trash_scanPeriodSec = 1;
+    FLAGS_trash_expiredAfterSec = 1;
     trashManager_->Init(option);
     trashManager_->Run();
-    auto trash1 = std::make_shared<TrashImpl>(inodeStorage_);
-    auto trash2 = std::make_shared<TrashImpl>(inodeStorage_);
+    auto trash1 = std::make_shared<TrashImpl>(inodeStorage_, 1, 1, 1, 1);
+    auto trash2 = std::make_shared<TrashImpl>(inodeStorage_, 2, 2, 2, 2);
     trashManager_->Add(1, trash1);
     trashManager_->Add(2, trash2);
+    trash1->SetCopysetNode(copysetNode_);
+    trash2->SetCopysetNode(copysetNode_);
 
     inodeStorage_->Insert(GenInodeHasChunks(1, 1), logIndex_++);
     inodeStorage_->Insert(GenInodeHasChunks(1, 2), logIndex_++);
     inodeStorage_->Insert(GenInodeHasChunks(2, 1), logIndex_++);
-
     ASSERT_EQ(inodeStorage_->Size(), 3);
 
-    trash1->Add(1, 1, 0);
-    trash1->Add(1, 2, 0);
-    trash2->Add(2, 1, 0);
+    EXPECT_CALL(*copysetNode_, IsLeaderTerm())
+        .WillRepeatedly(Return(true));
+    FsInfo fsInfo;
+    fsInfo.set_fsid(1);
+    fsInfo.set_recycletimehour(0);
+    EXPECT_CALL(*mdsClient_, GetFsInfo(1, _))
+        .WillOnce(DoAll(SetArgPointee<1>(fsInfo), Return(FSStatusCode::OK)));
+    fsInfo.set_fsid(2);
+    EXPECT_CALL(*mdsClient_, GetFsInfo(2, _))
+        .WillOnce(DoAll(SetArgPointee<1>(fsInfo), Return(FSStatusCode::OK)));
+    EXPECT_CALL(*s3Adaptor_, GetS3ClientAdaptorOption(_))
+        .Times(3);
+    EXPECT_CALL(*s3Adaptor_, Reinit(_, _, _, _, _))
+        .Times(3);
+    EXPECT_CALL(*s3Adaptor_, Delete(_))
+        .Times(3)
+        .WillRepeatedly(Return(0));
+    EXPECT_CALL(*copysetNode_, Propose(_))
+        .WillOnce(Invoke([&](const braft::Task& task) {
+            ASSERT_EQ(inodeStorage_->Delete(Key4Inode(1, 1), logIndex_++),
+                      MetaStatusCode::OK);
+            LOG(INFO) << "trash deleteInode 1:1";
+            task.done->Run();
+        }))
+        .WillOnce(Invoke([&](const braft::Task& task) {
+            ASSERT_EQ(inodeStorage_->Delete(Key4Inode(1, 2), logIndex_++),
+                      MetaStatusCode::OK);
+            LOG(INFO) << "trash deleteInode 1:2";
+            task.done->Run();
+        }))
+        .WillOnce(Invoke([&](const braft::Task& task) {
+            ASSERT_EQ(inodeStorage_->Delete(Key4Inode(2, 1), logIndex_++),
+                      MetaStatusCode::OK);
+            LOG(INFO) << "trash deleteInode 2:1";
+            task.done->Run();
+        }));
 
-    std::this_thread::sleep_for(std::chrono::seconds(5));
-    std::list<TrashItem> list;
+    uint64_t dtime = curve::common::TimeUtility::GetTimeofDaySec() - 2;
+    trash1->Add(1, dtime);
+    trash1->Add(2, dtime);
+    trash2->Add(1, dtime);
 
-    trashManager_->ListItems(&list);
+    std::this_thread::sleep_for(std::chrono::seconds(2));
 
-    ASSERT_EQ(0, list.size());
+    ASSERT_EQ(0, trashManager_->Size());
     ASSERT_EQ(inodeStorage_->Size(), 0);
 
-    trashManager_->Fini();
-}
-
-TEST_F(TestTrash, testAdd3ItemAndNoDelete) {
-    TrashOption option;
-    option.mdsClient = std::make_shared<MockMdsClient>();
-    option.s3Adaptor = std::make_shared<MockS3ClientAdaptor>();
-    trashManager_->Init(option);
-    trashManager_->Run();
-
-    auto trash1 = std::make_shared<TrashImpl>(inodeStorage_);
-    trashManager_->Add(1, trash1);
-
-    inodeStorage_->Insert(GenInode(1, 1), logIndex_++);
-    inodeStorage_->Insert(GenInode(1, 2), logIndex_++);
-    inodeStorage_->Insert(GenInode(2, 1), logIndex_++);
-    ASSERT_EQ(inodeStorage_->Size(), 3);
-    trash1->Add(1, 1, 0);
-    trash1->Add(1, 2, 0);
-    std::this_thread::sleep_for(std::chrono::seconds(5));
-    std::list<TrashItem> list;
-
-    trashManager_->ListItems(&list);
-    ASSERT_EQ(0, list.size());
-    ASSERT_EQ(inodeStorage_->Size(), 3);
     trashManager_->Fini();
 }
 
