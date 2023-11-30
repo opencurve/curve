@@ -283,16 +283,17 @@ MetaStatusCode InodeManager::DeleteInode(uint32_t fsId, uint64_t inodeId,
     VLOG(6) << "DeleteInode, fsId = " << fsId << ", inodeId = " << inodeId;
     NameLockGuard lg(inodeLock_, GetInodeLockName(fsId, inodeId));
     InodeAttr attr;
-    MetaStatusCode retGetAttr =
-        inodeStorage_->GetAttr(Key4Inode(fsId, inodeId), &attr);
-    if (retGetAttr != MetaStatusCode::OK) {
-        VLOG(9) << "GetInodeAttr fail, fsId = " << fsId
-                << ", inodeId = " << inodeId
-                << ", ret = " << MetaStatusCode_Name(retGetAttr);
+    auto ret = inodeStorage_->GetAttr(Key4Inode(fsId, inodeId), &attr);
+    if (ret == MetaStatusCode::NOT_FOUND) {
+        return MetaStatusCode::OK;
+    } else if (ret != MetaStatusCode::OK) {
+        LOG(ERROR) << "GetInodeAttr fail, fsId = " << fsId
+                   << ", inodeId = " << inodeId
+                   << ", ret = " << MetaStatusCode_Name(ret);
+        return ret;
     }
 
-    MetaStatusCode ret =
-        inodeStorage_->Delete(Key4Inode(fsId, inodeId), logIndex);
+    ret = inodeStorage_->Delete(Key4Inode(fsId, inodeId), logIndex);
     if (ret != MetaStatusCode::OK) {
         LOG(ERROR) << "DeleteInode fail, fsId = " << fsId
                    << ", inodeId = " << inodeId
@@ -300,9 +301,13 @@ MetaStatusCode InodeManager::DeleteInode(uint32_t fsId, uint64_t inodeId,
         return ret;
     }
 
-    if (retGetAttr == MetaStatusCode::OK) {
+    // if nlink is 0 means this inode is already in trash
+    if (attr.nlink() != 0) {
         // get attr success
         --(*type2InodeNum_)[attr.type()];
+    } else {
+        // delete trash item
+        trash_->Remove(inodeId);
     }
     VLOG(6) << "DeleteInode success, fsId = " << fsId
             << ", inodeId = " << inodeId;
@@ -353,8 +358,7 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest& request,
 
     if (request.has_nlink()) {
         if (old.nlink() != 0 && request.nlink() == 0) {
-            uint32_t now = TimeUtility::GetTimeofDaySec();
-            old.set_dtime(now);
+            old.set_dtime(TimeUtility::GetTimeofDaySec());
             needAddTrash = true;
         }
         VLOG(9) << "update inode nlink, from " << old.nlink() << " to "
@@ -373,7 +377,6 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest& request,
 
     bool fileNeedDeallocate =
         (needAddTrash && (FsFileType::TYPE_FILE == old.type()));
-    bool s3NeedTrash = (needAddTrash && (FsFileType::TYPE_S3 == old.type()));
 
     std::shared_ptr<storage::StorageTransaction> txn;
     if (needUpdate) {
@@ -388,8 +391,8 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest& request,
         }
     }
 
-    if (s3NeedTrash) {
-        trash_->Add(old.fsid(), old.inodeid(), old.dtime());
+    if (needAddTrash) {
+        trash_->Add(old.inodeid(), old.dtime());
         --(*type2InodeNum_)[old.type()];
     }
 
@@ -607,25 +610,6 @@ MetaStatusCode InodeManager::UpdateInodeWhenCreateOrRemoveSubNode(
 
     VLOG(9) << "UpdateInodeWhenCreateOrRemoveSubNode success, "
             << parentInode.ShortDebugString();
-    return MetaStatusCode::OK;
-}
-
-MetaStatusCode InodeManager::InsertInode(const Inode& inode, int64_t logIndex) {
-    CHECK_APPLIED();
-    VLOG(6) << "InsertInode, " << inode.ShortDebugString();
-
-    // 2. insert inode
-    MetaStatusCode ret = inodeStorage_->Insert(inode, logIndex);
-    if (ret != MetaStatusCode::OK) {
-        LOG(ERROR) << "InsertInode fail, " << inode.ShortDebugString()
-                   << ", ret = " << MetaStatusCode_Name(ret);
-        return ret;
-    }
-
-    if (inode.nlink() == 0) {
-        trash_->Add(inode.fsid(), inode.inodeid(), inode.dtime());
-    }
-
     return MetaStatusCode::OK;
 }
 

@@ -44,13 +44,7 @@ class TrashManager {
         return instance_;
     }
 
-    void Add(uint32_t partitionId, const std::shared_ptr<Trash> &trash) {
-        curve::common::WriteLockGuard lg(rwLock_);
-        trash->Init(options_);
-        trashs_.emplace(partitionId, trash);
-        LOG(INFO) << "add partition to trash manager, partitionId = "
-                  << partitionId;
-    }
+    void Add(uint32_t partitionId, const std::shared_ptr<Trash> &trash);
 
     void Remove(uint32_t partitionId);
 
@@ -64,7 +58,7 @@ class TrashManager {
 
     void ScanEveryTrash();
 
-    void ListItems(std::list<TrashItem> *items);
+    uint64_t Size();
 
  private:
     void ScanLoop();

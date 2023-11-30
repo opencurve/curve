@@ -108,8 +108,6 @@ class InodeManager {
     MetaStatusCode UpdateInodeWhenCreateOrRemoveSubNode(
         const Dentry& dentry, const Time& tm, bool isCreate, int64_t logIndex);
 
-    MetaStatusCode InsertInode(const Inode& inode, int64_t logIndex);
-
     bool GetInodeIdList(std::list<uint64_t>* inodeIdList);
 
     // Update one or more volume extent slice
