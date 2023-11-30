@@ -1137,6 +1137,13 @@ CURVEFS_ERROR FuseClient::FuseOpListXattr(fuse_req_t req, fuse_ino_t ino,
         // +1 because, the format is key\0key\0
         *realSize += it.first.length() + 1;
     }
+    // add summary xattr key
+    if (inodeAttr.type() == FsFileType::TYPE_DIRECTORY) {
+        *realSize += strlen(XATTR_DIR_RFILES) + 1;
+        *realSize += strlen(XATTR_DIR_RSUBDIRS) + 1;
+        *realSize += strlen(XATTR_DIR_RENTRIES) + 1;
+        *realSize += strlen(XATTR_DIR_RFBYTES) + 1;
+    }
 
     if (size == 0) {
         return CURVEFS_ERROR::OK;
@@ -1149,6 +1156,16 @@ CURVEFS_ERROR FuseClient::FuseOpListXattr(fuse_req_t req, fuse_ino_t ino,
             auto tsize = it.first.length() + 1;
             memcpy(value, it.first.c_str(), tsize);
             value += tsize;
+        }
+        if (inodeAttr.type() == FsFileType::TYPE_DIRECTORY) {
+            memcpy(value, XATTR_DIR_RFILES, strlen(XATTR_DIR_RFILES) + 1);
+            value += strlen(XATTR_DIR_RFILES) + 1;
+            memcpy(value, XATTR_DIR_RSUBDIRS, strlen(XATTR_DIR_RSUBDIRS) + 1);
+            value += strlen(XATTR_DIR_RSUBDIRS) + 1;
+            memcpy(value, XATTR_DIR_RENTRIES, strlen(XATTR_DIR_RENTRIES) + 1);
+            value += strlen(XATTR_DIR_RENTRIES) + 1;
+            memcpy(value, XATTR_DIR_RFBYTES, strlen(XATTR_DIR_RFBYTES) + 1);
+            value += strlen(XATTR_DIR_RFBYTES) + 1;
         }
         return CURVEFS_ERROR::OK;
     }
