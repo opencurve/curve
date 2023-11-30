@@ -4069,7 +4069,10 @@ TEST_F(TestFuseS3Client, FuseOpListXattr) {
         .WillOnce(DoAll(SetArgPointee<1>(inode), Return(CURVEFS_ERROR::OK)));
     ret = client_->FuseOpListXattr(req, ino, buf, size, &realSize);
     ASSERT_EQ(CURVEFS_ERROR::OK, ret);
-    auto expected = key.length() + 1;
+    auto expected = key.length() + 1 + strlen(XATTR_DIR_RFILES) + 1 +
+                    strlen(XATTR_DIR_RSUBDIRS) + 1 +
+                    strlen(XATTR_DIR_RENTRIES) + 1 +
+                    strlen(XATTR_DIR_RFBYTES) + 1;
     ASSERT_EQ(realSize, expected);
 
     realSize = 0;
