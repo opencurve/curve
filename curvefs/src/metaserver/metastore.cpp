@@ -25,6 +25,7 @@
 #include <glog/logging.h>
 #include <sys/types.h>
 
+#include <bitset>
 #include <memory>
 #include <thread>  // NOLINT
 #include <unordered_map>
@@ -60,6 +61,7 @@ using KVStorage = ::curvefs::metaserver::storage::KVStorage;
 using Key4S3ChunkInfoList = ::curvefs::metaserver::storage::Key4S3ChunkInfoList;
 
 using ::curvefs::metaserver::storage::MemoryStorage;
+using ::curvefs::metaserver::storage::NameGenerator;
 using ::curvefs::metaserver::storage::RocksDBStorage;
 using ::curvefs::metaserver::storage::StorageOptions;
 
@@ -147,6 +149,7 @@ bool MetaStoreImpl::Load(const std::string &pathname) {
     }
 
     startCompacts();
+
     return true;
 }
 
@@ -931,6 +934,18 @@ bool MetaStoreImpl::InitStorage() {
     }
 
     return kvStorage_->Open();
+}
+
+void MetaStoreImpl::LoadDeletedInodes() {
+    VLOG(6) << "load deleted inodes start.";
+    WriteLockGuard writeLockGuard(rwLock_);
+    MetaStatusCode status;
+    for (auto it = partitionMap_.begin(); it != partitionMap_.end(); it++) {
+        uint32_t partitionId = it->second->GetPartitionId();
+        VLOG(6) << "load deleted inodes, partitionId: " << partitionId;
+        it->second->LoadDeletedInodes();
+    }
+    VLOG(6) << "load deleted inodes end.";
 }
 
 }  // namespace metaserver

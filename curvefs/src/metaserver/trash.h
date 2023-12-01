@@ -25,6 +25,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <map>
 #include <list>
 #include <unordered_map>
 
@@ -73,7 +74,8 @@ class Trash {
 
     virtual void Init(const TrashOption &option) = 0;
 
-    virtual void Add(uint64_t inodeId, uint64_t dtime) = 0;
+    virtual void Add(uint64_t inodeId,
+      uint64_t dtime, bool deleted = false) = 0;
 
     virtual void Remove(uint64_t inodeId) = 0;
 
@@ -98,7 +100,7 @@ class TrashImpl : public Trash {
 
     void Init(const TrashOption &option) override;
 
-    void Add(uint64_t inodeId, uint64_t dtime) override;
+    void Add(uint64_t inodeId, uint64_t dtime, bool deleted = false) override;
 
     void Remove(uint64_t inodeId) override;
 
@@ -124,6 +126,8 @@ class TrashImpl : public Trash {
 
     MetaStatusCode DeleteInode(uint64_t inodeId);
 
+    void RemoveDeletedInode(uint64_t inodeId);
+
  private:
     std::shared_ptr<InodeStorage> inodeStorage_;
     std::shared_ptr<S3ClientAdaptor>  s3Adaptor_;
@@ -137,6 +141,7 @@ class TrashImpl : public Trash {
     PartitionId partitionId_;
 
     std::unordered_map<uint64_t, uint64_t> trashItems_;
+
     mutable Mutex itemsMutex_;
 
     TrashOption options_;

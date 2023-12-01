@@ -23,6 +23,7 @@
 #include <inttypes.h>
 #include <glog/logging.h>
 
+#include <bitset>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -57,6 +58,7 @@ static bool CompareType(const std::string& str, KEY_TYPE keyType) {
 
 NameGenerator::NameGenerator(uint32_t partitionId)
     : tableName4Inode_(Format(kTypeInode, partitionId)),
+      tableName4DelInode_(Format(kTypeDelInode, partitionId)),
       tableName4DeallocatableIndoe_(
           Format(kTypeDeallocatableInode, partitionId)),
       tableName4DeallocatableBlockGroup_(
@@ -74,6 +76,10 @@ NameGenerator::NameGenerator(uint32_t partitionId)
 
 std::string NameGenerator::GetInodeTableName() const {
     return tableName4Inode_;
+}
+
+std::string NameGenerator::GetDelInodeTableName() const {
+    return tableName4DelInode_;
 }
 
 std::string NameGenerator::GetDeallocatableInodeTableName() const {

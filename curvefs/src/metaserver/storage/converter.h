@@ -34,7 +34,6 @@ namespace curvefs {
 namespace metaserver {
 
 class MetaStoreFStream;
-
 namespace storage {
 
 enum KEY_TYPE : unsigned char {
@@ -52,7 +51,8 @@ enum KEY_TYPE : unsigned char {
     kTypeInodeCount = 11,
     kTypeDentryCount = 12,
     kTypeTxLock = 13,
-    kTypeTxWrite = 14
+    kTypeTxWrite = 14,
+    kTypeDelInode = 15
 };
 
 // NOTE: you must generate all table name by NameGenerator class for
@@ -63,6 +63,8 @@ class NameGenerator {
     explicit NameGenerator(uint32_t partitionId);
 
     std::string GetInodeTableName() const;
+
+    std::string GetDelInodeTableName() const;
 
     std::string GetDeallocatableInodeTableName() const;
 
@@ -99,6 +101,7 @@ class NameGenerator {
 
  private:
     std::string tableName4Inode_;
+    std::string tableName4DelInode_;
     std::string tableName4DeallocatableIndoe_;
     std::string tableName4DeallocatableBlockGroup_;
     std::string tableName4S3ChunkInfo_;

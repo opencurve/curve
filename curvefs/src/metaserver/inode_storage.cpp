@@ -57,6 +57,7 @@ using ::curvefs::metaserver::storage::Prefix4ChunkIndexS3ChunkInfoList;
 using ::curvefs::metaserver::storage::Prefix4InodeS3ChunkInfoList;
 using ::curvefs::metaserver::storage::Prefix4InodeVolumeExtent;
 using ::curvefs::metaserver::storage::Status;
+using curvefs::metaserver::Time;
 
 const char* InodeStorage::kInodeCountKey("count");
 
@@ -67,6 +68,7 @@ InodeStorage::InodeStorage(std::shared_ptr<KVStorage> kvStorage,
                            uint64_t nInode)
     : kvStorage_(std::move(kvStorage)),
       table4Inode_(nameGenerator->GetInodeTableName()),
+      table4DelInode_(nameGenerator->GetDelInodeTableName()),
       table4S3ChunkInfo_(nameGenerator->GetS3ChunkInfoTableName()),
       table4VolumeExtent_(nameGenerator->GetVolumeExtentTableName()),
       table4InodeAuxInfo_(nameGenerator->GetInodeAuxInfoTableName()),
@@ -185,9 +187,78 @@ MetaStatusCode InodeStorage::Insert(const Inode& inode, int64_t logIndex) {
     return MetaStatusCode::STORAGE_INTERNAL_ERROR;
 }
 
+MetaStatusCode InodeStorage::AddDeletedInode(
+  const Key4Inode& keyInode, uint64_t dtime) {
+    WriteLockGuard lg(rwLock_);
+    std::string skey = conv_.SerializeToString(keyInode);
+    VLOG(9) << "update deleting key, " << keyInode.inodeId << ", " << dtime;
+    const char* step = "Begin transaction";
+    std::shared_ptr<storage::StorageTransaction> txn;
+    txn = kvStorage_->BeginTransaction();
+    if (txn == nullptr) {
+        LOG(ERROR) << "Begin transaction failed";
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
+    Time dtimeInfo;
+    dtimeInfo.set_sec(dtime);
+    dtimeInfo.set_nsec(0);
+    auto rc = txn->HSet(table4DelInode_, skey, dtimeInfo);
+    step = "insert inode ";
+    if (rc.ok()) {
+        rc = txn->Commit();
+        step = "commit";
+    }
+    if (rc.ok()) {
+        VLOG(9) << "set deleting key ok";
+        return MetaStatusCode::OK;
+    }
+    LOG(ERROR) << step << "failed, status = " << rc.ToString();
+    if (!txn->Rollback().ok()) {
+        LOG(ERROR) << "Rollback delete inode transaction failed, status = "
+                   << rc.ToString();
+    }
+    return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+}
+
+MetaStatusCode InodeStorage::RemoveDeletedInode(const Key4Inode& key) {
+    WriteLockGuard lg(rwLock_);
+    std::string skey = conv_.SerializeToString(key);
+    VLOG(9) << "clear deleting key start, " << skey;
+    std::shared_ptr<storage::StorageTransaction> txn = nullptr;
+    const char* step = "Begin transaction";
+    txn = kvStorage_->BeginTransaction();
+    if (txn == nullptr) {
+        LOG(ERROR) << "Begin transaction failed";
+        return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+    }
+    step = "Delete inode from transaction";
+    auto s = txn->HDel(table4DelInode_, skey);
+    if (s.ok()) {
+        step = "Delete inode";
+        s = txn->Commit();
+    }
+    if (s.ok()) {
+        VLOG(9) << "clear deleting key ok, " << skey;
+        return MetaStatusCode::OK;
+    }
+    LOG(ERROR) << step << " failed, status = " << s.ToString();
+    if (!txn->Rollback().ok()) {
+        LOG(ERROR) << "Rollback delete inode transaction failed, status = "
+                   << s.ToString();
+    }
+    return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+}
+
+void InodeStorage::LoadDeletedInodes(std::map<std::string, uint64_t> * inodes) {
+    VLOG(6) << "load deleted key start with: " << table4DelInode_;
+    kvStorage_->GetPrefix(inodes, table4DelInode_);
+    VLOG(6) << "load deleted over";
+}
+
 MetaStatusCode InodeStorage::Get(const Key4Inode& key, Inode* inode) {
     ReadLockGuard lg(rwLock_);
     std::string skey = conv_.SerializeToString(key);
+
     Status s = kvStorage_->HGet(table4Inode_, skey, inode);
     if (s.ok()) {
         return MetaStatusCode::OK;
@@ -471,7 +542,6 @@ MetaStatusCode InodeStorage::Clear() {
     // because if we fail stop, we will replay
     // raft logs and clear it again
     WriteLockGuard lg(rwLock_);
-
     Status s = kvStorage_->HClear(table4Inode_);
     if (!s.ok()) {
         LOG(ERROR) << "InodeStorage clear inode table failed, status = "
@@ -492,7 +562,6 @@ MetaStatusCode InodeStorage::Clear() {
             << s.ToString();
         return MetaStatusCode::STORAGE_INTERNAL_ERROR;
     }
-
     s = kvStorage_->HClear(table4InodeAuxInfo_);
     if (!s.ok()) {
         LOG(ERROR)

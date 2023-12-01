@@ -117,6 +117,7 @@ class MetaStore {
     virtual bool SaveData(const std::string& dir,
                           std::vector<std::string>* files) = 0;
     virtual bool Clear() = 0;
+    virtual void LoadDeletedInodes() {}
     virtual bool Destroy() = 0;
     virtual MetaStatusCode CreatePartition(
         const CreatePartitionRequest* request,
@@ -236,6 +237,7 @@ class MetaStoreImpl : public MetaStore {
                   std::vector<std::string>* files) override;
     bool Clear() override;
     bool Destroy() override;
+    void LoadDeletedInodes() override;
 
     MetaStatusCode CreatePartition(const CreatePartitionRequest* request,
                                    CreatePartitionResponse* response,

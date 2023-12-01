@@ -23,7 +23,9 @@
 #ifndef CURVEFS_SRC_METASERVER_STORAGE_STORAGE_H_
 #define CURVEFS_SRC_METASERVER_STORAGE_STORAGE_H_
 
+#include <list>
 #include <string>
+#include <map>
 #include <memory>
 #include <vector>
 
@@ -50,6 +52,9 @@ class BaseStorage {
     virtual Status HSet(const std::string& name,
                         const std::string& key,
                         const ValueType& value) = 0;
+
+    virtual void  GetPrefix(std::map<std::string, uint64_t>* item,
+      const std::string prefix) {}
 
     virtual Status HDel(const std::string& name, const std::string& key) = 0;
 

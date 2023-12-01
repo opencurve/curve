@@ -26,6 +26,7 @@
 #include <iostream>
 #include <unordered_map>
 
+#include "src/common/string_util.h"
 #include "src/common/timeutility.h"
 #include "curvefs/src/metaserver/storage/utils.h"
 #include "curvefs/src/metaserver/storage/storage.h"
@@ -198,6 +199,7 @@ ColumnFamilyType Table2FamilyType(const std::string& tableName) {
     auto tableKey = NameGenerator::DecodeKeyType(tableName);
     switch (tableKey) {
         case kTypeInode:
+        case kTypeDelInode:
         case kTypeInodeAuxInfo:
         case kTypeDeallocatableInode:
         case kTypeDeallocatableBlockGroup:
@@ -248,6 +250,7 @@ Status RocksDBStorage::Get(const std::string& name,
     ROCKSDB_NAMESPACE::Status s;
     std::string svalue;
     std::string ikey = ToInternalKey(name, key, type);
+    VLOG(9) << "Get key: " << ikey << ", " << options_.dataDir;
     auto handle = GetColumnFamilyHandle(type);
     {
         RocksDBPerfGuard guard(OP_GET);
@@ -257,6 +260,7 @@ Status RocksDBStorage::Get(const std::string& name,
     if (s.ok() && !value->ParseFromString(svalue)) {
         return Status::ParsedFailed();
     }
+
     return ToStorageStatus(s);
 }
 
@@ -273,6 +277,7 @@ Status RocksDBStorage::Set(const std::string& name,
 
     auto handle = GetColumnFamilyHandle(type);
     std::string ikey = ToInternalKey(name, key, type);
+    VLOG(9) << "set key: " << ikey << ", " << options_.dataDir;
     RocksDBPerfGuard guard(OP_PUT);
     ROCKSDB_NAMESPACE::Status s = InTransaction_ ?
         txn_->Put(handle, ikey, svalue) :
@@ -289,6 +294,7 @@ Status RocksDBStorage::Del(const std::string& name,
 
     std::string ikey = ToInternalKey(name, key, type);
     auto handle = GetColumnFamilyHandle(type);
+    VLOG(9) << "del key: " << ikey << ", " << options_.dataDir;
     RocksDBPerfGuard guard(OP_DELETE);
     ROCKSDB_NAMESPACE::Status s = InTransaction_ ?
         txn_->Delete(handle, ikey) :
@@ -546,6 +552,31 @@ bool RocksDBStorage::Recover(const std::string& dir) {
     LOG(INFO) << "Recovered rocksdb from `" << dir << "`";
     return true;
 }
+
+void  RocksDBStorage::GetPrefix(
+  std::map<std::string, uint64_t>* item, const std::string prefix) {
+    std::string sprefix = absl::StrCat("0", ":", prefix);
+    VLOG(3) << "load deleted inodes from: " << options_.dataDir
+            << ", " << sprefix << ", " << prefix;
+    int counts = 0;
+    rocksdb::Iterator* it = db_->NewIterator(rocksdb::ReadOptions());
+    curvefs::metaserver::Time time;
+    for (it->Seek(sprefix); it->Valid() &&
+        it->key().starts_with(sprefix); it->Next()) {
+        std::string key = it->key().ToString();
+        if (!time.ParseFromString(it->value().ToString())) {
+            return;
+        }
+        VLOG(9) << "key: " << key << ", " << key.size() << ", "
+                << it->value().ToString() << ", " << time.sec();
+        item->emplace(key, time.sec());
+        counts++;
+    }
+    delete it;
+    VLOG(3) << "load deleted inodes end, size is: " << item->size()
+            << ", " << counts << ", " << options_.dataDir;
+}
+
 
 }  // namespace storage
 }  // namespace metaserver

@@ -109,6 +109,8 @@ class Partition {
 
     MetaStatusCode GetInode(uint32_t fsId, uint64_t inodeId, Inode* inode);
 
+    void LoadDeletedInodes();
+
     MetaStatusCode GetInodeAttr(uint32_t fsId, uint64_t inodeId,
                                 InodeAttr* attr);
 

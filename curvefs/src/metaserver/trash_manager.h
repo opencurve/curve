@@ -27,6 +27,8 @@
 #include <list>
 #include <memory>
 
+#include "src/common/string_util.h"
+
 #include "src/common/concurrent/concurrent.h"
 #include "curvefs/src/metaserver/trash.h"
 
@@ -73,6 +75,7 @@ class TrashManager {
     InterruptibleSleeper sleeper_;
 
     std::map<uint32_t, std::shared_ptr<Trash>> trashs_;
+
     curve::common::RWLock rwLock_;
 };
 

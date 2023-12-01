@@ -27,6 +27,7 @@
 
 #include <atomic>
 #include <list>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -95,6 +96,8 @@ class InodeManager {
 
     MetaStatusCode UpdateInode(const UpdateInodeRequest& request,
                                int64_t logIndex);
+
+    void LoadDeletedInodes();
 
     MetaStatusCode GetOrModifyS3ChunkInfo(
         uint32_t fsId, uint64_t inodeId, const S3ChunkInfoMap& map2add,

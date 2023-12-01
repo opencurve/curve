@@ -27,6 +27,7 @@
 #include <cstdint>
 #include <functional>
 #include <list>
+#include <map>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -75,6 +76,18 @@ class InodeStorage {
      * @return If inode exist, return INODE_EXIST; else insert and return OK
      */
     MetaStatusCode Insert(const Inode& inode, int64_t logIndex);
+
+    /**
+     * @brief update deleting inode key in storage
+     * @param[in] inode: the inode want to update
+     * @param[in] logIndex: the index of raft log
+     * @return
+     */
+    MetaStatusCode AddDeletedInode(const Key4Inode& inode, uint64_t dtime);
+
+    MetaStatusCode RemoveDeletedInode(const Key4Inode& key);
+
+    void LoadDeletedInodes(std::map<std::string, uint64_t> * inodes);
 
     /**
      * @brief get inode from storage
@@ -237,6 +250,7 @@ class InodeStorage {
     RWLock rwLock_;
     std::shared_ptr<KVStorage> kvStorage_;
     std::string table4Inode_;
+    std::string table4DelInode_;
     std::string table4S3ChunkInfo_;
     std::string table4VolumeExtent_;
     std::string table4InodeAuxInfo_;
