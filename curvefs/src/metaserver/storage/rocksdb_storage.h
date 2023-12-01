@@ -23,7 +23,9 @@
 #ifndef CURVEFS_SRC_METASERVER_STORAGE_ROCKSDB_STORAGE_H_
 #define CURVEFS_SRC_METASERVER_STORAGE_ROCKSDB_STORAGE_H_
 
+#include <list>
 #include <vector>
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -40,10 +42,10 @@
 #include "rocksdb/utilities/transaction_db.h"
 #include "rocksdb/utilities/table_properties_collectors.h"
 #include "src/common/concurrent/rw_lock.h"
+#include "curvefs/src/metaserver/storage/converter.h"
 #include "curvefs/src/metaserver/storage/utils.h"
 #include "curvefs/src/metaserver/storage/storage.h"
 #include "curvefs/src/metaserver/storage/rocksdb_perf.h"
-#include "curvefs/src/metaserver/storage/converter.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -89,6 +91,9 @@ class RocksDBStorage : public KVStorage, public StorageTransaction {
     bool Close() override;
 
     STORAGE_TYPE Type() override;
+
+void  GetPrefix(
+  std::map<std::string, uint64_t>* item, const std::string prefix) override;
 
     StorageOptions GetStorageOptions() const override;
 

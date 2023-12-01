@@ -376,6 +376,10 @@ MetaStatusCode Partition::UpdateInode(const UpdateInodeRequest& request,
     return ret;
 }
 
+void Partition::LoadDeletedInodes() {
+    inodeManager_->LoadDeletedInodes();
+}
+
 MetaStatusCode Partition::GetOrModifyS3ChunkInfo(
     uint32_t fsId, uint64_t inodeId, const S3ChunkInfoMap& map2add,
     const S3ChunkInfoMap& map2del, bool returnS3ChunkInfoMap,

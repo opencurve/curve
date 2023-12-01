@@ -56,6 +56,7 @@ void TrashImpl::Init(const TrashOption &option) {
     mdsClient_ = option.mdsClient;
     copysetNode_ = copyset::CopysetNodeManager::GetInstance().
         GetSharedCopysetNode(poolId_, copysetId_);
+
     isStop_ = false;
 }
 
@@ -63,20 +64,27 @@ void TrashImpl::StopScan() {
     isStop_ = true;
 }
 
-bool TrashImpl::IsStop() {
-    return isStop_;
-}
-
-void TrashImpl::Add(uint64_t inodeId, uint64_t dtime) {
+void TrashImpl::Add(uint64_t inodeId, uint64_t dtime, bool deleted) {
     if (isStop_) {
         return;
     }
+
     LockGuard lg(itemsMutex_);
-    trashItems_[inodeId] = dtime;
-    VLOG(6) << "Add Trash Item success, fsId = " << fsId_
+    trashItems_.emplace(inodeId, dtime);
+
+    VLOG(6) << "Add trash item success"
+            << ", fsId = " << fsId_
             << ", partitionId = " << partitionId_
             << ", inodeId = " << inodeId
-            << ", dtime = " << dtime;
+            << ", dtime = " << dtime
+            << ", deleted = " << deleted;
+    if (!deleted) {
+        inodeStorage_->AddDeletedInode(Key4Inode(fsId_, inodeId), dtime);
+    }
+}
+
+bool TrashImpl::IsStop() {
+    return isStop_;
 }
 
 void TrashImpl::Remove(uint64_t inodeId) {
@@ -85,6 +93,7 @@ void TrashImpl::Remove(uint64_t inodeId) {
     }
     LockGuard lg(itemsMutex_);
     trashItems_.erase(inodeId);
+    RemoveDeletedInode(inodeId);
     VLOG(6) << "Remove Trash Item success, fsId = " << fsId_
             << ", partitionId = " << partitionId_
             << ", inodeId = " << inodeId;
@@ -127,10 +136,19 @@ void TrashImpl::ScanTrash() {
             it++;
         }
     }
-
     {
         LockGuard lgItems(itemsMutex_);
         trashItems_.insert(temp.begin(), temp.end());
+    }
+}
+
+void TrashImpl::RemoveDeletedInode(uint64_t inodeId) {
+    VLOG(9) << "RemoveDeletedInode: " << fsId_
+            << ", " << partitionId_ << ", " << ", " << inodeId;
+    if (MetaStatusCode::OK !=
+        inodeStorage_->RemoveDeletedInode(Key4Inode(fsId_, inodeId))) {
+        LOG(WARNING) << "RemoveDeletedInode failed, " << fsId_
+                     << ", " << partitionId_ << ", " << ", " << inodeId;
     }
 }
 
