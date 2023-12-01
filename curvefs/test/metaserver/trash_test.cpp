@@ -219,9 +219,9 @@ TEST_F(TestTrash, testAdd3ItemAndDelete) {
         }));
 
     uint64_t dtime = curve::common::TimeUtility::GetTimeofDaySec();
-    trash1->Add(1, dtime - 6);
-    trash1->Add(2, dtime - 2);
-    trash2->Add(1, dtime);
+    trash1->Add(1, dtime - 6, false);
+    trash1->Add(2, dtime - 2, false);
+    trash2->Add(1, dtime, false);
 
     std::this_thread::sleep_for(std::chrono::seconds(5));
 

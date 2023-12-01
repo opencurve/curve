@@ -170,7 +170,7 @@ bool CopysetNode::Start() {
         LOG(ERROR) << "Fail to init raft node, copyset: " << name_;
         return false;
     }
-
+    metaStore_->LoadDeletedInodes();
     LOG(INFO) << "Run copyset success, copyset: " << name_;
     return true;
 }

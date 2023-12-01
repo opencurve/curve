@@ -391,11 +391,6 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest& request,
         }
     }
 
-    if (needAddTrash) {
-        trash_->Add(old.inodeid(), old.dtime());
-        --(*type2InodeNum_)[old.type()];
-    }
-
     const S3ChunkInfoMap &map2add = request.s3chunkinfoadd();
     const S3ChunkInfoList *list2add;
     VLOG(9) << "UpdateInode inode " << old.inodeid() << " map2add size "
@@ -446,8 +441,25 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest& request,
             return MetaStatusCode::STORAGE_INTERNAL_ERROR;
         }
     }
+
+    if (needAddTrash) {
+        trash_->Add(old.inodeid(), old.dtime(), false);
+        --(*type2InodeNum_)[old.type()];
+    }
+
     VLOG(9) << "UpdateInode success, " << request.ShortDebugString();
     return MetaStatusCode::OK;
+}
+
+void InodeManager::LoadDeletedInodes() {
+    std::map<std::string, uint64_t> items;
+    inodeStorage_->LoadDeletedInodes(&items);
+    VLOG(3) << "build trash items size: " << items.size();
+    std::vector<std::string> names;
+    for (auto& iter : items) {
+        curve::common::SplitString(iter.first , ":", &names);
+        trash_->Add(std::stoull(names[names.size() - 1 ]), iter.second, true);
+    }
 }
 
 MetaStatusCode InodeManager::GetOrModifyS3ChunkInfo(
