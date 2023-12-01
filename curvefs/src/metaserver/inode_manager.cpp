@@ -312,7 +312,7 @@ MetaStatusCode InodeManager::DeleteInode(uint32_t fsId, uint64_t inodeId,
 MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest& request,
                                          int64_t logIndex) {
     CHECK_APPLIED();
-    VLOG(9) << "update inode, fsid: " << request.fsid()
+    VLOG(0) << "update inode, fsid: " << request.fsid()
             << ", inodeid: " << request.inodeid();
     NameLockGuard lg(inodeLock_,
                      GetInodeLockName(request.fsid(), request.inodeid()));
@@ -388,11 +388,6 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest& request,
         }
     }
 
-    if (s3NeedTrash) {
-        trash_->Add(old.fsid(), old.inodeid(), old.dtime());
-        --(*type2InodeNum_)[old.type()];
-    }
-
     const S3ChunkInfoMap &map2add = request.s3chunkinfoadd();
     const S3ChunkInfoList *list2add;
     VLOG(9) << "UpdateInode inode " << old.inodeid() << " map2add size "
@@ -443,7 +438,14 @@ MetaStatusCode InodeManager::UpdateInode(const UpdateInodeRequest& request,
             return MetaStatusCode::STORAGE_INTERNAL_ERROR;
         }
     }
-    VLOG(9) << "UpdateInode success, " << request.ShortDebugString();
+
+    if (s3NeedTrash) {
+        inodeStorage_->UpdateDeletingKey(old, logIndex);
+        trash_->Add(old.fsid(), old.inodeid(), old.dtime());
+        --(*type2InodeNum_)[old.type()];
+    }
+
+    VLOG(0) << "UpdateInode success, " << request.ShortDebugString();
     return MetaStatusCode::OK;
 }
 

@@ -26,6 +26,7 @@
 #include <iostream>
 #include <unordered_map>
 
+#include "src/common/string_util.h"
 #include "src/common/timeutility.h"
 #include "curvefs/src/metaserver/storage/utils.h"
 #include "curvefs/src/metaserver/storage/storage.h"
@@ -218,6 +219,7 @@ Status RocksDBStorage::Get(const std::string& name,
     if (s.ok() && !value->ParseFromString(svalue)) {
         return Status::ParsedFailed();
     }
+
     return ToStorageStatus(s);
 }
 
@@ -238,6 +240,47 @@ Status RocksDBStorage::Set(const std::string& name,
     ROCKSDB_NAMESPACE::Status s = InTransaction_ ?
         txn_->Put(handle, ikey, svalue) :
         db_->Put(dbWriteOptions_, handle, ikey, svalue);
+    return ToStorageStatus(s);
+}
+
+Status RocksDBStorage::SetDeleting(const std::string& name,
+               const std::string& key,
+               const ValueType& value,
+               bool ordered) {
+    std::string svalue;
+    if (!inited_) {
+        return Status::DBClosed();
+    } else if (!value.SerializeToString(&svalue)) {
+        return Status::SerializedFailed();
+    }
+
+    auto handle = GetColumnFamilyHandle(ordered);
+    std::string ikey = ToInternalKey(name, key, ordered);
+    std::string deletingKey = "deleting_" + ikey;
+    VLOG(9) << "whs set deleting key = " << deletingKey
+      << ", ikey " << ikey << ", " << options_.dataDir;
+    RocksDBPerfGuard guard(OP_PUT);
+    ROCKSDB_NAMESPACE::Status s = InTransaction_ ?
+        txn_->Put(handle, deletingKey, svalue) :
+        db_->Put(dbWriteOptions_, handle, deletingKey, svalue);
+    return ToStorageStatus(s);
+}
+
+Status RocksDBStorage::ClearDeleting(const std::string& name,
+               const std::string& key,
+               bool ordered) {
+    if (!inited_) {
+        return Status::DBClosed();
+    }
+    std::string ikey = ToInternalKey(name, key, ordered);
+    std::string deletingKey = "deleting_" + ikey;
+    VLOG(9) << "whs clear deleting key = " << deletingKey
+      << ", ikey " << ikey << ", " << options_.dataDir;
+    auto handle = GetColumnFamilyHandle(ordered);
+    RocksDBPerfGuard guard(OP_DELETE);
+    ROCKSDB_NAMESPACE::Status s = InTransaction_ ?
+        txn_->Delete(handle, deletingKey) :
+        db_->Delete(dbWriteOptions_, handle, deletingKey);
     return ToStorageStatus(s);
 }
 
@@ -272,6 +315,14 @@ std::shared_ptr<Iterator> RocksDBStorage::GetAll(const std::string& name,
     return std::make_shared<RocksDBStorageIterator>(
         this, std::move(ikey), 0, status, ordered);
 }
+
+std::shared_ptr<Iterator> RocksDBStorage::GetPrefix(const std::string& prefix,
+                                                 bool ordered) {
+    int status = inited_ ? 0 : -1;
+    return std::make_shared<RocksDBStorageIterator>(
+        this, std::move(prefix), 0, status, ordered);
+}
+
 
 size_t RocksDBStorage::Size(const std::string& name, bool ordered) {
     auto iterator = GetAll(name, ordered);
@@ -503,6 +554,22 @@ bool RocksDBStorage::Recover(const std::string& dir) {
 
     LOG(INFO) << "Recovered rocksdb from `" << dir << "`";
     return true;
+}
+
+void  RocksDBStorage::LoadDeletedInodes(std::list<std::string>* item) {
+    LOG(INFO) << "LoadAll storage from: " << options_.dataDir;
+    std::string sprefix = "deleting_";
+    int counts = 0;
+    rocksdb::Iterator* it = db_->NewIterator(rocksdb::ReadOptions());
+    for (it->Seek(sprefix); it->Valid() &&
+      it->key().starts_with(sprefix); it->Next()) {
+        std::string key = it->key().ToString();
+        item->push_back(key);
+        VLOG(3) << "load key: " << key << ", " << key.size();
+        counts++;
+     }
+    LOG(INFO) << "LoadAll storage from. size: " << item->size()
+              << ", " << counts << ", " << options_.dataDir;
 }
 
 }  // namespace storage

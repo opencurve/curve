@@ -27,6 +27,8 @@
 #include <list>
 #include <memory>
 
+#include "src/common/string_util.h"
+
 #include "src/common/concurrent/concurrent.h"
 #include "curvefs/src/metaserver/trash.h"
 
@@ -50,6 +52,11 @@ class TrashManager {
         trashs_.emplace(partitionId, trash);
         LOG(INFO) << "add partition to trash manager, partitionId = "
                   << partitionId;
+    }
+
+    std::shared_ptr<Trash> GetTrash(uint32_t partitionId) {
+        curve::common::ReadLockGuard lg(rwLock_);
+        return trashs_.find(partitionId)->second;
     }
 
     void Remove(uint32_t partitionId);
@@ -79,6 +86,7 @@ class TrashManager {
     InterruptibleSleeper sleeper_;
 
     std::map<uint32_t, std::shared_ptr<Trash>> trashs_;
+
     curve::common::RWLock rwLock_;
 };
 

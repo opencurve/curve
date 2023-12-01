@@ -23,6 +23,7 @@
 #include <inttypes.h>
 #include <glog/logging.h>
 
+#include <bitset>
 #include <cstring>
 #include <string>
 #include <vector>

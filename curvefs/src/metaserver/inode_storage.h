@@ -43,6 +43,7 @@
 #include "curvefs/src/metaserver/storage/utils.h"
 #include "src/common/concurrent/rw_lock.h"
 
+#define DELETING_PREFIX "deleting_"
 namespace curvefs {
 namespace metaserver {
 
@@ -75,6 +76,16 @@ class InodeStorage {
      * @return If inode exist, return INODE_EXIST; else insert and return OK
      */
     MetaStatusCode Insert(const Inode& inode, int64_t logIndex);
+
+    /**
+     * @brief update deleting inode key in storage
+     * @param[in] inode: the inode want to update
+     * @param[in] logIndex: the index of raft log
+     * @return
+     */
+    MetaStatusCode UpdateDeletingKey(const Inode& inode, int64_t logIndex);
+
+    MetaStatusCode ClearDelKey(const Key4Inode& key);
 
     /**
      * @brief get inode from storage
@@ -187,6 +198,11 @@ class InodeStorage {
     MetaStatusCode GetAllBlockGroup(
         std::vector<DeallocatableBlockGroup>* deallocatableBlockGroupVec);
 
+/*
+    std::shared_ptr<KVStorage> GetKVStorage() {
+        return kvStorage_;
+    }
+*/
  private:
     MetaStatusCode UpdateInodeS3MetaSize(Transaction txn, uint32_t fsId,
                                          uint64_t inodeId, uint64_t size4add,

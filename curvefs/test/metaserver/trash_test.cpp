@@ -163,9 +163,9 @@ TEST_F(TestTrash, testAdd3ItemAndDelete) {
 
     ASSERT_EQ(inodeStorage_->Size(), 3);
 
-    trash1->Add(1, 1, 0);
-    trash1->Add(1, 2, 0);
-    trash2->Add(2, 1, 0);
+    trash1->Add(1, 1, 0, false);
+    trash1->Add(1, 2, 0, false);
+    trash2->Add(2, 1, 0, false);
 
     std::this_thread::sleep_for(std::chrono::seconds(5));
     std::list<TrashItem> list;
@@ -192,8 +192,8 @@ TEST_F(TestTrash, testAdd3ItemAndNoDelete) {
     inodeStorage_->Insert(GenInode(1, 2), logIndex_++);
     inodeStorage_->Insert(GenInode(2, 1), logIndex_++);
     ASSERT_EQ(inodeStorage_->Size(), 3);
-    trash1->Add(1, 1, 0);
-    trash1->Add(1, 2, 0);
+    trash1->Add(1, 1, 0, false);
+    trash1->Add(1, 2, 0, false);
     std::this_thread::sleep_for(std::chrono::seconds(5));
     std::list<TrashItem> list;
 

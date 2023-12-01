@@ -1033,5 +1033,26 @@ TEST_F(InodeStorageTest, Test_UpdateDeallocatableBlockGroup) {
     ASSERT_EQ(1, deallocatableBlockGroupVec.size());
 }
 
+TEST_F(InodeStorageTest, test_deleting_key) {
+    InodeStorage storage(kvStorage_, nameGenerator_, 0);
+    ASSERT_TRUE(storage.Init());
+    Inode inode1 = GenInode(1, 1);
+    Inode inode2 = GenInode(2, 2);
+
+    // insert
+    ASSERT_EQ(storage.Insert(inode1, logIndex_++), MetaStatusCode::OK);
+    ASSERT_EQ(storage.Insert(inode2, logIndex_++), MetaStatusCode::OK);
+
+    ASSERT_EQ(storage.UpdateDeletingKey(
+      inode1, logIndex_++), MetaStatusCode::OK);
+    ASSERT_EQ(storage.ClearDelKey(Key4Inode(
+      inode1.fsid(), inode1.inodeid())), MetaStatusCode::OK);
+
+    ASSERT_EQ(storage.UpdateDeletingKey(
+      inode2, logIndex_++), MetaStatusCode::OK);
+    ASSERT_EQ(storage.ClearDelKey(Key4Inode(
+      inode2.fsid(), inode2.inodeid())), MetaStatusCode::OK);
+}
+
 }  // namespace metaserver
 }  // namespace curvefs
