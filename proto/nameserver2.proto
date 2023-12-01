@@ -31,18 +31,18 @@ enum FileType {
 };
 
 enum FileStatus {
-    // 文件创建完成
+    // File creation completed
     kFileCreated = 0;
-    // 文件删除中
+    // Deleting files
     kFileDeleting = 1;
 
-    // 文件正在克隆
+    // File is being cloned
     kFileCloning = 2;
-    // 文件元数据安装完毕
+    // File metadata installation completed
     kFileCloneMetaInstalled = 3;
-    // 文件克隆完成
+    // File cloning completed
     kFileCloned = 4;
-    // 文件正在被克隆
+    // The file is being cloned
     kFileBeingCloned = 5;
 }
 
@@ -78,15 +78,15 @@ message FileInfo {
     optional    uint64      ctime  = 9;
     optional    uint64      seqNum =  10;
     optional    FileStatus  fileStatus = 11;
-    //用于文件转移到回收站的情况下恢复场景下的使用,
-    //RecycleBin（回收站）目录下使用/其他场景下不使用
+    // Used to restore usage in scenarios where files are transferred to the recycle bin,
+    // Used in the RecycleBin directory/not used in other scenarios
     optional    string      originalFullPathName = 12;
 
-    // cloneSource 当前用于存放克隆源(当前主要用于curvefs)
-    // 后期可以考虑存放 s3相关信息
+    // CloneSource is currently used to store clone sources (currently mainly used for curvefs)
+    //Later on, we can consider storing s3 related information
     optional    string      cloneSource   =    13;
 
-    // cloneLength 克隆源文件的长度，用于clone过程中进行extent
+    // CloneLength The length of the clone source file used for extension during the clone process
     optional    uint64      cloneLength =  14;
     optional    uint64      stripeUnit = 15;
     optional    uint64      stripeCount = 16;
@@ -99,68 +99,68 @@ message FileInfo {
 
 // status code
 enum  StatusCode {
-    // 执行成功
+    // Execution successful
     kOK = 0;
 
-    // 文件已存在
+    // File already exists
     kFileExists = 101;
-    // 文件不存在
+    // File does not exist
     kFileNotExists = 102;
-    // 非目录类型
+    // Non directory type
     kNotDirectory = 103;
-    // 传入参数错误
+    // Incoming parameter error
     kParaError = 104;
-    // 缩小文件，目前不支持缩小文件
+    // Shrinking files, currently not supported
     kShrinkBiggerFile = 105;
-    // 扩容单位错误，非segment size整数倍
+    // Expansion unit error, not an integer multiple of segment size
     kExtentUnitError = 106;
-    // segment未分配
+    // Segment not allocated
     kSegmentNotAllocated = 107;
-    // segment分配失败
+    // Segment allocation failed
     kSegmentAllocateError = 108;
-    // 目录不存在
+    // Directory does not exist
     kDirNotExist = 109;
-    // 功能不支持
+    // Function not supported
     kNotSupported = 110;
-    // owner认证失败
+    // Owner authentication failed
     kOwnerAuthFail = 111;
-    // 目录非空
+    // Directory is not empty
     kDirNotEmpty = 112;
 
-    // 文件已处于快照中
+    // The file is already in a snapshot
     kFileUnderSnapShot = 120;
-    // 文件不在快照中
+    // The file is not in the snapshot
     kFileNotUnderSnapShot = 121;
-    // 快照删除中
+    // Snapshot deletion in progress
     kSnapshotDeleting = 122;
-    // 快照文件不存在
+    // The snapshot file does not exist
     kSnapshotFileNotExists = 123;
-    // 快照文件删除失败
+    // Snapshot file deletion failed
     kSnapshotFileDeleteError = 124;
-    // session不存在
+    // Session does not exist
     kSessionNotExist = 125;
-    // 文件已被占用
+    // The file is already in use
     kFileOccupied = 126;
 
     kCloneFileNameIllegal = 127;
     kCloneStatusNotMatch = 128;
-    // 文件删除失败
+    // File deletion failed
     kCommonFileDeleteError = 129;
-    // 文件id不匹配
+    // File ID mismatch
     kFileIdNotMatch = 130;
-    // 文件在删除中
+    // The file is being deleted
     kFileUnderDeleting = 131;
-    // 文件长度不符合要求
+    // The file length does not meet the requirements
     kFileLengthNotSupported = 132;
-    // 文件正在被克隆
+    // The file is being cloned
     kDeleteFileBeingCloned = 133;
-    // client版本不匹配
+    // Client version mismatch
     kClientVersionNotMatch = 134;
-    // snapshot功能禁用中
+    // The snapshot function is disabled
     kSnapshotFrozen = 135;
-    // 快照克隆服务连不上
+    // The snapshot clone service cannot be connected
     kSnapshotCloneConnectFail = 136;
-    // 快照克隆服务未初始化
+    // The snapshot clone service is not initialized
     kSnapshotCloneServerNotInit = 137;
     // recover file status is CloneMetaInstalled
     kRecoverFileCloneMetaInstalled = 138;
@@ -170,9 +170,9 @@ enum  StatusCode {
     kEpochTooOld = 140;
     // poolset doesn't exist
     kPoolsetNotExist = 141;
-    // 元数据存储错误
+    // Metadata storage error
     kStorageError = 501;
-    // 内部错误
+    // Internal error
     KInternalError = 502;
 };
 
@@ -311,20 +311,20 @@ message ExtendFileResponse {
 }
 
 message ChangeOwnerRequest {
-    // 需要变更owner的文件的fileName
+    // Need to change the fileName of the owner's file
     required string fileName = 1;
-    // 希望文件owner变更后的新的owner
+    // Hope the new owner after the file owner changes
     required string newOwner = 2;
-    // ChangerOwner接口只能通过root权限进行调用，需要传入root权限的owner
+    // The ChangerOwner interface can only be called with root permission, and an owner with root permission needs to be passed in
     required string rootOwner = 3;
-    // 对root身份进行校验的的signature
+    // The signature for verifying the root identity
     required string signature = 4;
-    // 用来在mds端重新计算signature
+    // Used to recalculate the signature on the mds side
     required uint64 date = 5;
 }
 
-// 返回ChangeOwner的执行结果，成功返回statusCode::kOK
-// 失败可能返回kFileNotExists、kOwnerAuthFail、kFileOccupied、kStorageError等，可能返回的错误码将来继续补充
+// Returns the execution result of ChangeOwner, successfully returning statusCode::kOK
+// Failure may return kFileNotExists, kOwnerAuthFail, kFileOccupied, kStorageError, etc. The error codes that may be returned will continue to be supplemented in the future
 message ChangeOwnerResponse {
     required StatusCode statusCode = 1;
 }
@@ -395,8 +395,8 @@ message CheckSnapShotStatusRequest {
     required uint64     date = 5;
 }
 
-// statusCode为kOK时，fileStatus和progress才会赋值
-// 只有fileStatus是kFileDeleting时，progress表示快照文件删除进度，否则progress返回0
+// FileStatus and progress are only assigned values when statusCode is kOK
+// Only when fileStatus is kFileDeleting, progress represents the progress of snapshot file deletion, otherwise progress returns 0
 message CheckSnapShotStatusResponse {
     required StatusCode statusCode = 1;
     optional FileStatus     fileStatus = 2;
@@ -431,7 +431,7 @@ message OpenFileRequest {
     optional string clientVersion = 5;
 };
 
-// statusCode返回值，详见StatusCode定义:
+// The return value of statusCode is detailed in the definition of StatusCode:
 // StatusCode::kOK
 // StatusCode::kFileNotExists
 // StatusCode::kStorageError
@@ -456,7 +456,7 @@ message CloseFileRequest {
     optional uint32     clientPort = 7;
 };
 
-// statusCode返回值，详见StatusCode定义:
+// The return value of statusCode is detailed in the definition of StatusCode:
 // StatusCode::kOK
 // StatusCode::kFileNotExists
 // StatusCode::kStorageError
@@ -478,7 +478,7 @@ message ReFreshSessionRequest {
     optional uint32     clientPort = 8;
 }
 
-// statusCode返回值，详见StatusCode定义:
+// The return value of statusCode is detailed in the definition of StatusCode:
 // StatusCode::kOK
 // StatusCode::kFileNotExists
 // StatusCode::kStorageError
@@ -531,9 +531,9 @@ message GetAllocatedSizeRequest {
 
 message GetAllocatedSizeResponse {
     required StatusCode statusCode = 1;
-    // 文件或目录的分配大小
+    // Allocation size of files or directories
     optional uint64 allocatedSize = 2;
-    // key是逻辑池id，value是分配大小
+    // Key is the logical pool id, and value is the allocation size
     map<uint32, uint64> allocSizeMap = 3;
 }
 
@@ -543,7 +543,7 @@ message GetFileSizeRequest {
 
 message GetFileSizeResponse {
     required StatusCode statusCode = 1;
-    // 文件或目录的file length
+    // The file length of a file or directory
     optional uint64 fileSize = 2;
 }
 

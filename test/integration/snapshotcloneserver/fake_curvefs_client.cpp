@@ -20,10 +20,10 @@
  * Author: xuchaojie
  */
 
+#include "test/integration/snapshotcloneserver/fake_curvefs_client.h"
+
 #include <fiu-control.h>
 #include <fiu.h>
-
-#include "test/integration/snapshotcloneserver/fake_curvefs_client.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -36,9 +36,8 @@ const uint64_t chunkSize = 16ULL * 1024 * 1024;
 const uint64_t segmentSize = 32ULL * 1024 * 1024;
 const uint64_t fileLength = 64ULL * 1024 * 1024;
 
-
-int FakeCurveFsClient::Init(const CurveClientOptions &options) {
-    // 初始化一个文件用打快照和克隆
+int FakeCurveFsClient::Init(const CurveClientOptions& options) {
+    // Initialize a file for snapshot and cloning
     FInfo fileInfo;
     fileInfo.id = 100;
     fileInfo.parentid = 3;
@@ -59,15 +58,13 @@ int FakeCurveFsClient::Init(const CurveClientOptions &options) {
     return LIBCURVE_ERROR::OK;
 }
 
-int FakeCurveFsClient::UnInit() {
-    return LIBCURVE_ERROR::OK;
-}
+int FakeCurveFsClient::UnInit() { return LIBCURVE_ERROR::OK; }
 
-int FakeCurveFsClient::CreateSnapshot(const std::string &filename,
-                                      const std::string &user,
-                                      uint64_t *seq) {
+int FakeCurveFsClient::CreateSnapshot(const std::string& filename,
+                                      const std::string& user, uint64_t* seq) {
     fiu_return_on(
-        "test/integration/snapshotcloneserver/FakeCurveFsClient.CreateSnapshot", -LIBCURVE_ERROR::FAILED);  // NOLINT
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.CreateSnapshot",
+        -LIBCURVE_ERROR::FAILED);  // NOLINT
 
     auto it = fileMap_.find(filename);
     if (it != fileMap_.end()) {
@@ -77,8 +74,8 @@ int FakeCurveFsClient::CreateSnapshot(const std::string &filename,
         snapInfo.filetype = FileType::INODE_SNAPSHOT_PAGEFILE;
         snapInfo.id = fileId_++;
         snapInfo.parentid = it->second.id;
-        snapInfo.filename = (it->second.filename + "-"
-            + std::to_string(it->second.seqnum));
+        snapInfo.filename =
+            (it->second.filename + "-" + std::to_string(it->second.seqnum));
         snapInfo.filestatus = FileStatus::Created;
 
         it->second.seqnum++;
@@ -89,11 +86,11 @@ int FakeCurveFsClient::CreateSnapshot(const std::string &filename,
     }
 }
 
-int FakeCurveFsClient::DeleteSnapshot(const std::string &filename,
-                                      const std::string &user,
-                                      uint64_t seq) {
+int FakeCurveFsClient::DeleteSnapshot(const std::string& filename,
+                                      const std::string& user, uint64_t seq) {
     fiu_return_on(
-        "test/integration/snapshotcloneserver/FakeCurveFsClient.DeleteSnapshot", -LIBCURVE_ERROR::FAILED);  // NOLINT
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.DeleteSnapshot",
+        -LIBCURVE_ERROR::FAILED);  // NOLINT
     auto it = fileSnapInfoMap_.find(filename);
     if (it != fileSnapInfoMap_.end()) {
         fileSnapInfoMap_.erase(it);
@@ -102,12 +99,12 @@ int FakeCurveFsClient::DeleteSnapshot(const std::string &filename,
     return -LIBCURVE_ERROR::NOTEXIST;
 }
 
-int FakeCurveFsClient::GetSnapshot(const std::string &filename,
-                                   const std::string &user,
-                                   uint64_t seq,
+int FakeCurveFsClient::GetSnapshot(const std::string& filename,
+                                   const std::string& user, uint64_t seq,
                                    FInfo* snapInfo) {
     fiu_return_on(
-        "test/integration/snapshotcloneserver/FakeCurveFsClient.GetSnapshot", -LIBCURVE_ERROR::FAILED);  // NOLINT
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.GetSnapshot",
+        -LIBCURVE_ERROR::FAILED);  // NOLINT
     if (fileSnapInfoMap_.find(filename) != fileSnapInfoMap_.end()) {
         *snapInfo = fileSnapInfoMap_[filename];
         return LIBCURVE_ERROR::OK;
@@ -115,17 +112,18 @@ int FakeCurveFsClient::GetSnapshot(const std::string &filename,
     return -LIBCURVE_ERROR::NOTEXIST;
 }
 
-int FakeCurveFsClient::GetSnapshotSegmentInfo(const std::string &filename,
-        const std::string &user,
-        uint64_t seq,
-        uint64_t offset,
-        SegmentInfo *segInfo) {
+int FakeCurveFsClient::GetSnapshotSegmentInfo(const std::string& filename,
+                                              const std::string& user,
+                                              uint64_t seq, uint64_t offset,
+                                              SegmentInfo* segInfo) {
     fiu_return_on(
-        "test/integration/snapshotcloneserver/FakeCurveFsClient.GetSnapshotSegmentInfo", -LIBCURVE_ERROR::FAILED);  // NOLINT
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.GetSnapshotSegmentInfo",
+        -LIBCURVE_ERROR::FAILED);  // NOLINT
     segInfo->segmentsize = segmentSize;
     segInfo->chunksize = chunkSize;
     segInfo->startoffset = offset;
-    // 一共2个segment
+    // 2 segments in total
     if (offset == 0) {
         segInfo->chunkvec = {{1, 1, 1}, {2, 2, 1}};
     } else {
@@ -134,50 +132,47 @@ int FakeCurveFsClient::GetSnapshotSegmentInfo(const std::string &filename,
     return LIBCURVE_ERROR::OK;
 }
 
-int FakeCurveFsClient::ReadChunkSnapshot(ChunkIDInfo cidinfo,
-        uint64_t seq,
-        uint64_t offset,
-        uint64_t len,
-        char *buf,
-        SnapCloneClosure *scc) {
+int FakeCurveFsClient::ReadChunkSnapshot(ChunkIDInfo cidinfo, uint64_t seq,
+                                         uint64_t offset, uint64_t len,
+                                         char* buf, SnapCloneClosure* scc) {
     scc->SetRetCode(LIBCURVE_ERROR::OK);
     scc->Run();
     fiu_return_on(
-        "test/integration/snapshotcloneserver/FakeCurveFsClient.ReadChunkSnapshot", -LIBCURVE_ERROR::FAILED);  // NOLINT
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.ReadChunkSnapshot",
+        -LIBCURVE_ERROR::FAILED);  // NOLINT
     memset(buf, 'x', len);
     return LIBCURVE_ERROR::OK;
 }
 
 int FakeCurveFsClient::CheckSnapShotStatus(std::string filename,
-        std::string user,
-        uint64_t seq,
-        FileStatus* filestatus) {
+                                           std::string user, uint64_t seq,
+                                           FileStatus* filestatus) {
     fiu_return_on(
-        "test/integration/snapshotcloneserver/FakeCurveFsClient.CheckSnapShotStatus", -LIBCURVE_ERROR::FAILED);  // NOLINT
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CheckSnapShotStatus",
+        -LIBCURVE_ERROR::FAILED);  // NOLINT
     return -LIBCURVE_ERROR::NOTEXIST;
 }
 
-int FakeCurveFsClient::GetChunkInfo(const ChunkIDInfo &cidinfo,
-                                    ChunkInfoDetail *chunkInfo) {
+int FakeCurveFsClient::GetChunkInfo(const ChunkIDInfo& cidinfo,
+                                    ChunkInfoDetail* chunkInfo) {
     fiu_return_on(
-        "test/integration/snapshotcloneserver/FakeCurveFsClient.GetChunkInfo", -LIBCURVE_ERROR::FAILED);  // NOLINT
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.GetChunkInfo",
+        -LIBCURVE_ERROR::FAILED);  // NOLINT
     chunkInfo->chunkSn.push_back(1);
     return LIBCURVE_ERROR::OK;
 }
 
 int FakeCurveFsClient::CreateCloneFile(
-    const std::string &source,
-    const std::string &filename,
-    const std::string &user,
-    uint64_t size,
-    uint64_t sn,
-    uint32_t chunkSize,
-    uint64_t stripeUnit,
-    uint64_t stripeCount,
-    const std::string& poolset,
+    const std::string& source, const std::string& filename,
+    const std::string& user, uint64_t size, uint64_t sn, uint32_t chunkSize,
+    uint64_t stripeUnit, uint64_t stripeCount, const std::string& poolset,
     FInfo* fileInfo) {
     fiu_return_on(
-        "test/integration/snapshotcloneserver/FakeCurveFsClient.CreateCloneFile", -LIBCURVE_ERROR::FAILED);  // NOLINT
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CreateCloneFile",
+        -LIBCURVE_ERROR::FAILED);  // NOLINT
 
     fileInfo->id = fileId_++;
     fileInfo->parentid = 2;
@@ -202,37 +197,37 @@ int FakeCurveFsClient::CreateCloneFile(
     return LIBCURVE_ERROR::OK;
 }
 
-int FakeCurveFsClient::CreateCloneChunk(
-    const std::string &location,
-    const ChunkIDInfo &chunkidinfo,
-    uint64_t sn,
-    uint64_t csn,
-    uint64_t chunkSize,
-    SnapCloneClosure* scc) {
+int FakeCurveFsClient::CreateCloneChunk(const std::string& location,
+                                        const ChunkIDInfo& chunkidinfo,
+                                        uint64_t sn, uint64_t csn,
+                                        uint64_t chunkSize,
+                                        SnapCloneClosure* scc) {
     scc->SetRetCode(LIBCURVE_ERROR::OK);
     scc->Run();
     fiu_return_on(
-        "test/integration/snapshotcloneserver/FakeCurveFsClient.CreateCloneChunk", -LIBCURVE_ERROR::FAILED);  // NOLINT
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CreateCloneChunk",
+        -LIBCURVE_ERROR::FAILED);  // NOLINT
     return LIBCURVE_ERROR::OK;
 }
 
-int FakeCurveFsClient::RecoverChunk(
-    const ChunkIDInfo &chunkidinfo,
-    uint64_t offset,
-    uint64_t len,
-    SnapCloneClosure *scc) {
+int FakeCurveFsClient::RecoverChunk(const ChunkIDInfo& chunkidinfo,
+                                    uint64_t offset, uint64_t len,
+                                    SnapCloneClosure* scc) {
     scc->SetRetCode(LIBCURVE_ERROR::OK);
     scc->Run();
     fiu_return_on(
-        "test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk", -LIBCURVE_ERROR::FAILED);  // NOLINT
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.RecoverChunk",
+        -LIBCURVE_ERROR::FAILED);  // NOLINT
     return LIBCURVE_ERROR::OK;
 }
 
-int FakeCurveFsClient::CompleteCloneMeta(
-    const std::string &filename,
-    const std::string &user) {
+int FakeCurveFsClient::CompleteCloneMeta(const std::string& filename,
+                                         const std::string& user) {
     fiu_return_on(
-        "test/integration/snapshotcloneserver/FakeCurveFsClient.CompleteCloneMeta", -LIBCURVE_ERROR::FAILED);  // NOLINT
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CompleteCloneMeta",
+        -LIBCURVE_ERROR::FAILED);  // NOLINT
     auto it = fileMap_.find(filename);
     if (it != fileMap_.end()) {
         it->second.filestatus = FileStatus::CloneMetaInstalled;
@@ -242,11 +237,12 @@ int FakeCurveFsClient::CompleteCloneMeta(
     }
 }
 
-int FakeCurveFsClient::CompleteCloneFile(
-    const std::string &filename,
-    const std::string &user) {
+int FakeCurveFsClient::CompleteCloneFile(const std::string& filename,
+                                         const std::string& user) {
     fiu_return_on(
-        "test/integration/snapshotcloneserver/FakeCurveFsClient.CompleteCloneFile", -LIBCURVE_ERROR::FAILED);  // NOLINT
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.CompleteCloneFile",
+        -LIBCURVE_ERROR::FAILED);  // NOLINT
     auto it = fileMap_.find(filename);
     if (it != fileMap_.end()) {
         it->second.filestatus = FileStatus::Cloned;
@@ -256,12 +252,13 @@ int FakeCurveFsClient::CompleteCloneFile(
     }
 }
 
-int FakeCurveFsClient::SetCloneFileStatus(
-    const std::string &filename,
-    const FileStatus& filestatus,
-    const std::string &user) {
+int FakeCurveFsClient::SetCloneFileStatus(const std::string& filename,
+                                          const FileStatus& filestatus,
+                                          const std::string& user) {
     fiu_return_on(
-        "test/integration/snapshotcloneserver/FakeCurveFsClient.SetCloneFileStatus", -LIBCURVE_ERROR::FAILED);  // NOLINT
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.SetCloneFileStatus",
+        -LIBCURVE_ERROR::FAILED);  // NOLINT
     auto it = fileMap_.find(filename);
     if (it != fileMap_.end()) {
         it->second.filestatus = filestatus;
@@ -271,12 +268,11 @@ int FakeCurveFsClient::SetCloneFileStatus(
     }
 }
 
-int FakeCurveFsClient::GetFileInfo(
-    const std::string &filename,
-    const std::string &user,
-    FInfo* fileInfo) {
+int FakeCurveFsClient::GetFileInfo(const std::string& filename,
+                                   const std::string& user, FInfo* fileInfo) {
     fiu_return_on(
-        "test/integration/snapshotcloneserver/FakeCurveFsClient.GetFileInfo", -LIBCURVE_ERROR::FAILED);  // NOLINT
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.GetFileInfo",
+        -LIBCURVE_ERROR::FAILED);  // NOLINT
     if (fileMap_.find(filename) != fileMap_.end()) {
         *fileInfo = fileMap_[filename];
         return LIBCURVE_ERROR::OK;
@@ -284,18 +280,18 @@ int FakeCurveFsClient::GetFileInfo(
     return -LIBCURVE_ERROR::NOTEXIST;
 }
 
-int FakeCurveFsClient::GetOrAllocateSegmentInfo(
-    bool allocate,
-    uint64_t offset,
-    FInfo* fileInfo,
-    const std::string &user,
-    SegmentInfo *segInfo) {
+int FakeCurveFsClient::GetOrAllocateSegmentInfo(bool allocate, uint64_t offset,
+                                                FInfo* fileInfo,
+                                                const std::string& user,
+                                                SegmentInfo* segInfo) {
     fiu_return_on(
-        "test/integration/snapshotcloneserver/FakeCurveFsClient.GetOrAllocateSegmentInfo", -LIBCURVE_ERROR::FAILED);  // NOLINT
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.GetOrAllocateSegmentInfo",
+        -LIBCURVE_ERROR::FAILED);  // NOLINT
     segInfo->segmentsize = segmentSize;
     segInfo->chunksize = chunkSize;
     segInfo->startoffset = offset;
-    // 一共2个segment
+    // 2 segments in total
     if (offset == 0) {
         segInfo->chunkvec = {{1, 1, 1}, {2, 2, 1}};
     } else {
@@ -304,16 +300,16 @@ int FakeCurveFsClient::GetOrAllocateSegmentInfo(
     return LIBCURVE_ERROR::OK;
 }
 
-int FakeCurveFsClient::RenameCloneFile(
-    const std::string &user,
-    uint64_t originId,
-    uint64_t destinationId,
-    const std::string &origin,
-    const std::string &destination) {
-    LOG(INFO) << "RenameCloneFile from " << origin
-               << " to " << destination;
+int FakeCurveFsClient::RenameCloneFile(const std::string& user,
+                                       uint64_t originId,
+                                       uint64_t destinationId,
+                                       const std::string& origin,
+                                       const std::string& destination) {
+    LOG(INFO) << "RenameCloneFile from " << origin << " to " << destination;
     fiu_return_on(
-        "test/integration/snapshotcloneserver/FakeCurveFsClient.RenameCloneFile", -LIBCURVE_ERROR::FAILED);  // NOLINT
+        "test/integration/snapshotcloneserver/"
+        "FakeCurveFsClient.RenameCloneFile",
+        -LIBCURVE_ERROR::FAILED);  // NOLINT
     auto it = fileMap_.find(origin);
     if (it != fileMap_.end()) {
         it->second.parentid = 3;
@@ -326,10 +322,8 @@ int FakeCurveFsClient::RenameCloneFile(
     }
 }
 
-int FakeCurveFsClient::DeleteFile(
-    const std::string &fileName,
-    const std::string &user,
-    uint64_t fileId) {
+int FakeCurveFsClient::DeleteFile(const std::string& fileName,
+                                  const std::string& user, uint64_t fileId) {
     auto it = fileMap_.find(fileName);
     if (it != fileMap_.end()) {
         fileMap_.erase(it);
@@ -340,14 +334,15 @@ int FakeCurveFsClient::DeleteFile(
 }
 
 int FakeCurveFsClient::Mkdir(const std::string& dirpath,
-                             const std::string &user) {
+                             const std::string& user) {
     return -LIBCURVE_ERROR::EXISTS;
 }
 
 int FakeCurveFsClient::ChangeOwner(const std::string& filename,
                                    const std::string& newOwner) {
     fiu_return_on(
-        "test/integration/snapshotcloneserver/FakeCurveFsClient.ChangeOwner", -LIBCURVE_ERROR::FAILED);  // NOLINT
+        "test/integration/snapshotcloneserver/FakeCurveFsClient.ChangeOwner",
+        -LIBCURVE_ERROR::FAILED);  // NOLINT
     auto it = fileMap_.find(filename);
     if (it != fileMap_.end()) {
         it->second.owner = newOwner;
@@ -358,7 +353,7 @@ int FakeCurveFsClient::ChangeOwner(const std::string& filename,
 }
 
 bool FakeCurveFsClient::JudgeCloneDirHasFile() {
-    for (auto &f : fileMap_) {
+    for (auto& f : fileMap_) {
         if (2 == f.second.parentid) {
             LOG(INFO) << "Clone dir has file, fileinfo is :"
                       << " id = " << f.second.id

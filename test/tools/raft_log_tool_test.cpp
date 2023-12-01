@@ -20,16 +20,19 @@
  * Author: charisu
  */
 
+#include "src/tools/raft_log_tool.h"
+
 #include <gtest/gtest.h>
+
 #include <fstream>
 #include <memory>
-#include "src/tools/raft_log_tool.h"
+
 #include "test/tools/mock/mock_segment_parser.h"
 
 DECLARE_string(fileName);
 using ::testing::_;
-using ::testing::Return;
 using ::testing::DoAll;
+using ::testing::Return;
 using ::testing::SetArgPointee;
 
 namespace curve {
@@ -37,12 +40,8 @@ namespace tool {
 
 class RaftLogToolTest : public ::testing::Test {
  protected:
-    void SetUp() {
-        parser_ = std::make_shared<MockSegmentParser>();
-    }
-    void TearDown() {
-        parser_ = nullptr;
-    }
+    void SetUp() { parser_ = std::make_shared<MockSegmentParser>(); }
+    void TearDown() { parser_ = nullptr; }
 
     std::shared_ptr<MockSegmentParser> parser_;
 };
@@ -58,23 +57,19 @@ TEST_F(RaftLogToolTest, PrintHeaders) {
     raftLogTool.PrintHelp("chunk-meta");
     ASSERT_EQ(-1, raftLogTool.RunCommand("chunk-meta"));
 
-    // 文件名格式不对
+    // The file name format is incorrect
     FLAGS_fileName = "illegalfilename";
     ASSERT_EQ(-1, raftLogTool.RunCommand("raft-log-meta"));
     FLAGS_fileName = "/tmp/illegalfilename";
     ASSERT_EQ(-1, raftLogTool.RunCommand("raft-log-meta"));
 
-    // parser初始化失败
+    // parser initialization faile
     FLAGS_fileName = "/tmp/log_inprogress_002";
-    EXPECT_CALL(*parser_, Init(_))
-        .Times(1)
-        .WillOnce(Return(-1));
+    EXPECT_CALL(*parser_, Init(_)).Times(1).WillOnce(Return(-1));
     ASSERT_EQ(-1, raftLogTool.RunCommand("raft-log-meta"));
 
-    // 解析失败
-    EXPECT_CALL(*parser_, Init(_))
-        .Times(1)
-        .WillOnce(Return(0));
+    // Parsing failed
+    EXPECT_CALL(*parser_, Init(_)).Times(1).WillOnce(Return(0));
     EXPECT_CALL(*parser_, GetNextEntryHeader(_))
         .Times(1)
         .WillOnce(Return(false));
@@ -83,10 +78,8 @@ TEST_F(RaftLogToolTest, PrintHeaders) {
         .WillOnce(Return(false));
     ASSERT_EQ(-1, raftLogTool.RunCommand("raft-log-meta"));
 
-    // 正常情况
-    EXPECT_CALL(*parser_, Init(_))
-        .Times(1)
-        .WillOnce(Return(0));
+    // Normal situation
+    EXPECT_CALL(*parser_, Init(_)).Times(1).WillOnce(Return(0));
     EXPECT_CALL(*parser_, GetNextEntryHeader(_))
         .Times(3)
         .WillOnce(Return(true))
@@ -100,4 +93,3 @@ TEST_F(RaftLogToolTest, PrintHeaders) {
 
 }  // namespace tool
 }  // namespace curve
-

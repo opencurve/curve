@@ -24,6 +24,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+
 #include <chrono>              // NOLINT
 #include <condition_variable>  // NOLINT
 #include <iostream>
@@ -58,14 +59,14 @@ std::condition_variable writeinterfacecv;
 std::mutex interfacemtx;
 std::condition_variable interfacecv;
 
-void writecallbacktest(CurveAioContext *context) {
+void writecallbacktest(CurveAioContext* context) {
     std::lock_guard<std::mutex> lk(writeinterfacemtx);
     writeflag = true;
     writeinterfacecv.notify_one();
     LOG(INFO) << "aio call back here, errorcode = " << context->ret;
 }
 
-void readcallbacktest(CurveAioContext *context) {
+void readcallbacktest(CurveAioContext* context) {
     std::lock_guard<std::mutex> lk(writeinterfacemtx);
     readflag = true;
     interfacecv.notify_one();
@@ -88,7 +89,7 @@ TEST_F(TestLibcurveInterface, InterfaceTest) {
     memcpy(userinfo.owner, "userinfo", 9);
     memcpy(userinfo.password, "", 1);
 
-    // 设置leaderid
+    // Set leaderid
     EndPoint ep;
     butil::str2endpoint("127.0.0.1", 9115, &ep);
     PeerId pd(ep);
@@ -128,7 +129,7 @@ TEST_F(TestLibcurveInterface, InterfaceTest) {
 
     ASSERT_NE(fd, -1);
 
-    char *buffer = new char[8 * 1024];
+    char* buffer = new char[8 * 1024];
     memset(buffer, 'a', 1024);
     memset(buffer + 1024, 'b', 1024);
     memset(buffer + 2 * 1024, 'c', 1024);
@@ -155,7 +156,7 @@ TEST_F(TestLibcurveInterface, InterfaceTest) {
         std::unique_lock<std::mutex> lk(writeinterfacemtx);
         writeinterfacecv.wait(lk, []() -> bool { return writeflag; });
     }
-    char *readbuffer = new char[8 * 1024];
+    char* readbuffer = new char[8 * 1024];
     CurveAioContext readaioctx;
     readaioctx.buf = readbuffer;
     readaioctx.offset = 0;
@@ -244,7 +245,7 @@ TEST_F(TestLibcurveInterface, FileClientTest) {
 
     FileClient fc;
 
-    // 设置leaderid
+    // Set leaderid
     EndPoint ep;
     butil::str2endpoint("127.0.0.1", 9115, &ep);
     PeerId pd(ep);
@@ -279,7 +280,7 @@ TEST_F(TestLibcurveInterface, FileClientTest) {
 
     fiu_enable("test/client/fake/fakeMDS.GetOrAllocateSegment", 1, nullptr, 0);
 
-    char *buffer = new char[8 * 1024];
+    char* buffer = new char[8 * 1024];
     memset(buffer, 'a', 1024);
     memset(buffer + 1024, 'b', 1024);
     memset(buffer + 2 * 1024, 'c', 1024);
@@ -303,7 +304,7 @@ TEST_F(TestLibcurveInterface, FileClientTest) {
         std::unique_lock<std::mutex> lk(writeinterfacemtx);
         writeinterfacecv.wait(lk, []() -> bool { return writeflag; });
     }
-    char *readbuffer = new char[8 * 1024];
+    char* readbuffer = new char[8 * 1024];
     memset(readbuffer, 0xFF, 8 * 1024);
     CurveAioContext readaioctx;
     readaioctx.buf = readbuffer;
@@ -375,7 +376,7 @@ TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
     mdsclient_.Initialize(fopt.metaServerOpt);
     fileinstance_.Initialize("/test", &mdsclient_, userinfo, fopt);
 
-    // 设置leaderid
+    // set leaderid
     EndPoint ep;
     butil::str2endpoint("127.0.0.1", 9151, &ep);
     PeerId pd(ep);
@@ -413,12 +414,11 @@ TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
     ASSERT_EQ(length, fileinstance_.Write(buffer, offset, length));
     ASSERT_EQ(length, fileinstance_.Read(buffer, offset, length));
 
-    // 正常情况下只有第一次会去get leader
+    // Normally, getting the leader will only occur the first time.
     ASSERT_EQ(1, cliservice->GetInvokeTimes());
-    // metacache中被写过的copyset leadermaychange都处于正常状态
-    ChunkIDInfo_t chunkinfo1;
-    MetaCacheErrorType rc = mc->GetChunkInfoByIndex(0, &chunkinfo1);
-    ASSERT_EQ(rc, MetaCacheErrorType::OK);
+    // LeaderMayChange remains in a normal state for copyset leader that has
+been written to in metacache. ChunkIDInfo_t chunkinfo1; MetaCacheErrorType rc =
+mc->GetChunkInfoByIndex(0, &chunkinfo1); ASSERT_EQ(rc, MetaCacheErrorType::OK);
     for (int i = 0; i < FLAGS_copyset_num; i++) {
         CopysetPeerInfo ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
         if (i == chunkinfo1.cpid_) {
@@ -430,17 +430,21 @@ TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
         }
     }
 
-    // 设置chunkservice返回失败，那么mds每次重试都会去拉新的leader
-    // 127.0.0.1:9151:0,127.0.0.1:9152:0,127.0.0.1:9153:0是当前集群信息
-    // 127.0.0.1:9151对应第一个chunkservice
-    // 设置rpc失败，会导致client将该chunkserverid上的leader copyset都标记为
+    // If chunkservice returns failure, MDS will retry and fetch new leaders
+each time.
+    // The current cluster information is: 127.0.0.1:9151:0, 127.0.0.1:9152:0,
+127.0.0.1:9153:0.
+    // 127.0.0.1:9151 corresponds to the first chunkservice.
+    // An RPC failure causes the client to mark all leader copysets on that
+chunkserver id as
     // leadermaychange
     chunkservice[0]->SetRPCFailed();
     //
-现在写第二个chunk，第二个chunk与第一个chunk不在同一个copyset里，这次读写失败
-    ASSERT_EQ(-2, fileinstance_.Write(buffer, 1 * chunk_size, length));
-    ASSERT_EQ(-2, fileinstance_.Read(buffer, 1 * chunk_size, length));
-    // 获取第2个chunk的chunkid信息
+Now, write to the second chunk; as it does not belong to the same copyset as the
+first chunk, this read and write attempt fails. ASSERT_EQ(-2,
+fileinstance_.Write(buffer, 1 * chunk_size, length)); ASSERT_EQ(-2,
+fileinstance_.Read(buffer, 1 * chunk_size, length));
+    // Obtain chunkid information for the second chunk.
     ChunkIDInfo_t chunkinfo2;
     rc = mc->GetChunkInfoByIndex(1, &chunkinfo2);
     ASSERT_EQ(rc, MetaCacheErrorType::OK);
@@ -449,33 +453,33 @@ TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
         CopysetPeerInfo ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
         if (i == chunkinfo1.cpid_ || i == chunkinfo2.cpid_) {
             ASSERT_NE(-1, ci.GetCurrentLeaderIndex());
-            // 这两个leader为该chunkserver的copyset的LeaderMayChange置位
-            ASSERT_TRUE(ci.LeaderMayChange());
-        } else {
-            // 对于当前copyset没有leader信息的就直接置位LeaderMayChange
-            ASSERT_EQ(-1, ci.GetCurrentLeaderIndex());
+            // Set LeaderMayChange for both of these leaders of the
+chunkserver's copysets. ASSERT_TRUE(ci.LeaderMayChange()); } else {
+            // For copysets without current leader information, set
+LeaderMayChange directly. ASSERT_EQ(-1, ci.GetCurrentLeaderIndex());
             ASSERT_TRUE(ci.LeaderMayChange());
         }
     }
 
     chunkservice[0]->ReSetRPCFailed();
-    // 再次写第二个chunk，这时候获取leader成功后，会将LeaderMayChange置位fasle
-    // 第一个chunk对应的copyset依然LeaderMayChange为true
-    ASSERT_EQ(8192, fileinstance_.Write(buffer, 1 * chunk_size, length));
+    // Write to the second chunk again; after successfully obtaining a leader,
+LeaderMayChange will be set to false.
+    // LeaderMayChange for the copyset corresponding to the first chunk remains
+true. ASSERT_EQ(8192, fileinstance_.Write(buffer, 1 * chunk_size, length));
     ASSERT_EQ(8192, fileinstance_.Read(buffer, 1 * chunk_size, length));
     for (int i = 0; i < FLAGS_copyset_num; i++) {
         CopysetPeerInfo ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
         if (i == chunkinfo2.cpid_) {
             ASSERT_NE(-1, ci.GetCurrentLeaderIndex());
-            // copyset2的LeaderMayChange置位
+            // Set LeaderMayChange for copyset2.
             ASSERT_FALSE(ci.LeaderMayChange());
         } else if (i == chunkinfo1.cpid_) {
             ASSERT_NE(-1, ci.GetCurrentLeaderIndex());
-            // copyset1的LeaderMayChange保持原有状态
+            // LeaderMayChange for copyset1 remains unchanged.
             ASSERT_TRUE(ci.LeaderMayChange());
         } else {
-            // 对于当前copyset没有leader信息的就直接置位LeaderMayChange
-            ASSERT_EQ(-1, ci.GetCurrentLeaderIndex());
+            // For copysets without current leader information, set
+LeaderMayChange directly. ASSERT_EQ(-1, ci.GetCurrentLeaderIndex());
             ASSERT_TRUE(ci.LeaderMayChange());
         }
     }
@@ -485,33 +489,33 @@ TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
     butil::str2endpoint("127.0.0.1", 9152, &ep2);
     PeerId pd2(ep2);
     cliservice->SetPeerID(pd2);
-    // 设置rpc失败，迫使copyset切换leader，切换leader后读写成功
-    chunkservice[0]->SetRPCFailed();
-    // 读写第一个和第二个chunk
+    //  Force an RPC failure to trigger copyset leader switch; successful read
+and write after leader switch. chunkservice[0]->SetRPCFailed();
+    // Read and write to the first and second chunks.
     ASSERT_EQ(8192, fileinstance_.Write(buffer, 0 * chunk_size, length));
     ASSERT_EQ(8192, fileinstance_.Read(buffer, 0 * chunk_size, length));
     ASSERT_EQ(8192, fileinstance_.Write(buffer, 0 * chunk_size, length));
     ASSERT_EQ(8192, fileinstance_.Read(buffer, 0 * chunk_size, length));
     ASSERT_EQ(1, cliservice->GetInvokeTimes());
-    // 这个时候
+    // At this point
     for (int i = 0; i < FLAGS_copyset_num; i++) {
         CopysetPeerInfo ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
         if (i == chunkinfo2.cpid_) {
             ASSERT_NE(-1, ci.GetCurrentLeaderIndex());
-            // copyset2的LeaderMayChange置位
+            // Set LeaderMayChange for copyset2
             ASSERT_FALSE(ci.LeaderMayChange());
         } else if (i == chunkinfo1.cpid_) {
             ASSERT_NE(-1, ci.GetCurrentLeaderIndex());
-            // copyset1的LeaderMayChange置位
+            // Set LeaderMayChange for copyset1
             ASSERT_FALSE(ci.LeaderMayChange());
         } else {
-            // 对于当前copyset没有leader信息的就直接置位LeaderMayChange
-            ASSERT_EQ(-1, ci.GetCurrentLeaderIndex());
+            // For the current copyset without leader information, directly set
+LeaderMayChange ASSERT_EQ(-1, ci.GetCurrentLeaderIndex());
             ASSERT_TRUE(ci.LeaderMayChange());
         }
     }
 
-    // 验证copyset id信息更新
+    // Verify the update of copyset ID information.
     // copyset id = 888， chunkserver id = 100 101 102
     // copyset id = 999， chunkserver id = 102 103 104
     CopysetPeerInfo csinfo1;
@@ -568,8 +572,8 @@ TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
     curve::client::CopysetPeerInfo peer9(103, addr);
     csinfo3.csinfos_.push_back(peer9);
 
-    // 更新copyset信息，chunkserver 104的信息被清除
-    // 100，和 101上添加了新的copyset信息
+    // Update copyset information, clearing the information for chunkserver 104.
+    // New copyset information has been added on chunk servers 100 and 101.
     mc->UpdateChunkserverCopysetInfo(FLAGS_logic_pool_id, csinfo3);
     ASSERT_TRUE(mc->CopysetIDInfoIn(100, FLAGS_logic_pool_id, 888));
     ASSERT_TRUE(mc->CopysetIDInfoIn(100, FLAGS_logic_pool_id, 999));
@@ -596,7 +600,7 @@ TEST_F(TestLibcurveInterface, InterfaceExceptionTest) {
     // open not create file
     ASSERT_EQ(-1 * LIBCURVE_ERROR::FAILED, Open(filename.c_str(), &userinfo));
 
-    // 设置leaderid
+    // Set leaderid
     EndPoint ep;
     butil::str2endpoint("127.0.0.1", 9106, &ep);
     PeerId pd(ep);
@@ -610,7 +614,7 @@ TEST_F(TestLibcurveInterface, InterfaceExceptionTest) {
 
     ASSERT_EQ(0, Init(configpath.c_str()));
 
-    char *buffer = new char[8 * 1024];
+    char* buffer = new char[8 * 1024];
     memset(buffer, 'a', 8 * 1024);
 
     CurveAioContext writeaioctx;
@@ -623,7 +627,7 @@ TEST_F(TestLibcurveInterface, InterfaceExceptionTest) {
     ASSERT_EQ(-LIBCURVE_ERROR::BAD_FD, AioWrite(1234, &writeaioctx));
 
     // aioread not opened file
-    char *readbuffer = new char[8 * 1024];
+    char* readbuffer = new char[8 * 1024];
     CurveAioContext readaioctx;
     readaioctx.buf = readbuffer;
     readaioctx.offset = 0;
@@ -681,10 +685,10 @@ TEST_F(TestLibcurveInterface, UnstableChunkserverTest) {
     LOG(INFO) << "here";
 
     mdsclient_->Initialize(fopt.metaServerOpt);
-    fileinstance_.Initialize(
-        "/UnstableChunkserverTest", mdsclient_, userinfo, OpenFlags{}, fopt);
+    fileinstance_.Initialize("/UnstableChunkserverTest", mdsclient_, userinfo,
+                             OpenFlags{}, fopt);
 
-    // 设置leaderid
+    // Set leaderid
     EndPoint ep;
     butil::str2endpoint("127.0.0.1", 9151, &ep);
     PeerId pd(ep);
@@ -699,14 +703,14 @@ TEST_F(TestLibcurveInterface, UnstableChunkserverTest) {
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     int fd = fileinstance_.Open();
 
-    MetaCache *mc = fileinstance_.GetIOManager4File()->GetMetaCache();
+    MetaCache* mc = fileinstance_.GetIOManager4File()->GetMetaCache();
 
     ASSERT_NE(fd, -1);
 
-    CliServiceFake *cliservice = mds.GetCliService();
-    std::vector<FakeChunkService *> chunkservice = mds.GetFakeChunkService();
+    CliServiceFake* cliservice = mds.GetCliService();
+    std::vector<FakeChunkService*> chunkservice = mds.GetFakeChunkService();
 
-    char *buffer = new char[8 * 1024];
+    char* buffer = new char[8 * 1024];
     uint64_t offset = 0;
     uint64_t length = 8 * 1024;
 
@@ -722,7 +726,8 @@ TEST_F(TestLibcurveInterface, UnstableChunkserverTest) {
     ASSERT_EQ(length, fileinstance_.Write(buffer, offset, length));
     ASSERT_EQ(length, fileinstance_.Read(buffer, offset, length));
 
-    // metacache中被写过的copyset leadermaychange都处于正常状态
+    // The copyset leadermaychanges that have been written in Metacache are all
+    // in a normal state
     ChunkIDInfo_t chunkinfo1;
     MetaCacheErrorType rc = mc->GetChunkInfoByIndex(0, &chunkinfo1);
     ASSERT_EQ(rc, MetaCacheErrorType::OK);
@@ -740,19 +745,20 @@ TEST_F(TestLibcurveInterface, UnstableChunkserverTest) {
 
     mds.EnableNetUnstable(10000);
 
-    // 写2次，读2次，每次请求重试3次
-    // 因为在chunkserver端设置了延迟，导致每次请求都会超时
-    // unstable阈值为10，所以第11次请求返回时，对应的chunkserver被标记为unstable
-    // leader在对应chunkserver上的copyset会设置leaderMayChange为true
-    // 下次发起请求时，会先去刷新leader信息，
-    // 由于leader没有发生改变，而且延迟仍然存在
-    // 所以第12次请求仍然超时，leaderMayChange仍然为true
+    // Write twice, read twice, and retry three times per request
+    // Due to the delay set on the chunkserver side, each request will time out
+    // The unstable threshold is 10, so when the 11th request returns, the
+    // corresponding chunkserver is marked as unstable The copyset of the leader
+    // on the corresponding chunkserver will set leaderMayChange to true The
+    // next time a request is made, the leader information will be refreshed
+    // first, Since the leader has not changed and the delay still exists So the
+    // 12th request still timed out, and leaderMayChange is still true
     ASSERT_EQ(-2, fileinstance_.Write(buffer, 1 * chunk_size, length));
     ASSERT_EQ(-2, fileinstance_.Write(buffer, 1 * chunk_size, length));
     ASSERT_EQ(-2, fileinstance_.Read(buffer, 1 * chunk_size, length));
     ASSERT_EQ(-2, fileinstance_.Read(buffer, 1 * chunk_size, length));
 
-    // 获取第2个chunk的chunkid信息
+    // Obtain chunkid information for the second chunk
     ChunkIDInfo_t chunkinfo2;
     rc = mc->GetChunkInfoByIndex(1, &chunkinfo2);
     ASSERT_EQ(rc, MetaCacheErrorType::OK);
@@ -769,9 +775,10 @@ TEST_F(TestLibcurveInterface, UnstableChunkserverTest) {
         }
     }
 
-    // 当copyset处于unstable状态时
-    // 不进入超时时间指数退避逻辑，rpc超时时间设置为默认值
-    // 所以每个请求总时间为3s，4个请求需要12s
+    // When copyset is in an unstable state
+    // Do not enter the timeout index backoff logic, and set the rpc timeout to
+    // the default value So the total time for each request is 3 seconds, and 4
+    // requests require 12 seconds
     auto start = TimeUtility::GetTimeofDayMs();
     ASSERT_EQ(-2, fileinstance_.Write(buffer, 1 * chunk_size, length));
     ASSERT_EQ(-2, fileinstance_.Write(buffer, 1 * chunk_size, length));
@@ -783,9 +790,10 @@ TEST_F(TestLibcurveInterface, UnstableChunkserverTest) {
 
     mds.DisableNetUnstable();
 
-    // 取消延迟，再次读写第2个chunk
-    // 获取leader信息后，会将leaderMayChange置为false
-    // 第一个chunk对应的copyset依赖leaderMayChange为true
+    // Cancel delay and read and write the second chunk again
+    // After obtaining the leader information, the leaderMayChange will be set
+    // to false The copyset dependency for the first chunk, leaderMayChange, is
+    // true
     ASSERT_EQ(8192, fileinstance_.Write(buffer, 1 * chunk_size, length));
     ASSERT_EQ(8192, fileinstance_.Read(buffer, 1 * chunk_size, length));
     for (int i = 0; i < FLAGS_copyset_num; ++i) {
@@ -809,7 +817,8 @@ TEST_F(TestLibcurveInterface, UnstableChunkserverTest) {
     PeerId pd2(ep2);
     cliservice->SetPeerID(pd2);
 
-    // 设置rcp返回失败，迫使copyset切换leader, 切换leader后读写成功
+    // Failed to set rcp return, forcing copyset to switch leaders. After
+    // switching leaders, read and write succeeded
     chunkservice[0]->SetRPCFailed();
 
     ASSERT_EQ(8192, fileinstance_.Write(buffer, 0 * chunk_size, length));
@@ -872,7 +881,7 @@ TEST_F(TestLibcurveInterface, ResumeTimeoutBackoff) {
     fileinstance_.Initialize("/ResumeTimeoutBackoff", mdsclient_, userinfo,
                              OpenFlags{}, fopt);
 
-    // 设置leaderid
+    // Set leaderid
     EndPoint ep;
     butil::str2endpoint("127.0.0.1", 9151, &ep);
     PeerId pd(ep);
@@ -887,13 +896,13 @@ TEST_F(TestLibcurveInterface, ResumeTimeoutBackoff) {
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     int fd = fileinstance_.Open();
 
-    MetaCache *mc = fileinstance_.GetIOManager4File()->GetMetaCache();
+    MetaCache* mc = fileinstance_.GetIOManager4File()->GetMetaCache();
 
     ASSERT_NE(fd, -1);
 
-    std::vector<FakeChunkService *> chunkservice = mds.GetFakeChunkService();
+    std::vector<FakeChunkService*> chunkservice = mds.GetFakeChunkService();
 
-    char *buffer = new char[8 * 1024];
+    char* buffer = new char[8 * 1024];
     uint64_t offset = 0;
     uint64_t length = 8 * 1024;
 
@@ -909,7 +918,8 @@ TEST_F(TestLibcurveInterface, ResumeTimeoutBackoff) {
     ASSERT_EQ(length, fileinstance_.Write(buffer, offset, length));
     ASSERT_EQ(length, fileinstance_.Read(buffer, offset, length));
 
-    // metacache中被写过的copyset leadermaychange都处于正常状态
+    // The copyset leadermaychanges that have been written in Metacache are all
+    // in a normal state
     ChunkIDInfo_t chunkinfo1;
     MetaCacheErrorType rc = mc->GetChunkInfoByIndex(0, &chunkinfo1);
     ASSERT_EQ(rc, MetaCacheErrorType::OK);
@@ -927,17 +937,18 @@ TEST_F(TestLibcurveInterface, ResumeTimeoutBackoff) {
 
     mds.EnableNetUnstable(10000);
 
-    // 写2次, 每次请求重试11次
-    // 因为在chunkserver端设置了延迟，导致每次请求都会超时
-    // 第一个请求重试11次，会把chunkserver标记为unstable
+    // Write twice, retry 11 times per request
+    // Due to the delay set on the chunkserver side, each request will time out
+    // The first request will be retried 11 times and the chunkserver will be
+    // marked as unstable
     ASSERT_EQ(-2, fileinstance_.Write(buffer, 1 * chunk_size, length));
 
-    // 第二个写请求，由于其对应的copyset leader may change
-    // 第1次请求超时时间为1s
-    // 后面4次重试由于leader may change所以超时时间也是1s
-    // 第5-11次请求由于重试次数超过minRetryTimesForceTimeoutBackoff
-    // 所以超时时间都进入指数退避，为8s * 6 = 48s
-    // 所以第二次写请求，总共耗时53s，并写入失败
+    // The second write request, due to its corresponding copyset leader may
+    // change The first request timeout is 1 second The timeout for the next
+    // four retries is also 1 second due to the leader may change 5th to 11th
+    // requests due to more than minRetryTimesForceTimeoutBackoff retries So all
+    // timeout times enter exponential backoff, which is 8s * 6 = 48s So the
+    // second write request took a total of 53 seconds and failed to write
     auto start = TimeUtility::GetTimeofDayMs();
     ASSERT_EQ(-2, fileinstance_.Write(buffer, 1 * chunk_size, length));
     auto elapsedMs = TimeUtility::GetTimeofDayMs() - start;
@@ -961,7 +972,7 @@ TEST_F(TestLibcurveInterface, InterfaceStripeTest) {
     uint64_t size = 100 * 1024 * 1024 * 1024ul;
     FileClient fc;
 
-    // 设置leaderid
+    // Set leaderid
     EndPoint ep;
     butil::str2endpoint("127.0.0.1", 9115, &ep);
     PeerId pd(ep);
@@ -975,12 +986,12 @@ TEST_F(TestLibcurveInterface, InterfaceStripeTest) {
 
     ASSERT_EQ(0, fc.Init(configpath));
 
-    FakeMDSCurveFSService *service = NULL;
+    FakeMDSCurveFSService* service = NULL;
     service = mds.GetMDSService();
     ::curve::mds::CreateFileResponse response;
     response.set_statuscode(::curve::mds::StatusCode::kOK);
-    FakeReturn *fakeret =
-        new FakeReturn(nullptr, static_cast<void *>(&response));
+    FakeReturn* fakeret =
+        new FakeReturn(nullptr, static_cast<void*>(&response));
     service->SetCreateFileFakeReturn(fakeret);
     CreateFileContext context;
     context.pagefile = true;
@@ -991,7 +1002,7 @@ TEST_F(TestLibcurveInterface, InterfaceStripeTest) {
     ASSERT_EQ(LIBCURVE_ERROR::OK, ret);
 
     response.set_statuscode(::curve::mds::StatusCode::kFileExists);
-    fakeret = new FakeReturn(nullptr, static_cast<void *>(&response));
+    fakeret = new FakeReturn(nullptr, static_cast<void*>(&response));
     service->SetCreateFileFakeReturn(fakeret);
     context.pagefile = true;
     context.name = filename2;
@@ -1003,7 +1014,7 @@ TEST_F(TestLibcurveInterface, InterfaceStripeTest) {
     ASSERT_EQ(LIBCURVE_ERROR::EXISTS, -ret);
 
     FileStatInfo_t fsinfo;
-    ::curve::mds::FileInfo *info = new curve::mds::FileInfo;
+    ::curve::mds::FileInfo* info = new curve::mds::FileInfo;
     ::curve::mds::GetFileInfoResponse getinforesponse;
     info->set_filename(filename2);
     info->set_id(1);
@@ -1017,8 +1028,8 @@ TEST_F(TestLibcurveInterface, InterfaceStripeTest) {
     info->set_stripecount(4);
     getinforesponse.set_allocated_fileinfo(info);
     getinforesponse.set_statuscode(::curve::mds::StatusCode::kOK);
-    FakeReturn *fakegetinfo =
-        new FakeReturn(nullptr, static_cast<void *>(&getinforesponse));
+    FakeReturn* fakegetinfo =
+        new FakeReturn(nullptr, static_cast<void*>(&getinforesponse));
     service->SetGetFileInfoFakeReturn(fakegetinfo);
     ret = fc.StatFile(filename2, userinfo, &fsinfo);
     ASSERT_EQ(1024 * 1024, fsinfo.stripeUnit);

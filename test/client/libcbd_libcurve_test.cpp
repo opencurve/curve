@@ -21,33 +21,32 @@
  *          2018/11/23  Wenyu Zhou   Initial version
  */
 
-#include <gtest/gtest.h>
+#include <braft/configuration.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-#include <braft/configuration.h>
+#include <gtest/gtest.h>
 
 #include <string>
 
 // #define CBD_BACKEND_FAKE
 
 #include "include/client/libcbd.h"
-
-#include "src/client/libcurve_file.h"
 #include "include/client/libcurve.h"
-#include "src/client/file_instance.h"
-#include "test/client/fake/mock_schedule.h"
-#include "test/client/fake/fakeMDS.h"
 #include "src/client/client_common.h"
+#include "src/client/file_instance.h"
+#include "src/client/libcurve_file.h"
+#include "test/client/fake/fakeMDS.h"
+#include "test/client/fake/mock_schedule.h"
 #include "test/integration/cluster_common/cluster.h"
 #include "test/util/config_generator.h"
 
 using curve::client::EndPoint;
 
-#define BUFSIZE     4 * 1024
-#define FILESIZE    10uL * 1024 * 1024 * 1024
-#define NEWSIZE     20uL * 1024 * 1024 * 1024
+#define BUFSIZE 4 * 1024
+#define FILESIZE 10uL * 1024 * 1024 * 1024
+#define NEWSIZE 20uL * 1024 * 1024 * 1024
 
-#define filename    "1_userinfo_test.img"
+#define filename "1_userinfo_test.img"
 
 const uint64_t GiB = 1024ull * 1024 * 1024;
 
@@ -68,11 +67,11 @@ class TestLibcbdLibcurve : public ::testing::Test {
  public:
     void SetUp() {
         FLAGS_chunkserver_list =
-         "127.0.0.1:9110:0,127.0.0.1:9111:0,127.0.0.1:9112:0";
+            "127.0.0.1:9110:0,127.0.0.1:9111:0,127.0.0.1:9112:0";
 
         mds_ = new FakeMDS(filename);
 
-        // 设置leaderid
+        // Set leaderid
         EndPoint ep;
         butil::str2endpoint("127.0.0.1", 9110, &ep);
         braft::PeerId pd(ep);
@@ -381,7 +380,8 @@ TEST_F(TestLibcbdLibcurve, ReadAndCloseConcurrencyTest) {
 
     auto readThread = [buffer](int fd) {
         auto start = curve::common::TimeUtility::GetTimeofDayMs();
-        ASSERT_EQ(BUFSIZE, cbd_lib_pread(fd, (void*)buffer, 0, BUFSIZE));  // NOLINT
+        ASSERT_EQ(BUFSIZE,
+                  cbd_lib_pread(fd, (void*)buffer, 0, BUFSIZE));  // NOLINT
         auto end = curve::common::TimeUtility::GetTimeofDayMs();
 
         ASSERT_LE(end - start, 1000);
@@ -429,12 +429,12 @@ TEST_F(TestLibcbdLibcurve, IncreaseEpochTest) {
     ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
 }
 
-std::string mdsMetaServerAddr = "127.0.0.1:9951";     // NOLINT
-uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
-uint32_t chunk_size = 4 * 1024 * 1024;   // NOLINT
-std::string configpath = "./test/client/configs/client_libcbd.conf";   // NOLINT
+std::string mdsMetaServerAddr = "127.0.0.1:9951";                     // NOLINT
+uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;                     // NOLINT
+uint32_t chunk_size = 4 * 1024 * 1024;                                // NOLINT
+std::string configpath = "./test/client/configs/client_libcbd.conf";  // NOLINT
 
-const std::vector<std::string> clientConf {
+const std::vector<std::string> clientConf{
     std::string("mds.listen.addr=127.0.0.1:9951"),
     std::string("global.logPath=./runlog/"),
     std::string("chunkserver.rpcTimeoutMS=1000"),
@@ -445,17 +445,16 @@ const std::vector<std::string> clientConf {
     std::string("metacache.rpcRetryIntervalUS=500"),
     std::string("mds.rpcRetryIntervalUS=500"),
     std::string("schedule.threadpoolSize=2"),
-    std::string("discard.discardTaskDelayMs=10")
-};
+    std::string("discard.discardTaskDelayMs=10")};
 
-int main(int argc, char ** argv) {
+int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     google::ParseCommandLineFlags(&argc, &argv, false);
 
     curve::CurveCluster* cluster = new curve::CurveCluster();
 
-    cluster->PrepareConfig<curve::ClientConfigGenerator>(
-        configpath, clientConf);
+    cluster->PrepareConfig<curve::ClientConfigGenerator>(configpath,
+                                                         clientConf);
 
     int ret = RUN_ALL_TESTS();
     return ret;

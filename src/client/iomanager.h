@@ -23,8 +23,8 @@
 #ifndef SRC_CLIENT_IOMANAGER_H_
 #define SRC_CLIENT_IOMANAGER_H_
 
-#include "src/client/io_tracker.h"
 #include "src/client/client_common.h"
+#include "src/client/io_tracker.h"
 #include "src/common/concurrent/concurrent.h"
 
 namespace curve {
@@ -34,48 +34,41 @@ using curve::common::Atomic;
 
 class IOManager {
  public:
-    IOManager() {
-        id_ = idRecorder_.fetch_add(1, std::memory_order_relaxed);
-    }
+    IOManager() { id_ = idRecorder_.fetch_add(1, std::memory_order_relaxed); }
     virtual ~IOManager() = default;
 
     /**
-     * @brief 获取当前iomanager的ID信息
+     * @brief Get the ID information of the current iomanager
      */
-    virtual IOManagerID ID() const {
-        return id_;
-    }
+    virtual IOManagerID ID() const { return id_; }
 
     /**
-     * @brief 获取rpc发送令牌
+     * @brief Get rpc send token
      */
-    virtual void GetInflightRpcToken() {
-        return;
-    }
+    virtual void GetInflightRpcToken() { return; }
 
     /**
-     * @brief 释放rpc发送令牌
+     * @brief Release RPC Send Token
      */
-    virtual void ReleaseInflightRpcToken() {
-        return;
-    }
+    virtual void ReleaseInflightRpcToken() { return; }
 
     /**
-     * @brief 处理异步返回的response
-     * @param: iotracker是当前reponse的归属
+     * @brief handles response returned asynchronously
+     * @param: iotracker The ownership of the current reponse
      */
     virtual void HandleAsyncIOResponse(IOTracker* iotracker) = 0;
 
  protected:
-    // iomanager id目的是为了让底层RPC知道自己归属于哪个iomanager
+    // The purpose of the iomanager id is to let the underlying RPC know which
+    // iomanager it belongs to
     IOManagerID id_;
 
  private:
     // global id recorder
-    static Atomic<uint64_t>   idRecorder_;
+    static Atomic<uint64_t> idRecorder_;
 };
 
-}   // namespace client
-}   // namespace curve
+}  // namespace client
+}  // namespace curve
 
 #endif  // SRC_CLIENT_IOMANAGER_H_

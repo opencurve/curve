@@ -22,44 +22,41 @@
 
 #include "src/chunkserver/op_request.h"
 
-#include <glog/logging.h>
+#include <brpc/closure_guard.h>
 #include <brpc/controller.h>
 #include <butil/sys_byteorder.h>
-#include <brpc/closure_guard.h>
+#include <glog/logging.h>
 
 #include <algorithm>
 #include <memory>
 #include <string>
 
-#include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/chunk_closure.h"
 #include "src/chunkserver/clone_manager.h"
 #include "src/chunkserver/clone_task.h"
+#include "src/chunkserver/copyset_node.h"
 
 namespace curve {
 namespace chunkserver {
 
-ChunkOpRequest::ChunkOpRequest() :
-    datastore_(nullptr),
-    node_(nullptr),
-    cntl_(nullptr),
-    request_(nullptr),
-    response_(nullptr),
-    done_(nullptr) {
-}
+ChunkOpRequest::ChunkOpRequest()
+    : datastore_(nullptr),
+      node_(nullptr),
+      cntl_(nullptr),
+      request_(nullptr),
+      response_(nullptr),
+      done_(nullptr) {}
 
 ChunkOpRequest::ChunkOpRequest(std::shared_ptr<CopysetNode> nodePtr,
-                               RpcController *cntl,
-                               const ChunkRequest *request,
-                               ChunkResponse *response,
-                               ::google::protobuf::Closure *done) :
-    datastore_(nodePtr->GetDataStore()),
-    node_(nodePtr),
-    cntl_(dynamic_cast<brpc::Controller *>(cntl)),
-    request_(request),
-    response_(response),
-    done_(done) {
-}
+                               RpcController* cntl, const ChunkRequest* request,
+                               ChunkResponse* response,
+                               ::google::protobuf::Closure* done)
+    : datastore_(nodePtr->GetDataStore()),
+      node_(nodePtr),
+      cntl_(dynamic_cast<brpc::Controller*>(cntl)),
+      request_(request),
+      response_(response),
+      done_(done) {}
 
 void ChunkOpRequest::Process() {
     brpc::ClosureGuard doneGuard(done_);
@@ -71,18 +68,19 @@ void ChunkOpRequest::Process() {
     }
 
     /**
-     * 如果propose成功，说明request成功交给了raft处理，
-     * 那么done_就不能被调用，只有propose失败了才需要提前返回
+     * If the proposal is successful, it indicates that the request has been
+     * successfully handed over to the raft for processing, So, done_ cannot be
+     * called, only if the proposal fails, it needs to be returned in advance
      */
-    if (0 == Propose(request_, cntl_ ? &cntl_->request_attachment() :
-                     nullptr)) {
+    if (0 ==
+        Propose(request_, cntl_ ? &cntl_->request_attachment() : nullptr)) {
         doneGuard.release();
     }
 }
 
-int ChunkOpRequest::Propose(const ChunkRequest *request,
-                            const butil::IOBuf *data) {
-    // 打包op request为task
+int ChunkOpRequest::Propose(const ChunkRequest* request,
+                            const butil::IOBuf* data) {
+    // Pack op request as task
     braft::Task task;
     butil::IOBuf log;
     if (0 != Encode(request, data, &log)) {
@@ -93,10 +91,13 @@ int ChunkOpRequest::Propose(const ChunkRequest *request,
     task.data = &log;
     task.done = new ChunkClosure(shared_from_this());
     /**
-     * 由于apply是异步的，有可能某个节点在term1是leader，apply了一条log，
-     * 但是中间发生了主从切换，在很短的时间内这个节点又变为term3的leader，
-     * 之前apply的日志才开始进行处理，这种情况下要实现严格意义上的复制状态
-     * 机，需要解决这种ABA问题，可以在apply的时候设置leader当时的term
+     * Due to the asynchronous nature of the application, it is possible that a
+     * node in term1 is a leader and has applied a log, But there was a
+     * master-slave switch in the middle, and in a short period of time, this
+     * node became the leader of term3 again, Previously applied logs were only
+     * processed, in which case strict replication status needs to be
+     * implemented To solve this ABA problem, you can set the term of the leader
+     * at the time of application
      */
     task.expected_term = node_->LeaderTerm();
 
@@ -106,8 +107,8 @@ int ChunkOpRequest::Propose(const ChunkRequest *request,
 }
 
 void ChunkOpRequest::RedirectChunkRequest() {
-    // 编译时加上 --copt -DUSE_BTHREAD_MUTEX
-    // 否则可能发生死锁: CLDCFS-1120
+    // Compile with --copt -DUSE_BTHREAD_MUTEX
+    // Otherwise, a deadlock may occur: CLDCFS-1120
     // PeerId leader = node_->GetLeaderId();
     // if (!leader.is_empty()) {
     //     response_->set_redirect(leader.to_string());
@@ -115,9 +116,8 @@ void ChunkOpRequest::RedirectChunkRequest() {
     response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
 }
 
-int ChunkOpRequest::Encode(const ChunkRequest *request,
-                           const butil::IOBuf *data,
-                           butil::IOBuf *log) {
+int ChunkOpRequest::Encode(const ChunkRequest* request,
+                           const butil::IOBuf* data, butil::IOBuf* log) {
     // 1.append request length
     const uint32_t metaSize = butil::HostToNet32(request->ByteSize());
     log->append(&metaSize, sizeof(uint32_t));
@@ -135,8 +135,8 @@ int ChunkOpRequest::Encode(const ChunkRequest *request,
 }
 
 std::shared_ptr<ChunkOpRequest> ChunkOpRequest::Decode(butil::IOBuf log,
-                                                       ChunkRequest *request,
-                                                       butil::IOBuf *data,
+                                                       ChunkRequest* request,
+                                                       butil::IOBuf* data,
                                                        uint64_t index,
                                                        PeerId leaderId) {
     uint32_t metaSize = 0;
@@ -171,35 +171,35 @@ std::shared_ptr<ChunkOpRequest> ChunkOpRequest::Decode(butil::IOBuf log,
             return std::make_shared<CreateCloneChunkRequest>();
         case CHUNK_OP_TYPE::CHUNK_OP_SCAN:
             return std::make_shared<ScanChunkRequest>(index, leaderId);
-        default:LOG(ERROR) << "Unknown chunk op";
+        default:
+            LOG(ERROR) << "Unknown chunk op";
             return nullptr;
     }
 }
 
 ApplyTaskType ChunkOpRequest::Schedule(CHUNK_OP_TYPE opType) {
     switch (opType) {
-    case CHUNK_OP_READ:
-    case CHUNK_OP_RECOVER:
-        return ApplyTaskType::READ;
-    default:
-        return ApplyTaskType::WRITE;
+        case CHUNK_OP_READ:
+        case CHUNK_OP_RECOVER:
+            return ApplyTaskType::READ;
+        default:
+            return ApplyTaskType::WRITE;
     }
 }
 
 namespace {
 uint64_t MaxAppliedIndex(
-        const std::shared_ptr<curve::chunkserver::CopysetNode>& node,
-        uint64_t current) {
+    const std::shared_ptr<curve::chunkserver::CopysetNode>& node,
+    uint64_t current) {
     return std::max(current, node->GetAppliedIndex());
 }
 }  // namespace
 
 void DeleteChunkRequest::OnApply(uint64_t index,
-                                 ::google::protobuf::Closure *done) {
+                                 ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
 
-    auto ret = datastore_->DeleteChunk(request_->chunkid(),
-                                       request_->sn());
+    auto ret = datastore_->DeleteChunk(request_->chunkid(), request_->sn());
     if (CSErrorCode::Success == ret) {
         response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
         node_->UpdateAppliedIndex(index);
@@ -211,21 +211,19 @@ void DeleteChunkRequest::OnApply(uint64_t index,
         LOG(ERROR) << "delete chunk failed: "
                    << " data store return: " << ret
                    << ", request: " << request_->ShortDebugString();
-        response_->set_status(
-            CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
+        response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
     }
     response_->set_appliedindex(MaxAppliedIndex(node_, index));
 }
 
 void DeleteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
-                                        const ChunkRequest &request,
-                                        const butil::IOBuf &data) {
+                                        const ChunkRequest& request,
+                                        const butil::IOBuf& data) {
     (void)data;
-    // NOTE: 处理过程中优先使用参数传入的datastore/request
-    auto ret = datastore->DeleteChunk(request.chunkid(),
-                                      request.sn());
-    if (CSErrorCode::Success == ret)
-        return;
+    // NOTE: Prioritize the use of datastore/request passed in as parameters
+    // during processing
+    auto ret = datastore->DeleteChunk(request.chunkid(), request.sn());
+    if (CSErrorCode::Success == ret) return;
 
     if (CSErrorCode::InternalError == ret) {
         LOG(FATAL) << "delete failed: "
@@ -239,16 +237,14 @@ void DeleteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
 }
 
 ReadChunkRequest::ReadChunkRequest(std::shared_ptr<CopysetNode> nodePtr,
-                                   CloneManager* cloneMgr,
-                                   RpcController *cntl,
-                                   const ChunkRequest *request,
-                                   ChunkResponse *response,
-                                   ::google::protobuf::Closure *done) :
-    ChunkOpRequest(nodePtr, cntl, request, response, done),
-    cloneMgr_(cloneMgr),
-    concurrentApplyModule_(nodePtr->GetConcurrentApplyModule()),
-    applyIndex(0) {
-}
+                                   CloneManager* cloneMgr, RpcController* cntl,
+                                   const ChunkRequest* request,
+                                   ChunkResponse* response,
+                                   ::google::protobuf::Closure* done)
+    : ChunkOpRequest(nodePtr, cntl, request, response, done),
+      cloneMgr_(cloneMgr),
+      concurrentApplyModule_(nodePtr->GetConcurrentApplyModule()),
+      applyIndex(0) {}
 
 void ReadChunkRequest::Process() {
     brpc::ClosureGuard doneGuard(done_);
@@ -267,21 +263,20 @@ void ReadChunkRequest::Process() {
          * extend from std::enable_shared_from_this<ChunkOpRequest>,
          * use shared_from_this() to return a shared_ptr<ChunkOpRequest>
          */
-        auto thisPtr
-            = std::dynamic_pointer_cast<ReadChunkRequest>(shared_from_this());
+        auto thisPtr =
+            std::dynamic_pointer_cast<ReadChunkRequest>(shared_from_this());
         /*
          * why push read requests to concurrent layer:
          *  1. all I/O operators including read and write requests are executed
          *     in concurrent layer, we can separate disk I/O from other logic.
          *  2. ensure linear consistency of read semantics.
          */
-        auto task = std::bind(&ReadChunkRequest::OnApply,
-                              thisPtr,
-                              node_->GetAppliedIndex(),
-                              doneGuard.release());
-        concurrentApplyModule_->Push(request_->chunkid(),
-                                     ChunkOpRequest::Schedule(request_->optype()),  // NOLINT
-                                     task);
+        auto task = std::bind(&ReadChunkRequest::OnApply, thisPtr,
+                              node_->GetAppliedIndex(), doneGuard.release());
+        concurrentApplyModule_->Push(
+            request_->chunkid(),
+            ChunkOpRequest::Schedule(request_->optype()),  // NOLINT
+            task);
         return;
     }
 
@@ -298,16 +293,19 @@ void ReadChunkRequest::Process() {
 }
 
 void ReadChunkRequest::OnApply(uint64_t index,
-                               ::google::protobuf::Closure *done) {
-    // 先清除response中的status，以保证CheckForward后的判断的正确性
+                               ::google::protobuf::Closure* done) {
+    // Clear the status in the response first to ensure the correctness of the
+    // judgment after CheckForward
     response_->clear_status();
 
     CSChunkInfo chunkInfo;
-    CSErrorCode errorCode = datastore_->GetChunkInfo(request_->chunkid(),
-                                                     &chunkInfo);
+    CSErrorCode errorCode =
+        datastore_->GetChunkInfo(request_->chunkid(), &chunkInfo);
     do {
         bool needLazyClone = false;
-        // 如果需要Read的chunk不存在，但是请求包含Clone源信息，则尝试从Clone源读取数据
+        // If the chunk that needs to be read does not exist, but the request
+        // contains Clone source information, try reading data from the Clone
+        // source
         if (CSErrorCode::ChunkNotExistError == errorCode) {
             if (existCloneInfo(request_)) {
                 needLazyClone = true;
@@ -324,14 +322,15 @@ void ReadChunkRequest::OnApply(uint64_t index,
                 CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
             break;
         }
-        // 如果需要从源端拷贝数据，需要将请求转发给clone manager处理
-        if ( needLazyClone || NeedClone(chunkInfo) ) {
+        // If you need to copy data from the source, you need to forward the
+        // request to the clone manager for processing
+        if (needLazyClone || NeedClone(chunkInfo)) {
             applyIndex = index;
-            std::shared_ptr<CloneTask> cloneTask =
-            cloneMgr_->GenerateCloneTask(
+            std::shared_ptr<CloneTask> cloneTask = cloneMgr_->GenerateCloneTask(
                 std::dynamic_pointer_cast<ReadChunkRequest>(shared_from_this()),
                 done);
-            // TODO(yyk) 尽量不能阻塞队列，后面要具体考虑
+            // TODO(yyk) should try not to block the queue, and specific
+            // considerations should be taken later
             bool result = cloneMgr_->IssueCloneTask(cloneTask);
             if (!result) {
                 LOG(ERROR) << "issue clone task failed: "
@@ -340,14 +339,16 @@ void ReadChunkRequest::OnApply(uint64_t index,
                     CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
                 break;
             }
-            // 如果请求成功转发给了clone manager就可以直接返回了
+            // If the request is successfully forwarded to the clone manager, it
+            // can be returned directly
             return;
         }
-        // 如果是ReadChunk请求还需要从本地读取数据
+        // If it is a ReadChunk request, data needs to be read locally
         if (request_->optype() == CHUNK_OP_TYPE::CHUNK_OP_READ) {
             ReadChunk();
         }
-        // 如果是recover请求，说明请求区域已经被写过了，可以直接返回成功
+        // If it is a recover request, it indicates that the request area has
+        // been written and can directly return success
         if (request_->optype() == CHUNK_OP_TYPE::CHUNK_OP_RECOVER) {
             response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
         }
@@ -362,57 +363,51 @@ void ReadChunkRequest::OnApply(uint64_t index,
 }
 
 void ReadChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
-                                      const ChunkRequest &request,
-                                      const butil::IOBuf &data) {
+                                      const ChunkRequest& request,
+                                      const butil::IOBuf& data) {
     (void)datastore;
     (void)request;
     (void)data;
-    // NOTE: 处理过程中优先使用参数传入的datastore/request
-    // read什么都不用做
+    // NOTE: Prioritize the use of datastore/request passed in as parameters
+    // during processing Read doesn't need to do anything
 }
 
 bool ReadChunkRequest::NeedClone(const CSChunkInfo& chunkInfo) {
-    // 如果不是 clone chunk，就不需要拷贝
+    // If it's not a clone chunk, there's no need to copy it
     if (chunkInfo.isClone) {
         off_t offset = request_->offset();
         size_t length = request_->size();
         uint32_t blockSize = chunkInfo.blockSize;
         uint32_t beginIndex = offset / blockSize;
         uint32_t endIndex = (offset + length - 1) / blockSize;
-        // 如果是clone chunk，且存在未被写过的page，就需要拷贝
-        if (chunkInfo.bitmap->NextClearBit(beginIndex, endIndex)
-            != Bitmap::NO_POS) {
+        // If it is a clone chunk and there are unwritten pages, it needs to be
+        // copied
+        if (chunkInfo.bitmap->NextClearBit(beginIndex, endIndex) !=
+            Bitmap::NO_POS) {
             return true;
         }
     }
     return false;
 }
 
-static void ReadBufferDeleter(void* ptr) {
-    delete[] static_cast<char*>(ptr);
-}
+static void ReadBufferDeleter(void* ptr) { delete[] static_cast<char*>(ptr); }
 
 void ReadChunkRequest::ReadChunk() {
-    char *readBuffer = nullptr;
+    char* readBuffer = nullptr;
     size_t size = request_->size();
 
-    readBuffer = new(std::nothrow)char[size];
-    CHECK(nullptr != readBuffer)
-        << "new readBuffer failed " << strerror(errno);
+    readBuffer = new (std::nothrow) char[size];
+    CHECK(nullptr != readBuffer) << "new readBuffer failed " << strerror(errno);
 
-    auto ret = datastore_->ReadChunk(request_->chunkid(),
-                                     request_->sn(),
-                                     readBuffer,
-                                     request_->offset(),
-                                     size);
+    auto ret = datastore_->ReadChunk(request_->chunkid(), request_->sn(),
+                                     readBuffer, request_->offset(), size);
     butil::IOBuf wrapper;
     wrapper.append_user_data(readBuffer, size, ReadBufferDeleter);
     if (CSErrorCode::Success == ret) {
         cntl_->response_attachment().append(wrapper);
         response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
     } else if (CSErrorCode::ChunkNotExistError == ret) {
-        response_->set_status(
-            CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST);
+        response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST);
     } else if (CSErrorCode::InternalError == ret) {
         LOG(FATAL) << "read failed: "
                    << " data store return: " << ret
@@ -421,50 +416,47 @@ void ReadChunkRequest::ReadChunk() {
         LOG(ERROR) << "read failed: "
                    << " data store return: " << ret
                    << ", request: " << request_->ShortDebugString();
-        response_->set_status(
-            CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
+        response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
     }
 }
 
 void WriteChunkRequest::OnApply(uint64_t index,
-                                ::google::protobuf::Closure *done) {
+                                ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     uint32_t cost;
 
-    std::string  cloneSourceLocation;
+    std::string cloneSourceLocation;
     if (existCloneInfo(request_)) {
         auto func = ::curve::common::LocationOperator::GenerateCurveLocation;
-        cloneSourceLocation =  func(request_->clonefilesource(),
-                            request_->clonefileoffset());
+        cloneSourceLocation =
+            func(request_->clonefilesource(), request_->clonefileoffset());
     }
 
-    auto ret = datastore_->WriteChunk(request_->chunkid(),
-                                      request_->sn(),
-                                      cntl_->request_attachment(),
-                                      request_->offset(),
-                                      request_->size(),
-                                      &cost,
-                                      cloneSourceLocation);
+    auto ret = datastore_->WriteChunk(
+        request_->chunkid(), request_->sn(), cntl_->request_attachment(),
+        request_->offset(), request_->size(), &cost, cloneSourceLocation);
 
     if (CSErrorCode::Success == ret) {
         response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
         node_->UpdateAppliedIndex(index);
     } else if (CSErrorCode::BackwardRequestError == ret) {
-        // 打快照那一刻是有可能出现旧版本的请求
-        // 返回错误给客户端，让客户端带新版本来重试
+        // At the moment of taking a snapshot, there may be requests for older
+        // versions Return an error to the client and ask them to try again with
+        // the new version of the original
         LOG(WARNING) << "write failed: "
                      << " data store return: " << ret
                      << ", request: " << request_->ShortDebugString();
-        response_->set_status(
-            CHUNK_OP_STATUS::CHUNK_OP_STATUS_BACKWARD);
+        response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_BACKWARD);
     } else if (CSErrorCode::InternalError == ret ||
                CSErrorCode::CrcCheckError == ret ||
                CSErrorCode::FileFormatError == ret) {
         /**
-         * internalerror一般是磁盘错误,为了防止副本不一致,让进程退出
-         * TODO(yyk): 当前遇到write错误直接fatal退出整个
-         * ChunkServer后期考虑仅仅标坏这个copyset，保证较好的可用性
-        */
+         * An internal error is usually a disk error. To prevent inconsistent
+         * replicas, the process is forced to exit
+         * TODO(yyk): Currently encountering a write error, directly fatally
+         * exit the entire process ChunkServer will consider only flagging this
+         * copyset in the later stage to ensure good availability
+         */
         LOG(FATAL) << "write failed: "
                    << " data store return: " << ret
                    << ", request: " << request_->ShortDebugString();
@@ -472,8 +464,7 @@ void WriteChunkRequest::OnApply(uint64_t index,
         LOG(ERROR) << "write failed: "
                    << " data store return: " << ret
                    << ", request: " << request_->ShortDebugString();
-        response_->set_status(
-            CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
+        response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
     }
 
     response_->set_appliedindex(MaxAppliedIndex(node_, index));
@@ -481,27 +472,24 @@ void WriteChunkRequest::OnApply(uint64_t index,
 }
 
 void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
-                                       const ChunkRequest &request,
-                                       const butil::IOBuf &data) {
-    // NOTE: 处理过程中优先使用参数传入的datastore/request
+                                       const ChunkRequest& request,
+                                       const butil::IOBuf& data) {
+    // NOTE: Prioritize the use of datastore/request passed in as parameters
+    // during processing
     uint32_t cost;
-    std::string  cloneSourceLocation;
+    std::string cloneSourceLocation;
     if (existCloneInfo(&request)) {
         auto func = ::curve::common::LocationOperator::GenerateCurveLocation;
-        cloneSourceLocation =  func(request.clonefilesource(),
-                            request.clonefileoffset());
+        cloneSourceLocation =
+            func(request.clonefilesource(), request.clonefileoffset());
     }
 
-    auto ret = datastore->WriteChunk(request.chunkid(),
-                                     request.sn(),
-                                     data,
-                                     request.offset(),
-                                     request.size(),
-                                     &cost,
+    auto ret = datastore->WriteChunk(request.chunkid(), request.sn(), data,
+                                     request.offset(), request.size(), &cost,
                                      cloneSourceLocation);
-     if (CSErrorCode::Success == ret) {
-         return;
-     } else if (CSErrorCode::BackwardRequestError == ret) {
+    if (CSErrorCode::Success == ret) {
+        return;
+    } else if (CSErrorCode::BackwardRequestError == ret) {
         LOG(WARNING) << "write failed: "
                      << " data store return: " << ret
                      << ", request: " << request.ShortDebugString();
@@ -519,24 +507,22 @@ void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
 }
 
 void ReadSnapshotRequest::OnApply(uint64_t index,
-                                  ::google::protobuf::Closure *done) {
+                                  ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
-    char *readBuffer = nullptr;
+    char* readBuffer = nullptr;
     uint32_t size = request_->size();
-    readBuffer = new(std::nothrow)char[size];
-    CHECK(nullptr != readBuffer) << "new readBuffer failed, "
-                                 << errno << ":" << strerror(errno);
-    auto ret = datastore_->ReadSnapshotChunk(request_->chunkid(),
-                                             request_->sn(),
-                                             readBuffer,
-                                             request_->offset(),
-                                             request_->size());
+    readBuffer = new (std::nothrow) char[size];
+    CHECK(nullptr != readBuffer)
+        << "new readBuffer failed, " << errno << ":" << strerror(errno);
+    auto ret = datastore_->ReadSnapshotChunk(
+        request_->chunkid(), request_->sn(), readBuffer, request_->offset(),
+        request_->size());
     butil::IOBuf wrapper;
     wrapper.append_user_data(readBuffer, size, ReadBufferDeleter);
 
     do {
         /**
-         * 1.成功
+         * 1. Success
          */
         if (CSErrorCode::Success == ret) {
             cntl_->response_attachment().append(wrapper);
@@ -548,7 +534,8 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
          * 2.chunk not exist
          */
         if (CSErrorCode::ChunkNotExistError == ret) {
-            response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST); //NOLINT
+            response_->set_status(
+                CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST);  // NOLINT
             break;
         }
         /**
@@ -560,30 +547,29 @@ void ReadSnapshotRequest::OnApply(uint64_t index,
                        << ", request: " << request_->ShortDebugString();
         }
         /**
-         * 4.其他错误
+         * 4. Other errors
          */
         LOG(ERROR) << "read snapshot failed: "
                    << " data store return: " << ret
                    << ", request: " << request_->ShortDebugString();
-        response_->set_status(
-            CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
+        response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
     } while (0);
 
     response_->set_appliedindex(MaxAppliedIndex(node_, index));
 }
 
 void ReadSnapshotRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
-                                         const ChunkRequest &request,
-                                         const butil::IOBuf &data) {
+                                         const ChunkRequest& request,
+                                         const butil::IOBuf& data) {
     (void)datastore;
     (void)request;
     (void)data;
-    // NOTE: 处理过程中优先使用参数传入的datastore/request
-    // read什么都不用做
+    // NOTE: Prioritize the use of datastore/request passed in as parameters
+    // during processing Read doesn't need to do anything
 }
 
 void DeleteSnapshotRequest::OnApply(uint64_t index,
-                                    ::google::protobuf::Closure *done) {
+                                    ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     CSErrorCode ret = datastore_->DeleteSnapshotChunkOrCorrectSn(
         request_->chunkid(), request_->correctedsn());
@@ -594,8 +580,7 @@ void DeleteSnapshotRequest::OnApply(uint64_t index,
         LOG(WARNING) << "delete snapshot or correct sn failed: "
                      << " data store return: " << ret
                      << ", request: " << request_->ShortDebugString();
-        response_->set_status(
-            CHUNK_OP_STATUS::CHUNK_OP_STATUS_BACKWARD);
+        response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_BACKWARD);
     } else if (CSErrorCode::InternalError == ret) {
         LOG(FATAL) << "delete snapshot or correct sn failed: "
                    << " data store return: " << ret
@@ -604,20 +589,20 @@ void DeleteSnapshotRequest::OnApply(uint64_t index,
         LOG(ERROR) << "delete snapshot or correct sn failed: "
                    << " data store return: " << ret
                    << ", request: " << request_->ShortDebugString();
-        response_->set_status(
-            CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
+        response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
     }
 
     response_->set_appliedindex(MaxAppliedIndex(node_, index));
 }
 
-void DeleteSnapshotRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  //NOLINT
-                                           const ChunkRequest &request,
-                                           const butil::IOBuf &data) {
+void DeleteSnapshotRequest::OnApplyFromLog(
+    std::shared_ptr<CSDataStore> datastore,  // NOLINT
+    const ChunkRequest& request, const butil::IOBuf& data) {
     (void)data;
-    // NOTE: 处理过程中优先使用参数传入的datastore/request
-    auto ret = datastore->DeleteSnapshotChunkOrCorrectSn(
-        request.chunkid(), request.correctedsn());
+    // NOTE: Prioritize the use of datastore/request passed in as parameters
+    // during processing
+    auto ret = datastore->DeleteSnapshotChunkOrCorrectSn(request.chunkid(),
+                                                         request.correctedsn());
     if (CSErrorCode::Success == ret) {
         return;
     } else if (CSErrorCode::BackwardRequestError == ret) {
@@ -636,14 +621,12 @@ void DeleteSnapshotRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastor
 }
 
 void CreateCloneChunkRequest::OnApply(uint64_t index,
-                                      ::google::protobuf::Closure *done) {
+                                      ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
 
-    auto ret = datastore_->CreateCloneChunk(request_->chunkid(),
-                                            request_->sn(),
-                                            request_->correctedsn(),
-                                            request_->size(),
-                                            request_->location());
+    auto ret = datastore_->CreateCloneChunk(
+        request_->chunkid(), request_->sn(), request_->correctedsn(),
+        request_->size(), request_->location());
 
     if (CSErrorCode::Success == ret) {
         response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
@@ -652,44 +635,41 @@ void CreateCloneChunkRequest::OnApply(uint64_t index,
                CSErrorCode::CrcCheckError == ret ||
                CSErrorCode::FileFormatError == ret) {
         /**
-         * TODO(yyk): 当前遇到createclonechunk错误直接fatal退出整个
-         * ChunkServer后期考虑仅仅标坏这个copyset，保证较好的可用性
+         * TODO(yyk): Currently encountering the createclonechunk error,
+         * directly fatally exit the entire process ChunkServer will consider
+         * only flagging this copyset in the later stage to ensure good
+         * availability
          */
         LOG(FATAL) << "create clone failed: "
                    << ", request: " << request_->ShortDebugString();
-        response_->set_status(
-            CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
+        response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
     } else if (CSErrorCode::ChunkConflictError == ret) {
         LOG(WARNING) << "create clone chunk exist: "
-                   << ", request: " << request_->ShortDebugString();
-        response_->set_status(
-            CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_EXIST);
+                     << ", request: " << request_->ShortDebugString();
+        response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_EXIST);
     } else {
         LOG(ERROR) << "create clone failed: "
                    << ", request: " << request_->ShortDebugString();
-        response_->set_status(
-            CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
+        response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
     }
 
     response_->set_appliedindex(MaxAppliedIndex(node_, index));
 }
 
-void CreateCloneChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  //NOLINT
-                                             const ChunkRequest &request,
-                                             const butil::IOBuf &data) {
+void CreateCloneChunkRequest::OnApplyFromLog(
+    std::shared_ptr<CSDataStore> datastore,  // NOLINT
+    const ChunkRequest& request, const butil::IOBuf& data) {
     (void)data;
-    // NOTE: 处理过程中优先使用参数传入的datastore/request
-    auto ret = datastore->CreateCloneChunk(request.chunkid(),
-                                           request.sn(),
+    // NOTE: Prioritize the use of datastore/request passed in as parameters
+    // during processing
+    auto ret = datastore->CreateCloneChunk(request.chunkid(), request.sn(),
                                            request.correctedsn(),
-                                           request.size(),
-                                           request.location());
-    if (CSErrorCode::Success == ret)
-        return;
+                                           request.size(), request.location());
+    if (CSErrorCode::Success == ret) return;
 
     if (CSErrorCode::ChunkConflictError == ret) {
         LOG(WARNING) << "create clone chunk exist: "
-                << ", request: " << request.ShortDebugString();
+                     << ", request: " << request.ShortDebugString();
         return;
     }
 
@@ -714,8 +694,9 @@ void PasteChunkInternalRequest::Process() {
     }
 
     /**
-     * 如果propose成功，说明request成功交给了raft处理，
-     * 那么done_就不能被调用，只有propose失败了才需要提前返回
+     * If the proposal is successful, it indicates that the request has been
+     * successfully handed over to the raft for processing, So, done_ cannot be
+     * called, only if the proposal fails, it needs to be returned in advance
      */
     if (0 == Propose(request_, &data_)) {
         doneGuard.release();
@@ -723,13 +704,12 @@ void PasteChunkInternalRequest::Process() {
 }
 
 void PasteChunkInternalRequest::OnApply(uint64_t index,
-                                        ::google::protobuf::Closure *done) {
+                                        ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
 
     auto ret = datastore_->PasteChunk(request_->chunkid(),
-                                      data_.to_string().c_str(),  //NOLINT
-                                      request_->offset(),
-                                      request_->size());
+                                      data_.to_string().c_str(),  // NOLINT
+                                      request_->offset(), request_->size());
 
     if (CSErrorCode::Success == ret) {
         response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
@@ -746,16 +726,15 @@ void PasteChunkInternalRequest::OnApply(uint64_t index,
     response_->set_appliedindex(MaxAppliedIndex(node_, index));
 }
 
-void PasteChunkInternalRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  //NOLINT
-                                               const ChunkRequest &request,
-                                               const butil::IOBuf &data) {
-    // NOTE: 处理过程中优先使用参数传入的datastore/request
-    auto ret = datastore->PasteChunk(request.chunkid(),
-                                     data.to_string().c_str(),
-                                     request.offset(),
-                                     request.size());
-    if (CSErrorCode::Success == ret)
-        return;
+void PasteChunkInternalRequest::OnApplyFromLog(
+    std::shared_ptr<CSDataStore> datastore,  // NOLINT
+    const ChunkRequest& request, const butil::IOBuf& data) {
+    // NOTE: Prioritize the use of datastore/request passed in as parameters
+    // during processing
+    auto ret =
+        datastore->PasteChunk(request.chunkid(), data.to_string().c_str(),
+                              request.offset(), request.size());
+    if (CSErrorCode::Success == ret) return;
 
     if (CSErrorCode::InternalError == ret) {
         LOG(FATAL) << "paste chunk failed: "
@@ -767,27 +746,22 @@ void PasteChunkInternalRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> data
 }
 
 void ScanChunkRequest::OnApply(uint64_t index,
-                               ::google::protobuf::Closure *done) {
+                               ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
 
     // read and calculate crc, build scanmap
     uint32_t crc = 0;
     size_t size = request_->size();
-    std::unique_ptr<char[]> readBuffer(new(std::nothrow)char[size]);
-    CHECK(nullptr != readBuffer)
-        << "new readBuffer failed " << strerror(errno);
+    std::unique_ptr<char[]> readBuffer(new (std::nothrow) char[size]);
+    CHECK(nullptr != readBuffer) << "new readBuffer failed " << strerror(errno);
     // scan chunk metapage or user data
     auto ret = 0;
     if (request_->has_readmetapage() && request_->readmetapage()) {
-        ret = datastore_->ReadChunkMetaPage(request_->chunkid(),
-                                            request_->sn(),
+        ret = datastore_->ReadChunkMetaPage(request_->chunkid(), request_->sn(),
                                             readBuffer.get());
     } else {
-        ret = datastore_->ReadChunk(request_->chunkid(),
-                                    request_->sn(),
-                                    readBuffer.get(),
-                                    request_->offset(),
-                                    size);
+        ret = datastore_->ReadChunk(request_->chunkid(), request_->sn(),
+                                    readBuffer.get(), request_->offset(), size);
     }
 
     if (CSErrorCode::Success == ret) {
@@ -808,39 +782,32 @@ void ScanChunkRequest::OnApply(uint64_t index,
         scanManager_->GenScanJobs(jobKey);
         response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
     } else if (CSErrorCode::ChunkNotExistError == ret) {
-        response_->set_status(
-            CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST);
+        response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST);
     } else if (CSErrorCode::InternalError == ret) {
         LOG(FATAL) << "scan chunk failed, read chunk internal error"
                    << ", request: " << request_->ShortDebugString();
     } else {
-        response_->set_status(
-            CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
+        response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
     }
 }
 
-void ScanChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  //NOLINT
-                                               const ChunkRequest &request,
-                                               const butil::IOBuf &data) {
+void ScanChunkRequest::OnApplyFromLog(
+    std::shared_ptr<CSDataStore> datastore,  // NOLINT
+    const ChunkRequest& request, const butil::IOBuf& data) {
     (void)data;
     uint32_t crc = 0;
     size_t size = request.size();
-    std::unique_ptr<char[]> readBuffer(new(std::nothrow)char[size]);
-    CHECK(nullptr != readBuffer)
-        << "new readBuffer failed " << strerror(errno);
+    std::unique_ptr<char[]> readBuffer(new (std::nothrow) char[size]);
+    CHECK(nullptr != readBuffer) << "new readBuffer failed " << strerror(errno);
 
     // scan chunk metapage or user data
     auto ret = 0;
     if (request.has_readmetapage() && request.readmetapage()) {
-        ret = datastore->ReadChunkMetaPage(request.chunkid(),
-                                            request.sn(),
-                                            readBuffer.get());
+        ret = datastore->ReadChunkMetaPage(request.chunkid(), request.sn(),
+                                           readBuffer.get());
     } else {
-        ret = datastore->ReadChunk(request.chunkid(),
-                                    request.sn(),
-                                    readBuffer.get(),
-                                    request.offset(),
-                                    size);
+        ret = datastore->ReadChunk(request.chunkid(), request.sn(),
+                                   readBuffer.get(), request.offset(), size);
     }
 
     if (CSErrorCode::Success == ret) {
@@ -861,10 +828,10 @@ void ScanChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  /
     }
 }
 
-void ScanChunkRequest::BuildAndSendScanMap(const ChunkRequest &request,
+void ScanChunkRequest::BuildAndSendScanMap(const ChunkRequest& request,
                                            uint64_t index, uint32_t crc) {
     // send rpc to leader
-    brpc::Channel *channel = new brpc::Channel();
+    brpc::Channel* channel = new brpc::Channel();
     if (channel->Init(peer_.addr, NULL) != 0) {
         LOG(ERROR) << "Fail to init channel to chunkserver for send scanmap: "
                    << peer_;
@@ -873,7 +840,7 @@ void ScanChunkRequest::BuildAndSendScanMap(const ChunkRequest &request,
     }
 
     // build scanmap
-    ScanMap *scanMap = new ScanMap();
+    ScanMap* scanMap = new ScanMap();
     scanMap->set_logicalpoolid(request.logicpoolid());
     scanMap->set_copysetid(request.copysetid());
     scanMap->set_chunkid(request.chunkid());
@@ -882,20 +849,17 @@ void ScanChunkRequest::BuildAndSendScanMap(const ChunkRequest &request,
     scanMap->set_offset(request.offset());
     scanMap->set_len(request.size());
 
-    FollowScanMapRequest *scanMapRequest = new FollowScanMapRequest();
+    FollowScanMapRequest* scanMapRequest = new FollowScanMapRequest();
     scanMapRequest->set_allocated_scanmap(scanMap);
 
     ScanService_Stub stub(channel);
     brpc::Controller* cntl = new brpc::Controller();
     cntl->set_timeout_ms(request.sendscanmaptimeoutms());
-    FollowScanMapResponse *scanMapResponse = new FollowScanMapResponse();
-    SendScanMapClosure *done = new SendScanMapClosure(
-                                   scanMapRequest,
-                                   scanMapResponse,
-                                   request.sendscanmaptimeoutms(),
-                                   request.sendscanmapretrytimes(),
-                                   request.sendscanmapretryintervalus(),
-                                   cntl, channel);
+    FollowScanMapResponse* scanMapResponse = new FollowScanMapResponse();
+    SendScanMapClosure* done = new SendScanMapClosure(
+        scanMapRequest, scanMapResponse, request.sendscanmaptimeoutms(),
+        request.sendscanmapretrytimes(), request.sendscanmapretryintervalus(),
+        cntl, channel);
     LOG(INFO) << "logid = " << cntl->log_id()
               << " Sending scanmap: " << scanMap->ShortDebugString()
               << " to leader: " << peer_.addr;

@@ -21,9 +21,9 @@
  */
 
 #include "src/snapshotcloneserver/snapshot/snapshot_task_manager.h"
-#include "src/common/snapshotclone/snapshotclone_define.h"
-#include "src/common/concurrent/concurrent.h"
 
+#include "src/common/concurrent/concurrent.h"
+#include "src/common/snapshotclone/snapshotclone_define.h"
 
 using curve::common::LockGuard;
 
@@ -39,7 +39,7 @@ int SnapshotTaskManager::Start() {
             return ret;
         }
         isStop_.store(false);
-        // isStop_标志先置，防止backEndThread先退出
+        // isStop_ Flag set first to prevent backEndThread from exiting first
         backEndThread =
             std::thread(&SnapshotTaskManager::BackEndThreadFunc, this);
     }
@@ -58,7 +58,7 @@ int SnapshotTaskManager::PushTask(std::shared_ptr<SnapshotTask> task) {
     if (isStop_.load()) {
         return kErrCodeServiceIsStop;
     }
-    // 移除实际已完成的task，防止uuid冲突
+    // Remove actual completed tasks to prevent uuid conflicts
     ScanWorkingTask();
 
     {
@@ -73,13 +73,13 @@ int SnapshotTaskManager::PushTask(std::shared_ptr<SnapshotTask> task) {
     }
     snapshotMetric_->snapshotWaiting << 1;
 
-    // 立即执行task
+    // Execute task immediately
     ScanWaitingTask();
     return kErrCodeSuccess;
 }
 
 std::shared_ptr<SnapshotTask> SnapshotTaskManager::GetTask(
-    const TaskIdType &taskId) const {
+    const TaskIdType& taskId) const {
     ReadLockGuard taskMapRlock(taskMapLock_);
     auto it = taskMap_.find(taskId);
     if (it != taskMap_.end()) {
@@ -88,14 +88,12 @@ std::shared_ptr<SnapshotTask> SnapshotTaskManager::GetTask(
     return nullptr;
 }
 
-int SnapshotTaskManager::CancelTask(const TaskIdType &taskId) {
+int SnapshotTaskManager::CancelTask(const TaskIdType& taskId) {
     {
-        // 还在等待队列的Cancel直接移除
+        // Waiting for the Cancel of the queue to be directly removed
         WriteLockGuard taskMapWlock(taskMapLock_);
         LockGuard waitingTasksLock(waitingTasksLock_);
-        for (auto it = waitingTasks_.begin();
-            it != waitingTasks_.end();
-            it++) {
+        for (auto it = waitingTasks_.begin(); it != waitingTasks_.end(); it++) {
             if ((*it)->GetTaskId() == taskId) {
                 int ret = core_->HandleCancelUnSchduledSnapshotTask(
                     (*it)->GetTaskInfo());
@@ -131,12 +129,10 @@ void SnapshotTaskManager::BackEndThreadFunc() {
 void SnapshotTaskManager::ScanWaitingTask() {
     LockGuard waitingTasksLock(waitingTasksLock_);
     LockGuard workingTasksLock(workingTasksLock_);
-    for (auto it = waitingTasks_.begin();
-        it != waitingTasks_.end();) {
-        if (workingTasks_.find((*it)->GetTaskInfo()->GetFileName())
-            == workingTasks_.end()) {
-            workingTasks_.emplace((*it)->GetTaskInfo()->GetFileName(),
-                *it);
+    for (auto it = waitingTasks_.begin(); it != waitingTasks_.end();) {
+        if (workingTasks_.find((*it)->GetTaskInfo()->GetFileName()) ==
+            workingTasks_.end()) {
+            workingTasks_.emplace((*it)->GetTaskInfo()->GetFileName(), *it);
             threadpool_->PushTask(*it);
             snapshotMetric_->snapshotDoing << 1;
             snapshotMetric_->snapshotWaiting << -1;
@@ -150,13 +146,11 @@ void SnapshotTaskManager::ScanWaitingTask() {
 void SnapshotTaskManager::ScanWorkingTask() {
     WriteLockGuard taskMapWlock(taskMapLock_);
     LockGuard workingTasksLock(workingTasksLock_);
-    for (auto it = workingTasks_.begin();
-            it != workingTasks_.end();) {
+    for (auto it = workingTasks_.begin(); it != workingTasks_.end();) {
         auto taskInfo = it->second->GetTaskInfo();
         if (taskInfo->IsFinish()) {
             snapshotMetric_->snapshotDoing << -1;
-            if (taskInfo->GetSnapshotInfo().GetStatus()
-                != Status::done) {
+            if (taskInfo->GetSnapshotInfo().GetStatus() != Status::done) {
                 snapshotMetric_->snapshotFailed << 1;
             } else {
                 snapshotMetric_->snapshotSucceed << 1;
@@ -171,4 +165,3 @@ void SnapshotTaskManager::ScanWorkingTask() {
 
 }  // namespace snapshotcloneserver
 }  // namespace curve
-

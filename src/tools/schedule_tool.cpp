@@ -20,23 +20,26 @@
  * Author: lixiaocui
  */
 
-#include <gflags/gflags.h>
-#include <vector>
 #include "src/tools/schedule_tool.h"
+
+#include <gflags/gflags.h>
+
+#include <vector>
+
 #include "src/tools/curve_tool_define.h"
 
 DEFINE_uint32(logical_pool_id, 1, "logical pool");
 DECLARE_string(mdsAddr);
 DEFINE_bool(scheduleAll, true, "schedule all logical pool or not");
-DEFINE_bool(scanEnable, true, "Enable(true)/Disable(false) scan "
-                               "for specify logical pool");
+DEFINE_bool(scanEnable, true,
+            "Enable(true)/Disable(false) scan "
+            "for specify logical pool");
 
 namespace curve {
 namespace tool {
 
 bool ScheduleTool::SupportCommand(const std::string& command) {
-    return command == kRapidLeaderSchedule ||
-           command == kSetScanState;
+    return command == kRapidLeaderSchedule || command == kSetScanState;
 }
 
 void ScheduleTool::PrintHelp(const std::string& cmd) {
@@ -50,31 +53,28 @@ void ScheduleTool::PrintHelp(const std::string& cmd) {
 }
 
 void ScheduleTool::PrintRapidLeaderScheduleHelp() {
-    std::cout << "Example :" << std::endl
+    std::cout
+        << "Example :" << std::endl
         << "curve_ops_tool " << kRapidLeaderSchedule
         << " -logical_pool_id=1 -scheduleAll=false [-mdsAddr=127.0.0.1:6666]"
-        << " [-confPath=/etc/curve/tools.conf]"
-        << std::endl;
+        << " [-confPath=/etc/curve/tools.conf]" << std::endl;
     std::cout << "curve_ops_tool " << kRapidLeaderSchedule
-        << " [-mdsAddr=127.0.0.1:6666]"
-        << " [-confPath=/etc/curve/tools.conf]"
-        << std::endl;
+              << " [-mdsAddr=127.0.0.1:6666]"
+              << " [-confPath=/etc/curve/tools.conf]" << std::endl;
 }
 
 void ScheduleTool::PrintSetScanStateHelp() {
-    std::cout
-        << "Example:" << std::endl
-        << "  curve_ops_tool " << kSetScanState
-        << " -logical_pool_id=1 -scanEnable=true/false"
-        << " [-mdsAddr=127.0.0.1:6666]"
-        << " [-confPath=/etc/curve/tools.conf]"
-        << std::endl;
+    std::cout << "Example:" << std::endl
+              << "  curve_ops_tool " << kSetScanState
+              << " -logical_pool_id=1 -scanEnable=true/false"
+              << " [-mdsAddr=127.0.0.1:6666]"
+              << " [-confPath=/etc/curve/tools.conf]" << std::endl;
 }
 
-int ScheduleTool::RunCommand(const std::string &cmd) {
+int ScheduleTool::RunCommand(const std::string& cmd) {
     if (kRapidLeaderSchedule == cmd) {
         return DoRapidLeaderSchedule();
-    }  else if (cmd == kSetScanState) {
+    } else if (cmd == kSetScanState) {
         return DoSetScanState();
     }
     std::cout << "Command not supported!" << std::endl;
@@ -90,14 +90,14 @@ int ScheduleTool::DoSetScanState() {
     auto lpid = FLAGS_logical_pool_id;
     auto scanEnable = FLAGS_scanEnable;
     auto retCode = mdsClient_->SetLogicalPoolScanState(lpid, scanEnable);
-    std::cout << (scanEnable ? "Enable" : "Disable")
-              << " scan for logicalpool(" << lpid << ")"
-              << (retCode == 0 ? " success" : " fail") << std::endl;
+    std::cout << (scanEnable ? "Enable" : "Disable") << " scan for logicalpool("
+              << lpid << ")" << (retCode == 0 ? " success" : " fail")
+              << std::endl;
     return retCode;
 }
 
 int ScheduleTool::DoRapidLeaderSchedule() {
-     if (0 != mdsClient_->Init(FLAGS_mdsAddr)) {
+    if (0 != mdsClient_->Init(FLAGS_mdsAddr)) {
         std::cout << "Init mds client fail!" << std::endl;
         return -1;
     }
@@ -109,11 +109,11 @@ int ScheduleTool::DoRapidLeaderSchedule() {
 }
 
 int ScheduleTool::ScheduleOne(PoolIdType lpoolId) {
-    // 给mds发送rpc
+    // Send rpc to mds
     int res = mdsClient_->RapidLeaderSchedule(lpoolId);
     if (res != 0) {
-        std::cout << "RapidLeaderSchedule pool " << lpoolId
-                  << " fail" << std::endl;
+        std::cout << "RapidLeaderSchedule pool " << lpoolId << " fail"
+                  << std::endl;
         return -1;
     }
     return 0;

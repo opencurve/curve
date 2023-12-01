@@ -20,14 +20,15 @@
  * Author: tongguangxun
  */
 
+#include "src/client/iomanager4file.h"
+
 #include <glog/logging.h>
 
-#include <chrono>   // NOLINT
+#include <chrono>  // NOLINT
 
-#include "src/client/metacache.h"
-#include "src/client/iomanager4file.h"
 #include "src/client/file_instance.h"
 #include "src/client/io_tracker.h"
+#include "src/client/metacache.h"
 #include "src/client/splitor.h"
 
 namespace curve {
@@ -36,8 +37,7 @@ Atomic<uint64_t> IOManager::idRecorder_(1);
 IOManager4File::IOManager4File() : scheduler_(nullptr), exit_(false) {}
 
 bool IOManager4File::Initialize(const std::string& filename,
-                                const IOOption& ioOpt,
-                                MDSClient* mdsclient) {
+                                const IOOption& ioOpt, MDSClient* mdsclient) {
     ioopt_ = ioOpt;
     disableStripe_ = false;
 
@@ -55,8 +55,9 @@ bool IOManager4File::Initialize(const std::string& filename,
         return false;
     }
 
-    // IO Manager中不控制inflight IO数量，所以传入UINT64_MAX
-    // 但是IO Manager需要控制所有inflight IO在关闭的时候都被回收掉
+    // The IO Manager does not control the number of inflight IOs, so UINT64_MAX
+    // is passed. However, the IO Manager needs to ensure that all inflight IOs
+    // are reclaimed upon shutdown.
     inflightCntl_.SetMaxInflightNum(UINT64_MAX);
 
     scheduler_ = new (std::nothrow) RequestScheduler();
@@ -114,7 +115,7 @@ void IOManager4File::UnInitialize() {
 
     {
         std::unique_lock<std::mutex> lk(exitMtx);
-        exitCv.wait(lk, [&](){ return exitFlag; });
+        exitCv.wait(lk, [&]() { return exitFlag; });
     }
 
     taskPool_.Stop();
@@ -128,8 +129,9 @@ void IOManager4File::UnInitialize() {
     discardTaskManager_->Stop();
 
     {
-        // 这个锁保证设置exit_和delete scheduler_是原子的
-        // 这样保证在scheduler_被析构的时候lease线程不会使用scheduler_
+        // This lock ensures that setting exit_ and deleting scheduler_ are
+        // atomic. This ensures that the lease thread won't use scheduler_ when
+        // it is being destructed.
         std::unique_lock<std::mutex> lk(exitMtx_);
         exit_ = true;
 
@@ -140,8 +142,8 @@ void IOManager4File::UnInitialize() {
     }
 }
 
-int IOManager4File::Read(char* buf, off_t offset,
-    size_t length, MDSClient* mdsclient) {
+int IOManager4File::Read(char* buf, off_t offset, size_t length,
+                         MDSClient* mdsclient) {
     MetricHelper::IncremUserRPSCount(fileMetric_, OpType::READ);
     FlightIOGuard guard(this);
 
@@ -162,9 +164,7 @@ int IOManager4File::Read(char* buf, off_t offset,
     }
 }
 
-int IOManager4File::Write(const char* buf,
-                          off_t offset,
-                          size_t length,
+int IOManager4File::Write(const char* buf, off_t offset, size_t length,
                           MDSClient* mdsclient) {
     MetricHelper::IncremUserRPSCount(fileMetric_, OpType::WRITE);
     FlightIOGuard guard(this);
@@ -175,8 +175,7 @@ int IOManager4File::Write(const char* buf,
     IOTracker temp(this, &mc_, scheduler_, fileMetric_, disableStripe_);
     temp.SetUserDataType(UserDataType::IOBuffer);
     temp.StartWrite(&data, offset, length, mdsclient, this->GetFileInfo(),
-                    this->GetFileEpoch(),
-                    throttle_.get());
+                    this->GetFileEpoch(), throttle_.get());
 
     int rc = temp.Wait();
     return rc;
@@ -223,8 +222,7 @@ int IOManager4File::AioWrite(CurveAioContext* ctx, MDSClient* mdsclient,
     inflightCntl_.IncremInflightNum();
     auto task = [this, ctx, mdsclient, temp]() {
         temp->StartAioWrite(ctx, mdsclient, this->GetFileInfo(),
-                            this->GetFileEpoch(),
-                            throttle_.get());
+                            this->GetFileEpoch(), throttle_.get());
     };
 
     taskPool_.Enqueue(task);
@@ -286,9 +284,7 @@ void IOManager4File::UpdateFileThrottleParams(
     }
 }
 
-void IOManager4File::SetDisableStripe() {
-    disableStripe_ = true;
-}
+void IOManager4File::SetDisableStripe() { disableStripe_ = true; }
 
 void IOManager4File::HandleAsyncIOResponse(IOTracker* iotracker) {
     inflightCntl_.DecremInflightNum();
@@ -330,5 +326,5 @@ void IOManager4File::GetInflightRpcToken() {
     inflightRpcCntl_.GetInflightToken();
 }
 
-}   // namespace client
-}   // namespace curve
+}  // namespace client
+}  // namespace curve

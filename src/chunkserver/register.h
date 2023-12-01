@@ -23,13 +23,14 @@
 #ifndef SRC_CHUNKSERVER_REGISTER_H_
 #define SRC_CHUNKSERVER_REGISTER_H_
 
-#include <string>
 #include <memory>
+#include <string>
 #include <vector>
-#include "src/fs/local_filesystem.h"
+
 #include "proto/chunkserver.pb.h"
-#include "src/chunkserver/epoch_map.h"
 #include "src/chunkserver/datastore/file_pool.h"
+#include "src/chunkserver/epoch_map.h"
+#include "src/fs/local_filesystem.h"
 
 using ::curve::fs::LocalFileSystem;
 
@@ -37,7 +38,7 @@ namespace curve {
 namespace chunkserver {
 const uint32_t CURRENT_METADATA_VERSION = 0x01;
 
-// register配置选项
+// Register Configuration Options
 struct RegisterOptions {
     std::string mdsListenAddr;
     std::string chunkserverInternalIp;
@@ -61,7 +62,7 @@ struct RegisterOptions {
 
 class Register {
  public:
-    explicit Register(const RegisterOptions &ops);
+    explicit Register(const RegisterOptions& ops);
     ~Register() {}
 
     /**
@@ -71,16 +72,16 @@ class Register {
      * @param[out] metadata chunkserver meta
      * @param[in,out] epochMap  epochMap to update
      */
-    int RegisterToMDS(const ChunkServerMetadata *localMetadata,
-        ChunkServerMetadata *metadata,
-        const std::shared_ptr<EpochMap> &epochMap);
+    int RegisterToMDS(const ChunkServerMetadata* localMetadata,
+                      ChunkServerMetadata* metadata,
+                      const std::shared_ptr<EpochMap>& epochMap);
 
     /**
-     * @brief 持久化ChunkServer元数据
+     * @brief Persisting ChunkServer metadata
      *
      * @param[in] metadata
      */
-    int PersistChunkServerMeta(const ChunkServerMetadata &metadata);
+    int PersistChunkServerMeta(const ChunkServerMetadata& metadata);
 
  private:
     RegisterOptions ops_;
@@ -92,4 +93,3 @@ class Register {
 }  // namespace curve
 
 #endif  // SRC_CHUNKSERVER_REGISTER_H_
-

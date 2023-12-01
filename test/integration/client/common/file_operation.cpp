@@ -43,15 +43,15 @@ int FileCommonOperation::Open(const std::string& filename,
     memset(userinfo.owner, 0, 256);
     memcpy(userinfo.owner, owner.c_str(), owner.size());
 
-    // 先创建文件
-    int ret = Create(filename.c_str(), &userinfo, 100*1024*1024*1024ul);
+    // Create a file first
+    int ret = Create(filename.c_str(), &userinfo, 100 * 1024 * 1024 * 1024ul);
     if (ret != LIBCURVE_ERROR::OK && ret != -LIBCURVE_ERROR::EXISTS) {
         LOG(ERROR) << "file create failed! " << ret
                    << ", filename = " << filename;
         return -1;
     }
 
-    // 再打开文件
+    // Reopen File
     int fd = ::Open(filename.c_str(), &userinfo);
     if (fd < 0 && ret != -LIBCURVE_ERROR::FILE_OCCUPIED) {
         LOG(ERROR) << "Open file failed!";
@@ -68,8 +68,8 @@ void FileCommonOperation::Close(int fd) {
 }
 
 int FileCommonOperation::Open(const std::string& filename,
-                              const std::string& owner,
-                              uint64_t stripeUnit, uint64_t stripeCount) {
+                              const std::string& owner, uint64_t stripeUnit,
+                              uint64_t stripeCount) {
     assert(globalclient != nullptr);
 
     C_UserInfo_t userinfo;
@@ -84,7 +84,7 @@ int FileCommonOperation::Open(const std::string& filename,
     context.stripeUnit = stripeUnit;
     context.stripeCount = stripeCount;
 
-    // 先创建文件
+    // Create a file first
     int ret = globalclient->Create2(context);
     if (ret != LIBCURVE_ERROR::OK && ret != -LIBCURVE_ERROR::EXISTS) {
         LOG(ERROR) << "file create failed! " << ret
@@ -92,7 +92,7 @@ int FileCommonOperation::Open(const std::string& filename,
         return -1;
     }
 
-    // 再打开文件
+    // Reopen File
     int fd = ::Open(filename.c_str(), &userinfo);
     if (fd < 0 && ret != -LIBCURVE_ERROR::FILE_OCCUPIED) {
         LOG(ERROR) << "Open file failed!";
@@ -102,5 +102,5 @@ int FileCommonOperation::Open(const std::string& filename,
     return fd;
 }
 
-}   //  namespace test
-}   //  namespace curve
+}  //  namespace test
+}  //  namespace curve

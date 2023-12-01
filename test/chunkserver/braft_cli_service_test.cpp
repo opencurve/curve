@@ -20,21 +20,22 @@
  * Author: wudemiao
  */
 
-#include <gtest/gtest.h>
-#include <gflags/gflags.h>
-#include <glog/logging.h>
-#include <bthread/bthread.h>
+#include "src/chunkserver/braft_cli_service.h"
+
 #include <brpc/channel.h>
 #include <brpc/controller.h>
 #include <brpc/server.h>
+#include <bthread/bthread.h>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
 
 #include <iostream>
 
+#include "proto/copyset.pb.h"
+#include "src/chunkserver/cli.h"
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/copyset_node_manager.h"
-#include "src/chunkserver/braft_cli_service.h"
-#include "src/chunkserver/cli.h"
-#include "proto/copyset.pb.h"
 #include "test/chunkserver/chunkserver_test_util.h"
 
 namespace curve {
@@ -43,10 +44,12 @@ namespace chunkserver {
 class BraftCliServiceTest : public testing::Test {
  protected:
     static void SetUpTestCase() {
-        LOG(INFO) << "BraftCliServiceTest " << "SetUpTestCase";
+        LOG(INFO) << "BraftCliServiceTest "
+                  << "SetUpTestCase";
     }
     static void TearDownTestCase() {
-        LOG(INFO) << "BraftCliServiceTest " << "TearDownTestCase";
+        LOG(INFO) << "BraftCliServiceTest "
+                  << "TearDownTestCase";
     }
     virtual void SetUp() {
         Exec("mkdir 6");
@@ -68,9 +71,9 @@ class BraftCliServiceTest : public testing::Test {
 butil::AtExitManager atExitManager;
 
 TEST_F(BraftCliServiceTest, basic) {
-    const char *ip = "127.0.0.1";
+    const char* ip = "127.0.0.1";
     int port = 9015;
-    const char *confs = "127.0.0.1:9015:0,127.0.0.1:9016:0,127.0.0.1:9017:0";
+    const char* confs = "127.0.0.1:9015:0,127.0.0.1:9016:0,127.0.0.1:9017:0";
     int snapshotInterval = 600;
     PeerId peer1("127.0.0.1:9015:0");
     PeerId peer2("127.0.0.1:9016:0");
@@ -87,12 +90,8 @@ TEST_F(BraftCliServiceTest, basic) {
         std::cerr << "fork chunkserver 1 failed" << std::endl;
         ASSERT_TRUE(false);
     } else if (0 == pid1) {
-        const char *copysetdir = "local://./6";
-        StartChunkserver(ip,
-                         port + 0,
-                         copysetdir,
-                         confs,
-                         snapshotInterval,
+        const char* copysetdir = "local://./6";
+        StartChunkserver(ip, port + 0, copysetdir, confs, snapshotInterval,
                          electionTimeoutMs);
         return;
     }
@@ -102,12 +101,8 @@ TEST_F(BraftCliServiceTest, basic) {
         std::cerr << "fork chunkserver 2 failed" << std::endl;
         ASSERT_TRUE(false);
     } else if (0 == pid2) {
-        const char *copysetdir = "local://./7";
-        StartChunkserver(ip,
-                         port + 1,
-                         copysetdir,
-                         confs,
-                         snapshotInterval,
+        const char* copysetdir = "local://./7";
+        StartChunkserver(ip, port + 1, copysetdir, confs, snapshotInterval,
                          electionTimeoutMs);
         return;
     }
@@ -117,17 +112,13 @@ TEST_F(BraftCliServiceTest, basic) {
         std::cerr << "fork chunkserver 3 failed" << std::endl;
         ASSERT_TRUE(false);
     } else if (0 == pid3) {
-        const char *copysetdir = "local://./8";
-        StartChunkserver(ip,
-                         port + 2,
-                         copysetdir,
-                         confs,
-                         snapshotInterval,
+        const char* copysetdir = "local://./8";
+        StartChunkserver(ip, port + 2, copysetdir, confs, snapshotInterval,
                          electionTimeoutMs);
         return;
     }
 
-    /* 保证进程一定会退出 */
+    /* Ensure that the process will definitely exit*/
     class WaitpidGuard {
      public:
         WaitpidGuard(pid_t pid1, pid_t pid2, pid_t pid3) {
@@ -144,6 +135,7 @@ TEST_F(BraftCliServiceTest, basic) {
             kill(pid3_, SIGINT);
             waitpid(pid3_, &waitState, 0);
         }
+
      private:
         pid_t pid1_;
         pid_t pid2_;
@@ -166,7 +158,7 @@ TEST_F(BraftCliServiceTest, basic) {
     options.timeout_ms = 1500;
     options.max_retry = 3;
 
-    /* add peer - 非法 copyset */
+    /* Add peer - illegal copyset */
     {
         PeerId leaderId = leader;
         brpc::Channel channel;
@@ -188,7 +180,7 @@ TEST_F(BraftCliServiceTest, basic) {
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(ENOENT, cntl.ErrorCode());
     }
-    /* add peer - 非法 peerid */
+    /* add peer - illegal peerid */
     {
         PeerId leaderId = leader;
         butil::Status st = GetLeader(logicPoolId, copysetId, conf, &leaderId);
@@ -210,12 +202,12 @@ TEST_F(BraftCliServiceTest, basic) {
         ASSERT_EQ(EINVAL, cntl.ErrorCode());
         LOG(INFO) << "add peer: " << cntl.ErrorText();
     }
-    /* add peer - 发送给不是leader的peer */
+    /* add peer - sent to peers who are not leader */
     {
         PeerId leaderId;
         LOG(INFO) << "true leader is: " << leader.to_string();
-        if (0
-            == strcmp(leader.to_string().c_str(), peer1.to_string().c_str())) {
+        if (0 ==
+            strcmp(leader.to_string().c_str(), peer1.to_string().c_str())) {
             leaderId = peer2;
         } else {
             leaderId = peer1;
@@ -240,13 +232,13 @@ TEST_F(BraftCliServiceTest, basic) {
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(EPERM, cntl.ErrorCode());
     }
-    /* remove peer - 非法 copyset */
+    /* remove peer - illegal copyset */
     {
         PeerId leaderId = leader;
         brpc::Channel channel;
         ASSERT_EQ(0, channel.Init(leaderId.addr, NULL));
         RemovePeerRequest request;
-        /* 非法 copyset */
+        /* Illegal copyset */
         request.set_logicpoolid(logicPoolId + 1);
         request.set_copysetid(copysetId);
         request.set_leader_id(leaderId.to_string());
@@ -261,7 +253,7 @@ TEST_F(BraftCliServiceTest, basic) {
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(ENOENT, cntl.ErrorCode());
     }
-    /* remove peer - 非法 peer id */
+    /* remove peer - illegal peer id */
     {
         PeerId leaderId = leader;
         brpc::Channel channel;
@@ -281,12 +273,12 @@ TEST_F(BraftCliServiceTest, basic) {
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(EINVAL, cntl.ErrorCode());
     }
-    /* remove peer - 发送给不是 leader 的 peer */
+    /* remove peer - sent to peers who are not leaders */
     {
         PeerId leaderId;
         LOG(INFO) << "true leader is: " << leader.to_string();
-        if (0
-            == strcmp(leader.to_string().c_str(), peer1.to_string().c_str())) {
+        if (0 ==
+            strcmp(leader.to_string().c_str(), peer1.to_string().c_str())) {
             leaderId = peer2;
         } else {
             leaderId = peer1;
@@ -309,7 +301,7 @@ TEST_F(BraftCliServiceTest, basic) {
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(EPERM, cntl.ErrorCode());
     }
-    /* transfer leader - 非法 copyset */
+    /* transfer leader - illegal copyset */
     {
         PeerId leaderId = leader;
         brpc::Channel channel;
@@ -346,7 +338,7 @@ TEST_F(BraftCliServiceTest, basic) {
         stub.transfer_leader(&cntl, &request, &response, NULL);
         ASSERT_FALSE(cntl.Failed());
     }
-    /* transfer leader - 非法 peer */
+    /* transfer leader - illegal peer */
     {
         PeerId leaderId = leader;
         brpc::Channel channel;
@@ -365,7 +357,7 @@ TEST_F(BraftCliServiceTest, basic) {
         ASSERT_TRUE(cntl.Failed());
         ASSERT_EQ(EINVAL, cntl.ErrorCode());
     }
-    /* get leader - 非法 copyset */
+    /* get leader - illegal copyset */
     {
         PeerId leaderId = leaderId;
         brpc::Channel channel;

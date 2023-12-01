@@ -25,8 +25,9 @@
 
 #include <memory>
 #include <string>
-#include "src/tools/mds_client.h"
+
 #include "src/tools/curve_tool.h"
+#include "src/tools/mds_client.h"
 
 namespace curve {
 namespace tool {
@@ -39,36 +40,37 @@ class ScheduleTool : public CurveTool {
         : mdsClient_(mdsClient) {}
 
     /**
-     *  @brief 返回是否支持该命令
-     *  @param command：执行的命令
-     *  @return true / false
+     * @brief returns whether the command is supported
+     * @param command: The command executed
+     * @return true/false
      */
     static bool SupportCommand(const std::string& command);
 
     /**
-     *  @brief 打印help信息
-     *  @param cmd：执行的命令
-     *  @return 无
+     * @brief Print help information
+     * @param cmd: Command executed
+     * @return None
      */
-    void PrintHelp(const std::string &command) override;
+    void PrintHelp(const std::string& command) override;
 
     /**
-     *  @brief 执行命令
-     *  @param cmd：执行的命令
-     *  @return 成功返回0，失败返回-1
+     * @brief Execute command
+     * @param cmd: Command executed
+     * @return returns 0 for success, -1 for failure
      */
-    int RunCommand(const std::string &command) override;
+    int RunCommand(const std::string& command) override;
 
  private:
     /**
-     * @brief PrintRapidLeaderSchedule 打印rapid-leader-schdule的help信息
+     * @brief PrintRapidLeaderSchedule Print help information for
+     * rapid-leader-schdule
      */
     void PrintRapidLeaderScheduleHelp();
 
     void PrintSetScanStateHelp();
 
     /**
-     * @brief DoRapidLeaderSchedule 向mds发送rpc进行快速transfer leader
+     * @brief DoRapidLeaderSchedule sends rpc to mds for fast transfer leader
      */
     int DoRapidLeaderSchedule();
 

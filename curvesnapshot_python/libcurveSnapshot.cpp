@@ -20,60 +20,57 @@
  * Author: tongguangxun
  */
 
+#include "curvesnapshot_python/libcurveSnapshot.h"
+
 #include <glog/logging.h>
 
-#include <string>
 #include <memory>
+#include <string>
 
-#include "curvesnapshot_python/libcurveSnapshot.h"
-#include "src/client/libcurve_snapshot.h"
-#include "src/client/client_config.h"
 #include "include/client/libcurve.h"
 #include "src/client/client_common.h"
+#include "src/client/client_config.h"
+#include "src/client/libcurve_snapshot.h"
 #include "src/common/concurrent/concurrent.h"
 
-using curve::client::UserInfo;
 using curve::client::ClientConfig;
-using curve::client::SnapshotClient;
-using curve::client::SnapCloneClosure;
-using curve::client::FileServiceOption;
 using curve::client::ClientConfigOption;
-using curve::common::Mutex;
+using curve::client::FileServiceOption;
+using curve::client::SnapCloneClosure;
+using curve::client::SnapshotClient;
+using curve::client::UserInfo;
 using curve::common::ConditionVariable;
+using curve::common::Mutex;
 
 class TaskTracker {
  public:
-    TaskTracker()
-    : concurrent_(0),
-      lastErr_(0) {}
+    TaskTracker() : concurrent_(0), lastErr_(0) {}
 
     /**
-     * @brief 增加一个追踪任务
+     * @brief Add a tracking task
      */
-    void AddOneTrace() {
-        concurrent_.fetch_add(1, std::memory_order_acq_rel);
-    }
+    void AddOneTrace() { concurrent_.fetch_add(1, std::memory_order_acq_rel); }
 
     /**
-     * @brief 获取任务数量
+     * @brief Get the number of tasks
      *
-     * @return 任务数量
+     * @return Number of tasks
      */
-    uint32_t GetTaskNum() const {
-        return concurrent_;
-    }
+    uint32_t GetTaskNum() const { return concurrent_; }
 
     /**
-     * @brief 处理任务返回值
+     * @brief processing task return value
      *
-     * @param retCode 返回值
+     * @param retCode return value
      */
     void HandleResponse(int retCode) {
         if (retCode < 0) {
             lastErr_ = retCode;
         }
         if (1 == concurrent_.fetch_sub(1, std::memory_order_acq_rel)) {
-            // 最后一次需拿锁再发信号，防止先发信号后等待导致死锁
+            // The last time you need to take the lock and send the signal
+            // again, to prevent deadlock caused by waiting after sending the
+            // signal first
             std::unique_lock<Mutex> lk(cv_m);
             cv_.notify_all();
         } else {
@@ -82,30 +79,29 @@ class TaskTracker {
     }
 
     /**
-     * @brief 等待追踪的所有任务完成
+     * @brief Waiting for all tracked tasks to be completed
      */
     void Wait() {
         std::unique_lock<Mutex> lk(cv_m);
-        cv_.wait(lk, [this](){
-            return concurrent_.load(std::memory_order_acquire) == 0;});
+        cv_.wait(lk, [this]() {
+            return concurrent_.load(std::memory_order_acquire) == 0;
+        });
     }
 
     /**
-     * @brief 获取最后一个错误
+     * @brief Get Last Error
      *
-     * @return 错误码
+     * @return error code
      */
-    int GetResult() {
-        return lastErr_;
-    }
+    int GetResult() { return lastErr_; }
 
  private:
-    // 等待的条件变量
+    // Waiting condition variable
     ConditionVariable cv_;
     Mutex cv_m;
-    // 并发数量
+    // Concurrent quantity
     std::atomic<uint32_t> concurrent_;
-    // 错误码
+    // Error code
     int lastErr_;
 };
 
@@ -162,32 +158,26 @@ void LocalInfo2ChunkIDInfo(const CChunkIDInfo& localinfo,
     idinfo->lpid_ = localinfo.lpid_.value;
 }
 
-int CreateSnapShot(const char* filename,
-                   const CUserInfo_t userinfo,
+int CreateSnapShot(const char* filename, const CUserInfo_t userinfo,
                    type_uInt64_t* seq) {
     if (globalSnapshotclient == nullptr) {
         LOG(ERROR) << "not init!";
         return -LIBCURVE_ERROR::FAILED;
     }
     int ret = globalSnapshotclient->CreateSnapShot(
-                                 filename,
-                                 UserInfo(userinfo.owner, userinfo.password),
-                                 &seq->value);
-    LOG(INFO) << "create snapshot ret = " << ret
-               << ", seq = " << seq->value;
+        filename, UserInfo(userinfo.owner, userinfo.password), &seq->value);
+    LOG(INFO) << "create snapshot ret = " << ret << ", seq = " << seq->value;
     return ret;
 }
 
-int DeleteSnapShot(const char* filename,
-                   const CUserInfo_t userinfo,
+int DeleteSnapShot(const char* filename, const CUserInfo_t userinfo,
                    type_uInt64_t seq) {
     if (globalSnapshotclient == nullptr) {
         LOG(ERROR) << "not init!";
         return -LIBCURVE_ERROR::FAILED;
     }
-    return globalSnapshotclient->DeleteSnapShot(filename,
-                                UserInfo(userinfo.owner, userinfo.password),
-                                seq.value);
+    return globalSnapshotclient->DeleteSnapShot(
+        filename, UserInfo(userinfo.owner, userinfo.password), seq.value);
 }
 
 int GetSnapShot(const char* filename, const CUserInfo_t userinfo,
@@ -198,10 +188,9 @@ int GetSnapShot(const char* filename, const CUserInfo_t userinfo,
     }
     curve::client::FInfo_t fileinfo;
 
-    int ret = globalSnapshotclient->GetSnapShot(filename,
-                                UserInfo(userinfo.owner, userinfo.password),
-                                seq.value,
-                                &fileinfo);
+    int ret = globalSnapshotclient->GetSnapShot(
+        filename, UserInfo(userinfo.owner, userinfo.password), seq.value,
+        &fileinfo);
     if (ret == LIBCURVE_ERROR::OK) {
         snapinfo->id.value = fileinfo.id;
         snapinfo->parentid.value = fileinfo.parentid;
@@ -224,22 +213,18 @@ int GetSnapShot(const char* filename, const CUserInfo_t userinfo,
     return ret;
 }
 
-int GetSnapshotSegmentInfo(const char* filename,
-                        const CUserInfo_t userinfo,
-                        type_uInt64_t seq,
-                        type_uInt64_t offset,
-                        CSegmentInfo *segInfo) {
+int GetSnapshotSegmentInfo(const char* filename, const CUserInfo_t userinfo,
+                           type_uInt64_t seq, type_uInt64_t offset,
+                           CSegmentInfo* segInfo) {
     if (globalSnapshotclient == nullptr) {
         LOG(ERROR) << "not init!";
         return -LIBCURVE_ERROR::FAILED;
     }
 
     curve::client::SegmentInfo seg;
-    int ret = globalSnapshotclient->GetSnapshotSegmentInfo(filename,
-                                UserInfo(userinfo.owner, userinfo.password),
-                                seq.value,
-                                offset.value,
-                                &seg);
+    int ret = globalSnapshotclient->GetSnapshotSegmentInfo(
+        filename, UserInfo(userinfo.owner, userinfo.password), seq.value,
+        offset.value, &seg);
     if (ret == LIBCURVE_ERROR::OK) {
         segInfo->segmentsize.value = seg.segmentsize;
         segInfo->chunksize.value = seg.chunksize;
@@ -259,12 +244,10 @@ int GetSnapshotSegmentInfo(const char* filename,
     return ret;
 }
 
-int GetOrAllocateSegmentInfo(const char* filename,
-                            type_uInt64_t offset,
-                            type_uInt64_t segmentsize,
-                            type_uInt64_t chunksize,
-                            const CUserInfo_t userinfo,
-                            CSegmentInfo *segInfo) {
+int GetOrAllocateSegmentInfo(const char* filename, type_uInt64_t offset,
+                             type_uInt64_t segmentsize, type_uInt64_t chunksize,
+                             const CUserInfo_t userinfo,
+                             CSegmentInfo* segInfo) {
     if (globalSnapshotclient == nullptr) {
         LOG(ERROR) << "not init!";
         return -LIBCURVE_ERROR::FAILED;
@@ -274,14 +257,12 @@ int GetOrAllocateSegmentInfo(const char* filename,
     fileinfo.segmentsize = segmentsize.value;
     fileinfo.chunksize = chunksize.value;
     fileinfo.fullPathName = std::string(filename);
-    fileinfo.filename   = std::string(filename);
+    fileinfo.filename = std::string(filename);
     fileinfo.userinfo = UserInfo(userinfo.owner, userinfo.password);
 
     curve::client::SegmentInfo seg;
-    int ret = globalSnapshotclient->GetOrAllocateSegmentInfo(false,
-                                offset.value,
-                                &fileinfo,
-                                &seg);
+    int ret = globalSnapshotclient->GetOrAllocateSegmentInfo(
+        false, offset.value, &fileinfo, &seg);
     segInfo->segmentsize.value = seg.segmentsize;
     segInfo->chunksize.value = seg.chunksize;
     segInfo->startoffset.value = seg.startoffset;
@@ -300,11 +281,8 @@ int GetOrAllocateSegmentInfo(const char* filename,
     return ret;
 }
 
-int ReadChunkSnapshot(CChunkIDInfo cidinfo,
-                        type_uInt64_t seq,
-                        type_uInt64_t offset,
-                        type_uInt64_t len,
-                        char *buf) {
+int ReadChunkSnapshot(CChunkIDInfo cidinfo, type_uInt64_t seq,
+                      type_uInt64_t offset, type_uInt64_t len, char* buf) {
     if (globalSnapshotclient == nullptr) {
         LOG(ERROR) << "not init!";
         return -LIBCURVE_ERROR::FAILED;
@@ -313,12 +291,11 @@ int ReadChunkSnapshot(CChunkIDInfo cidinfo,
     curve::client::ChunkIDInfo idinfo;
     LocalInfo2ChunkIDInfo(cidinfo, &idinfo);
     auto tracker = std::make_shared<TaskTracker>();
-    SnapCloneTestClosure *cb = new SnapCloneTestClosure(tracker);
+    SnapCloneTestClosure* cb = new SnapCloneTestClosure(tracker);
 
     tracker->AddOneTrace();
-    int ret = globalSnapshotclient->ReadChunkSnapshot(idinfo, seq.value,
-                                                      offset.value, len.value,
-                                                      buf, cb);
+    int ret = globalSnapshotclient->ReadChunkSnapshot(
+        idinfo, seq.value, offset.value, len.value, buf, cb);
     tracker->Wait();
     if (ret < 0) {
         return ret;
@@ -340,13 +317,12 @@ int DeleteChunkSnapshotOrCorrectSn(CChunkIDInfo cidinfo,
 
     curve::client::ChunkIDInfo idinfo;
     LocalInfo2ChunkIDInfo(cidinfo, &idinfo);
-    int ret = globalSnapshotclient->DeleteChunkSnapshotOrCorrectSn(idinfo,
-                                                        correctedSeq.value);
+    int ret = globalSnapshotclient->DeleteChunkSnapshotOrCorrectSn(
+        idinfo, correctedSeq.value);
     return ret;
 }
 
-
-int GetChunkInfo(CChunkIDInfo cidinfo, CChunkInfoDetail *chunkInfo) {
+int GetChunkInfo(CChunkIDInfo cidinfo, CChunkInfoDetail* chunkInfo) {
     if (globalSnapshotclient == nullptr) {
         LOG(ERROR) << "not init!";
         return -LIBCURVE_ERROR::FAILED;
@@ -364,31 +340,23 @@ int GetChunkInfo(CChunkIDInfo cidinfo, CChunkInfoDetail *chunkInfo) {
     return ret;
 }
 
-
-int CheckSnapShotStatus(const char* filename,
-                            const CUserInfo_t userinfo,
-                            type_uInt64_t seq,
-                            type_uInt32_t* filestatus) {
+int CheckSnapShotStatus(const char* filename, const CUserInfo_t userinfo,
+                        type_uInt64_t seq, type_uInt32_t* filestatus) {
     if (globalSnapshotclient == nullptr) {
         LOG(ERROR) << "not init!";
         return -LIBCURVE_ERROR::FAILED;
     }
 
     curve::client::FileStatus fs;
-    int ret = globalSnapshotclient->CheckSnapShotStatus(filename,
-                                UserInfo(userinfo.owner, userinfo.password),
-                                seq.value,
-                                &fs);
+    int ret = globalSnapshotclient->CheckSnapShotStatus(
+        filename, UserInfo(userinfo.owner, userinfo.password), seq.value, &fs);
     filestatus->value = static_cast<uint32_t>(fs);
     return ret;
 }
 
-
-int CreateCloneChunk(const char* location,
-                            const CChunkIDInfo chunkidinfo,
-                            type_uInt64_t sn,
-                            type_uInt64_t correntSn,
-                            type_uInt64_t chunkSize) {
+int CreateCloneChunk(const char* location, const CChunkIDInfo chunkidinfo,
+                     type_uInt64_t sn, type_uInt64_t correntSn,
+                     type_uInt64_t chunkSize) {
     if (globalSnapshotclient == nullptr) {
         LOG(ERROR) << "not init!";
         return -LIBCURVE_ERROR::FAILED;
@@ -397,13 +365,11 @@ int CreateCloneChunk(const char* location,
     curve::client::ChunkIDInfo idinfo;
     LocalInfo2ChunkIDInfo(chunkidinfo, &idinfo);
     auto tracker = std::make_shared<TaskTracker>();
-    SnapCloneTestClosure *cb = new SnapCloneTestClosure(tracker);
+    SnapCloneTestClosure* cb = new SnapCloneTestClosure(tracker);
 
     tracker->AddOneTrace();
-    int ret = globalSnapshotclient->CreateCloneChunk(location, idinfo,
-                                                     sn.value, correntSn.value,
-                                                     chunkSize.value,
-                                                     cb);
+    int ret = globalSnapshotclient->CreateCloneChunk(
+        location, idinfo, sn.value, correntSn.value, chunkSize.value, cb);
     tracker->Wait();
     if (ret < 0) {
         return ret;
@@ -412,10 +378,8 @@ int CreateCloneChunk(const char* location,
     }
 }
 
-
-int RecoverChunk(const CChunkIDInfo chunkidinfo,
-                            type_uInt64_t offset,
-                            type_uInt64_t len) {
+int RecoverChunk(const CChunkIDInfo chunkidinfo, type_uInt64_t offset,
+                 type_uInt64_t len) {
     if (globalSnapshotclient == nullptr) {
         LOG(ERROR) << "not init!";
         return -LIBCURVE_ERROR::FAILED;
@@ -423,13 +387,11 @@ int RecoverChunk(const CChunkIDInfo chunkidinfo,
     curve::client::ChunkIDInfo idinfo;
     LocalInfo2ChunkIDInfo(chunkidinfo, &idinfo);
     auto tracker = std::make_shared<TaskTracker>();
-    SnapCloneTestClosure *cb = new SnapCloneTestClosure(tracker);
+    SnapCloneTestClosure* cb = new SnapCloneTestClosure(tracker);
 
     tracker->AddOneTrace();
-    int ret = globalSnapshotclient->RecoverChunk(idinfo,
-                                                 offset.value,
-                                                 len.value,
-                                                 cb);
+    int ret =
+        globalSnapshotclient->RecoverChunk(idinfo, offset.value, len.value, cb);
     tracker->Wait();
     if (ret < 0) {
         return ret;

@@ -20,14 +20,14 @@
  * Author: xuchaojie
  */
 
-#include <json/json.h>
-
 #include "src/common/snapshotclone/snapshotclone_define.h"
+
+#include <json/json.h>
 
 namespace curve {
 namespace snapshotcloneserver {
 
-// 字符串常量定义
+// String constant definition
 const char* kServiceName = "SnapshotCloneService";
 const char* kCreateSnapshotAction = "CreateSnapshot";
 const char* kDeleteSnapshotAction = "DeleteSnapshot";
@@ -92,10 +92,8 @@ std::map<int, std::string> code2Msg = {
     {kErrCodeNotSupport, "Not support."},
 };
 
-std::string BuildErrorMessage(
-    int errCode,
-    const std::string &requestId,
-    const std::string &uuid) {
+std::string BuildErrorMessage(int errCode, const std::string& requestId,
+                              const std::string& uuid) {
     Json::Value mainObj;
     mainObj[kCodeStr] = std::to_string(errCode);
     mainObj[kMessageStr] = code2Msg[errCode];

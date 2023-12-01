@@ -24,32 +24,33 @@
 #define SRC_LEADER_ELECTION_LEADER_ELECTION_H_
 
 #include <fiu.h>
+
 #include <memory>
 #include <string>
 
-#include "src/kvstorageclient/etcd_client.h"
 #include "src/common/namespace_define.h"
+#include "src/kvstorageclient/etcd_client.h"
 
 namespace curve {
 namespace election {
 
-using ::curve::kvstorage::EtcdClientImp;
 using ::curve::common::LEADERCAMPAIGNNPFX;
+using ::curve::kvstorage::EtcdClientImp;
 
 struct LeaderElectionOptions {
-    // etcd客户端
+    // etcd client
     std::shared_ptr<EtcdClientImp> etcdCli;
 
-    // 带ttl的session，ttl超时时间内
+    // session with ttl, within ttl timeout
     uint32_t sessionInterSec;
 
-    // 竞选leader的超时时间
+    // Overtime for running for leader
     uint32_t electionTimeoutMs;
 
-    // leader名称，建议使用ip+port以示区分
+    // leader name, it is recommended to use ip+port for differentiation
     std::string leaderUniqueName;
 
-    // 需要竞选的key
+    // key that need to be contested
     std::string campaginPrefix;
 };
 
@@ -61,33 +62,35 @@ class LeaderElection {
     }
 
     /**
-     * @brief CampaignLeader 竞选leader
+     * @brief CampaignLeader
      *
-     * @return 0表示竞选成功 -1表示竞选失败
+     * @return 0 indicates a successful election, -1 indicates a failed election
      */
     int CampaignLeader();
 
     /**
-     * @brief StartObserverLeader 启动leader节点监测线程
+     * @brief StartObserverLeader starts the leader node monitoring thread
      */
     void StartObserverLeader();
 
     /**
-     * @brief LeaderResign leader主动卸任leader，卸任成功后其他节点可以竞选leader
+     * @brief LeaderResign Leader proactively resigns from its leadership
+     * position. After successful resignation, other nodes can compete to become
+     * the new leader
      */
     int LeaderResign();
 
     /**
-     * @brief 返回leader name
+     * @brief returns the leader name
      */
-    const std::string& GetLeaderName() {
-        return opt_.leaderUniqueName;
-    }
+    const std::string& GetLeaderName() { return opt_.leaderUniqueName; }
 
  public:
     /**
-     * @brief ObserveLeader 监测在etcd中创建的leader节点，正常情况下一直block，
-     *        退出表示leader change或者从client端角度看etcd异常，进程退出
+     * @brief Monitor the leader node created in etcd. Under normal
+     * circumstances, this function continuously blocks. Exiting indicates a
+     * leader change or, from the client's perspective, an abnormality in etcd,
+     * which leads to process termination
      */
     int ObserveLeader();
 
@@ -95,14 +98,13 @@ class LeaderElection {
     // option
     LeaderElectionOptions opt_;
 
-    // realPrefix_ = leader竞选公共prefix + 自定义prefix
+    // realPrefix_ = leader campaign public prefix + custom prefix
     std::string realPrefix_;
 
-    // 竞选leader之后记录在objectManager中的id号
+    // The ID number recorded in the object manager after leader election
     uint64_t leaderOid_;
 };
 }  // namespace election
 }  // namespace curve
 
 #endif  // SRC_LEADER_ELECTION_LEADER_ELECTION_H_
-

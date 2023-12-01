@@ -19,11 +19,12 @@
 
 import os
 
+
 def exec_cmd(cmd):
     ret = os.system(cmd)
     if ret == 0:
         print cmd + " exec success"
-    else :
+    else:
         print cmd + " exec fail, ret = " + str(ret)
 
 
@@ -37,10 +38,10 @@ cmd = "curve rename --user k8s --filename /k8s/volume1 --newname /k8s/volume2"
 exec_cmd(cmd)
 cmd = "curve list --user k8s --dirname /k8s"
 exec_cmd(cmd)
-# 不是root，失败
+# Not root, failed
 cmd = "curve list --user k8s --dirname /"
 exec_cmd(cmd)
-# root没有传入密码，失败
+# Root did not pass in password, failed
 cmd = "curve list --user root --dirname /"
 exec_cmd(cmd)
 cmd = "curve list --user root --dirname / --password root_password"

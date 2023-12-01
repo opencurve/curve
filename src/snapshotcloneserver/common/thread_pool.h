@@ -24,6 +24,7 @@
 #define SRC_SNAPSHOTCLONESERVER_COMMON_THREAD_POOL_H_
 
 #include <memory>
+
 #include "src/common/concurrent/task_thread_pool.h"
 #include "src/snapshotcloneserver/common/task.h"
 
@@ -31,52 +32,49 @@ namespace curve {
 namespace snapshotcloneserver {
 
 /**
- * @brief 快照线程池
+ * @brief snapshot thread pool
  */
 class ThreadPool {
  public:
-     /**
-      * @brief 构造函数
-      *
-      * @param threadNum 最大线程数
-      */
-    explicit ThreadPool(int threadNum)
-        : threadNum_(threadNum) {}
     /**
-     * @brief 启动线程池
+     * @brief constructor
+     *
+     * @param threadNum maximum number of threads
+     */
+    explicit ThreadPool(int threadNum) : threadNum_(threadNum) {}
+    /**
+     * @brief Start Thread Pool
      */
     int Start();
 
     /**
-     * @brief 停止线程池
+     * @brief Stop thread pool
      */
     void Stop();
 
     /**
-     * @brief 添加快照任务
+     * @brief Add snapshot task
      *
-     * @param task 快照任务
+     * @param task snapshot task
      */
     void PushTask(std::shared_ptr<Task> task) {
         threadPool_.Enqueue(task->clousre());
     }
 
     /**
-     * @brief 添加快照任务
+     * @brief Add snapshot task
      *
-     * @param task 快照任务
+     * @param task snapshot task
      */
-    void PushTask(Task* task) {
-        threadPool_.Enqueue(task->clousre());
-    }
+    void PushTask(Task* task) { threadPool_.Enqueue(task->clousre()); }
 
  private:
     /**
-     * @brief 通用线程池
+     * @brief Universal Thread Pool
      */
     curve::common::TaskThreadPool<> threadPool_;
     /**
-     * @brief 线程数
+     * @brief Number of threads
      */
     int threadNum_;
 };

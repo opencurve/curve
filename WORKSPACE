@@ -96,8 +96,8 @@ bind(
     actual = "@com_google_googletest//:gtest",
 )
 
-#Import the glog files.
-# brpc内BUILD文件在依赖glog时, 直接指定的依赖是"@com_github_google_glog//:glog"
+# Import the glog files.
+# When the BUILD file in brpc relies on glog, the direct specified dependency is "@com_github_google_glog//:glog"
 git_repository(
     name = "com_github_google_glog",
     remote = "https://github.com/google/glog",

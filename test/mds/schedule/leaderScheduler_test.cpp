@@ -21,20 +21,21 @@
  */
 
 #include <sys/time.h>
-#include "src/mds/schedule/scheduler.h"
+
+#include "src/common/timeutility.h"
 #include "src/mds/schedule/scheduleMetrics.h"
-#include "test/mds/schedule/mock_topoAdapter.h"
+#include "src/mds/schedule/scheduler.h"
 #include "test/mds/mock/mock_topology.h"
 #include "test/mds/schedule/common.h"
-#include "src/common/timeutility.h"
+#include "test/mds/schedule/mock_topoAdapter.h"
 
 using ::curve::mds::topology::MockTopology;
 
 using ::testing::_;
-using ::testing::Return;
 using ::testing::AtLeast;
-using ::testing::SetArgPointee;
 using ::testing::DoAll;
+using ::testing::Return;
+using ::testing::SetArgPointee;
 
 namespace curve {
 namespace mds {
@@ -58,8 +59,8 @@ class TestLeaderSchedule : public ::testing::Test {
         opt.scatterWithRangePerent = 0.2;
         opt.leaderSchedulerIntervalSec = 1;
         opt.chunkserverCoolingTimeSec = 0;
-        leaderScheduler_ = std::make_shared<LeaderScheduler>(
-            opt, topoAdapter_, opController_);
+        leaderScheduler_ =
+            std::make_shared<LeaderScheduler>(opt, topoAdapter_, opController_);
     }
 
     void TearDown() override {
@@ -91,15 +92,12 @@ TEST_F(TestLeaderSchedule, test_has_chunkServer_offline) {
     auto offlineState = ::curve::mds::topology::OnlineState::OFFLINE;
     auto statInfo = ::curve::mds::heartbeat::ChunkServerStatisticInfo();
     auto diskState = ::curve::mds::topology::DiskState::DISKNORMAL;
-    ChunkServerInfo csInfo1(
-        peer1, offlineState, diskState, ChunkServerStatus::READWRITE,
-        0, 100, 10, statInfo);
-    ChunkServerInfo csInfo2(
-        peer2, onlineState, diskState, ChunkServerStatus::READWRITE,
-        2, 100, 10, statInfo);
-    ChunkServerInfo csInfo3(
-        peer3, onlineState, diskState, ChunkServerStatus::READWRITE,
-        0, 100, 10, statInfo);
+    ChunkServerInfo csInfo1(peer1, offlineState, diskState,
+                            ChunkServerStatus::READWRITE, 0, 100, 10, statInfo);
+    ChunkServerInfo csInfo2(peer2, onlineState, diskState,
+                            ChunkServerStatus::READWRITE, 2, 100, 10, statInfo);
+    ChunkServerInfo csInfo3(peer3, onlineState, diskState,
+                            ChunkServerStatus::READWRITE, 0, 100, 10, statInfo);
     std::vector<ChunkServerInfo> csInfos({csInfo1, csInfo2, csInfo3});
 
     PoolIdType poolId = 1;
@@ -110,8 +108,8 @@ TEST_F(TestLeaderSchedule, test_has_chunkServer_offline) {
     EpochType epoch = 1;
     ChunkServerIdType leader = 2;
     CopySetInfo copySet1(copySetKey, epoch, leader,
-        std::vector<PeerInfo>({peer1, peer2, peer3}),
-        ConfigChangeInfo{}, CopysetStatistics{});
+                         std::vector<PeerInfo>({peer1, peer2, peer3}),
+                         ConfigChangeInfo{}, CopysetStatistics{});
     std::vector<CopySetInfo> copySetInfos({copySet1});
 
     EXPECT_CALL(*topoAdapter_, GetLogicalpools())
@@ -134,15 +132,12 @@ TEST_F(TestLeaderSchedule, test_copySet_has_candidate) {
     auto onlineState = ::curve::mds::topology::OnlineState::ONLINE;
     auto diskState = ::curve::mds::topology::DiskState::DISKNORMAL;
     auto statInfo = ::curve::mds::heartbeat::ChunkServerStatisticInfo();
-    ChunkServerInfo csInfo1(
-        peer1, onlineState, diskState, ChunkServerStatus::READWRITE,
-        0, 100, 10, statInfo);
-    ChunkServerInfo csInfo2(
-        peer2, onlineState, diskState, ChunkServerStatus::READWRITE,
-        2, 100, 10, statInfo);
-    ChunkServerInfo csInfo3(
-        peer3, onlineState, diskState, ChunkServerStatus::READWRITE,
-        0, 100, 10, statInfo);
+    ChunkServerInfo csInfo1(peer1, onlineState, diskState,
+                            ChunkServerStatus::READWRITE, 0, 100, 10, statInfo);
+    ChunkServerInfo csInfo2(peer2, onlineState, diskState,
+                            ChunkServerStatus::READWRITE, 2, 100, 10, statInfo);
+    ChunkServerInfo csInfo3(peer3, onlineState, diskState,
+                            ChunkServerStatus::READWRITE, 0, 100, 10, statInfo);
     std::vector<ChunkServerInfo> csInfos({csInfo1, csInfo2, csInfo3});
     PoolIdType poolId = 1;
     CopySetIdType copysetId = 1;
@@ -152,8 +147,8 @@ TEST_F(TestLeaderSchedule, test_copySet_has_candidate) {
     EpochType epoch = 1;
     ChunkServerIdType leader = 2;
     CopySetInfo copySet1(copySetKey, epoch, leader,
-        std::vector<PeerInfo>({peer1, peer2, peer3}),
-        ConfigChangeInfo{}, CopysetStatistics{});
+                         std::vector<PeerInfo>({peer1, peer2, peer3}),
+                         ConfigChangeInfo{}, CopysetStatistics{});
     copySet1.candidatePeerInfo = PeerInfo(1, 1, 1, "192.168.10.1", 9000);
     std::vector<CopySetInfo> copySetInfos({copySet1});
 
@@ -165,7 +160,8 @@ TEST_F(TestLeaderSchedule, test_copySet_has_candidate) {
         .WillRepeatedly(Return(copySetInfos));
 
     leaderScheduler_->Schedule();
-    ASSERT_EQ(0, opController_->GetOperators().size());}
+    ASSERT_EQ(0, opController_->GetOperators().size());
+}
 
 TEST_F(TestLeaderSchedule, test_cannot_get_chunkServerInfo) {
     PeerInfo peer1(1, 1, 1, "192.168.10.1", 9000);
@@ -174,15 +170,12 @@ TEST_F(TestLeaderSchedule, test_cannot_get_chunkServerInfo) {
     auto onlineState = ::curve::mds::topology::OnlineState::ONLINE;
     auto diskState = ::curve::mds::topology::DiskState::DISKNORMAL;
     auto statInfo = ::curve::mds::heartbeat::ChunkServerStatisticInfo();
-    ChunkServerInfo csInfo1(
-        peer1, onlineState, diskState, ChunkServerStatus::READWRITE,
-        0, 100, 10, statInfo);
-    ChunkServerInfo csInfo2(
-        peer2, onlineState, diskState, ChunkServerStatus::READWRITE,
-        2, 100, 10, statInfo);
-    ChunkServerInfo csInfo3(
-        peer3, onlineState, diskState, ChunkServerStatus::READWRITE,
-        0, 100, 10, statInfo);
+    ChunkServerInfo csInfo1(peer1, onlineState, diskState,
+                            ChunkServerStatus::READWRITE, 0, 100, 10, statInfo);
+    ChunkServerInfo csInfo2(peer2, onlineState, diskState,
+                            ChunkServerStatus::READWRITE, 2, 100, 10, statInfo);
+    ChunkServerInfo csInfo3(peer3, onlineState, diskState,
+                            ChunkServerStatus::READWRITE, 0, 100, 10, statInfo);
     std::vector<ChunkServerInfo> csInfos({csInfo1, csInfo2, csInfo3});
 
     PoolIdType poolId = 1;
@@ -193,8 +186,8 @@ TEST_F(TestLeaderSchedule, test_cannot_get_chunkServerInfo) {
     EpochType epoch = 1;
     ChunkServerIdType leader = 2;
     CopySetInfo copySet1(copySetKey, epoch, leader,
-        std::vector<PeerInfo>({peer1, peer2, peer3}),
-        ConfigChangeInfo{}, CopysetStatistics{});
+                         std::vector<PeerInfo>({peer1, peer2, peer3}),
+                         ConfigChangeInfo{}, CopysetStatistics{});
     std::vector<CopySetInfo> copySetInfos({copySet1});
 
     EXPECT_CALL(*topoAdapter_, GetLogicalpools())
@@ -205,7 +198,6 @@ TEST_F(TestLeaderSchedule, test_cannot_get_chunkServerInfo) {
         .WillRepeatedly(Return(copySetInfos));
     EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(1, _))
         .WillRepeatedly(Return(false));
-
 
     leaderScheduler_->Schedule();
     ASSERT_EQ(0, opController_->GetOperators().size());
@@ -218,15 +210,12 @@ TEST_F(TestLeaderSchedule, test_no_need_tranferLeaderOut) {
     auto onlineState = ::curve::mds::topology::OnlineState::ONLINE;
     auto diskState = ::curve::mds::topology::DiskState::DISKNORMAL;
     auto statInfo = ::curve::mds::heartbeat::ChunkServerStatisticInfo();
-    ChunkServerInfo csInfo1(
-        peer1, onlineState, diskState, ChunkServerStatus::READWRITE,
-        0, 100, 10, statInfo);
-    ChunkServerInfo csInfo2(
-        peer2, onlineState, diskState, ChunkServerStatus::READWRITE,
-        1, 100, 10, statInfo);
-    ChunkServerInfo csInfo3(
-        peer3, onlineState, diskState, ChunkServerStatus::READWRITE,
-        0, 100, 10, statInfo);
+    ChunkServerInfo csInfo1(peer1, onlineState, diskState,
+                            ChunkServerStatus::READWRITE, 0, 100, 10, statInfo);
+    ChunkServerInfo csInfo2(peer2, onlineState, diskState,
+                            ChunkServerStatus::READWRITE, 1, 100, 10, statInfo);
+    ChunkServerInfo csInfo3(peer3, onlineState, diskState,
+                            ChunkServerStatus::READWRITE, 0, 100, 10, statInfo);
     csInfo3.startUpTime = 3;
     std::vector<ChunkServerInfo> csInfos({csInfo1, csInfo2, csInfo3});
 
@@ -238,8 +227,8 @@ TEST_F(TestLeaderSchedule, test_no_need_tranferLeaderOut) {
     EpochType epoch = 1;
     ChunkServerIdType leader = 2;
     CopySetInfo copySet1(copySetKey, epoch, leader,
-        std::vector<PeerInfo>({peer1, peer2, peer3}),
-        ConfigChangeInfo{}, CopysetStatistics{});
+                         std::vector<PeerInfo>({peer1, peer2, peer3}),
+                         ConfigChangeInfo{}, CopysetStatistics{});
     std::vector<CopySetInfo> copySetInfos({copySet1});
 
     EXPECT_CALL(*topoAdapter_, GetLogicalpools())
@@ -264,25 +253,19 @@ TEST_F(TestLeaderSchedule, test_tranferLeaderout_normal) {
     auto onlineState = ::curve::mds::topology::OnlineState::ONLINE;
     auto diskState = ::curve::mds::topology::DiskState::DISKNORMAL;
     auto statInfo = ::curve::mds::heartbeat::ChunkServerStatisticInfo();
-    ChunkServerInfo csInfo1(
-        peer1, onlineState, diskState, ChunkServerStatus::READWRITE,
-        1, 100, 10, statInfo);
-    ChunkServerInfo csInfo2(
-        peer2, onlineState, diskState, ChunkServerStatus::READWRITE,
-        2, 100, 10, statInfo);
-    ChunkServerInfo csInfo3(
-        peer3, onlineState, diskState, ChunkServerStatus::READWRITE,
-        0, 100, 10, statInfo);
+    ChunkServerInfo csInfo1(peer1, onlineState, diskState,
+                            ChunkServerStatus::READWRITE, 1, 100, 10, statInfo);
+    ChunkServerInfo csInfo2(peer2, onlineState, diskState,
+                            ChunkServerStatus::READWRITE, 2, 100, 10, statInfo);
+    ChunkServerInfo csInfo3(peer3, onlineState, diskState,
+                            ChunkServerStatus::READWRITE, 0, 100, 10, statInfo);
 
-    ChunkServerInfo csInfo4(
-        peer4, onlineState, diskState, ChunkServerStatus::READWRITE,
-        1, 100, 10, statInfo);
-    ChunkServerInfo csInfo5(
-        peer5, onlineState, diskState, ChunkServerStatus::READWRITE,
-        2, 100, 10, statInfo);
-    ChunkServerInfo csInfo6(
-        peer6, onlineState, diskState, ChunkServerStatus::READWRITE,
-        0, 100, 10, statInfo);
+    ChunkServerInfo csInfo4(peer4, onlineState, diskState,
+                            ChunkServerStatus::READWRITE, 1, 100, 10, statInfo);
+    ChunkServerInfo csInfo5(peer5, onlineState, diskState,
+                            ChunkServerStatus::READWRITE, 2, 100, 10, statInfo);
+    ChunkServerInfo csInfo6(peer6, onlineState, diskState,
+                            ChunkServerStatus::READWRITE, 0, 100, 10, statInfo);
     struct timeval tm;
     gettimeofday(&tm, NULL);
     csInfo3.startUpTime = tm.tv_sec - 2;
@@ -298,11 +281,11 @@ TEST_F(TestLeaderSchedule, test_tranferLeaderout_normal) {
     EpochType epoch = 1;
     ChunkServerIdType leader = 2;
     CopySetInfo copySet1(copySetKey, epoch, leader,
-        std::vector<PeerInfo>({peer1, peer2, peer3}),
-        ConfigChangeInfo{}, CopysetStatistics{});
+                         std::vector<PeerInfo>({peer1, peer2, peer3}),
+                         ConfigChangeInfo{}, CopysetStatistics{});
     CopySetInfo copySet2(CopySetKey{2, 1}, epoch, 5,
-        std::vector<PeerInfo>({peer4, peer5, peer6}),
-        ConfigChangeInfo{}, CopysetStatistics{});
+                         std::vector<PeerInfo>({peer4, peer5, peer6}),
+                         ConfigChangeInfo{}, CopysetStatistics{});
     std::vector<CopySetInfo> copySetInfos1({copySet1});
     std::vector<CopySetInfo> copySetInfos2({copySet2});
 
@@ -334,14 +317,14 @@ TEST_F(TestLeaderSchedule, test_tranferLeaderout_normal) {
     ASSERT_TRUE(opController_->GetOperatorById(copySet1.id, &op));
     ASSERT_EQ(OperatorPriority::NormalPriority, op.priority);
     ASSERT_EQ(std::chrono::seconds(10), op.timeLimit);
-    TransferLeader *res = dynamic_cast<TransferLeader *>(op.step.get());
+    TransferLeader* res = dynamic_cast<TransferLeader*>(op.step.get());
     ASSERT_TRUE(res != nullptr);
     ASSERT_EQ(csInfo3.info.id, res->GetTargetPeer());
 
     ASSERT_TRUE(opController_->GetOperatorById(copySet2.id, &op));
     ASSERT_EQ(OperatorPriority::NormalPriority, op.priority);
     ASSERT_EQ(std::chrono::seconds(10), op.timeLimit);
-    res = dynamic_cast<TransferLeader *>(op.step.get());
+    res = dynamic_cast<TransferLeader*>(op.step.get());
     ASSERT_TRUE(res != nullptr);
     ASSERT_EQ(csInfo6.info.id, res->GetTargetPeer());
 }
@@ -359,25 +342,19 @@ TEST_F(TestLeaderSchedule, test_tranferLeaderout_pendding) {
     auto onlineState = ::curve::mds::topology::OnlineState::ONLINE;
     auto diskState = ::curve::mds::topology::DiskState::DISKNORMAL;
     auto statInfo = ::curve::mds::heartbeat::ChunkServerStatisticInfo();
-    ChunkServerInfo csInfo1(
-        peer1, onlineState, diskState, ChunkServerStatus::PENDDING,
-        0, 100, 10, statInfo);
-    ChunkServerInfo csInfo2(
-        peer2, onlineState, diskState, ChunkServerStatus::READWRITE,
-        5, 100, 10, statInfo);
-    ChunkServerInfo csInfo3(
-        peer3, onlineState, diskState, ChunkServerStatus::READWRITE,
-        0, 100, 10, statInfo);
+    ChunkServerInfo csInfo1(peer1, onlineState, diskState,
+                            ChunkServerStatus::PENDDING, 0, 100, 10, statInfo);
+    ChunkServerInfo csInfo2(peer2, onlineState, diskState,
+                            ChunkServerStatus::READWRITE, 5, 100, 10, statInfo);
+    ChunkServerInfo csInfo3(peer3, onlineState, diskState,
+                            ChunkServerStatus::READWRITE, 0, 100, 10, statInfo);
 
-    ChunkServerInfo csInfo4(
-        peer4, onlineState, diskState, ChunkServerStatus::READWRITE,
-        4, 100, 10, statInfo);
-    ChunkServerInfo csInfo5(
-        peer5, onlineState, diskState, ChunkServerStatus::READWRITE,
-        5, 100, 10, statInfo);
-    ChunkServerInfo csInfo6(
-        peer6, onlineState, diskState, ChunkServerStatus::PENDDING,
-        0, 100, 10, statInfo);
+    ChunkServerInfo csInfo4(peer4, onlineState, diskState,
+                            ChunkServerStatus::READWRITE, 4, 100, 10, statInfo);
+    ChunkServerInfo csInfo5(peer5, onlineState, diskState,
+                            ChunkServerStatus::READWRITE, 5, 100, 10, statInfo);
+    ChunkServerInfo csInfo6(peer6, onlineState, diskState,
+                            ChunkServerStatus::PENDDING, 0, 100, 10, statInfo);
     struct timeval tm;
     gettimeofday(&tm, NULL);
     csInfo3.startUpTime = tm.tv_sec - 2;
@@ -393,11 +370,11 @@ TEST_F(TestLeaderSchedule, test_tranferLeaderout_pendding) {
     EpochType epoch = 1;
     ChunkServerIdType leader = 2;
     CopySetInfo copySet1(copySetKey, epoch, leader,
-        std::vector<PeerInfo>({peer1, peer2, peer3}),
-        ConfigChangeInfo{}, CopysetStatistics{});
+                         std::vector<PeerInfo>({peer1, peer2, peer3}),
+                         ConfigChangeInfo{}, CopysetStatistics{});
     CopySetInfo copySet2(CopySetKey{2, 1}, epoch, 5,
-        std::vector<PeerInfo>({peer4, peer5, peer6}),
-        ConfigChangeInfo{}, CopysetStatistics{});
+                         std::vector<PeerInfo>({peer4, peer5, peer6}),
+                         ConfigChangeInfo{}, CopysetStatistics{});
     std::vector<CopySetInfo> copySetInfos1({copySet1});
     std::vector<CopySetInfo> copySetInfos2({copySet2});
 
@@ -429,7 +406,7 @@ TEST_F(TestLeaderSchedule, test_tranferLeaderout_pendding) {
     ASSERT_TRUE(opController_->GetOperatorById(copySet1.id, &op));
     ASSERT_EQ(OperatorPriority::NormalPriority, op.priority);
     ASSERT_EQ(std::chrono::seconds(10), op.timeLimit);
-    TransferLeader *res = dynamic_cast<TransferLeader *>(op.step.get());
+    TransferLeader* res = dynamic_cast<TransferLeader*>(op.step.get());
     ASSERT_TRUE(res != nullptr);
     ASSERT_EQ(csInfo3.info.id, res->GetTargetPeer());
 
@@ -439,7 +416,7 @@ TEST_F(TestLeaderSchedule, test_tranferLeaderout_pendding) {
 TEST_F(TestLeaderSchedule, test_transferLeaderIn_normal) {
     //              chunkserver1    chunkserver2    chunkserver3    chunkserver4
     // leaderCount        0              3                 2               1
-    // copyset            1              1                 1(有operator)
+    // copyset            1              1                 1(with operator)
     //                    2              2                 2
     //                                   3                 3               3
     PeerInfo peer1(1, 1, 1, "192.168.10.1", 9000);
@@ -449,19 +426,15 @@ TEST_F(TestLeaderSchedule, test_transferLeaderIn_normal) {
     auto onlineState = ::curve::mds::topology::OnlineState::ONLINE;
     auto diskState = ::curve::mds::topology::DiskState::DISKNORMAL;
     auto statInfo = ::curve::mds::heartbeat::ChunkServerStatisticInfo();
-    ChunkServerInfo csInfo1(
-        peer1, onlineState, diskState, ChunkServerStatus::READWRITE,
-        0, 100, 10, statInfo);
+    ChunkServerInfo csInfo1(peer1, onlineState, diskState,
+                            ChunkServerStatus::READWRITE, 0, 100, 10, statInfo);
     csInfo1.startUpTime = ::curve::common::TimeUtility::GetTimeofDaySec() - 4;
-    ChunkServerInfo csInfo2(
-        peer2, onlineState, diskState, ChunkServerStatus::READWRITE,
-        3, 100, 10, statInfo);
-    ChunkServerInfo csInfo3(
-        peer3, onlineState, diskState, ChunkServerStatus::READWRITE,
-        2, 100, 10, statInfo);
-    ChunkServerInfo csInfo4(
-        peer4, onlineState, diskState, ChunkServerStatus::READWRITE,
-        1, 100, 10, statInfo);
+    ChunkServerInfo csInfo2(peer2, onlineState, diskState,
+                            ChunkServerStatus::READWRITE, 3, 100, 10, statInfo);
+    ChunkServerInfo csInfo3(peer3, onlineState, diskState,
+                            ChunkServerStatus::READWRITE, 2, 100, 10, statInfo);
+    ChunkServerInfo csInfo4(peer4, onlineState, diskState,
+                            ChunkServerStatus::READWRITE, 1, 100, 10, statInfo);
     std::vector<ChunkServerInfo> csInfos({csInfo1, csInfo2, csInfo3, csInfo4});
 
     PoolIdType poolId = 1;
@@ -472,18 +445,18 @@ TEST_F(TestLeaderSchedule, test_transferLeaderIn_normal) {
     EpochType epoch = 1;
     ChunkServerIdType leader = 2;
     CopySetInfo copySet1(copySetKey, epoch, leader,
-        std::vector<PeerInfo>({peer1, peer2, peer3}),
-        ConfigChangeInfo{}, CopysetStatistics{});
+                         std::vector<PeerInfo>({peer1, peer2, peer3}),
+                         ConfigChangeInfo{}, CopysetStatistics{});
     copySetKey.second = 2;
     leader = 3;
     CopySetInfo copySet2(copySetKey, epoch, leader,
-        std::vector<PeerInfo>({peer1, peer2, peer3}),
-        ConfigChangeInfo{}, CopysetStatistics{});
+                         std::vector<PeerInfo>({peer1, peer2, peer3}),
+                         ConfigChangeInfo{}, CopysetStatistics{});
     copySetKey.second = 3;
     leader = 4;
     CopySetInfo copySet3(copySetKey, epoch, leader,
-        std::vector<PeerInfo>({peer2, peer3, peer4}),
-        ConfigChangeInfo{}, CopysetStatistics{});
+                         std::vector<PeerInfo>({peer2, peer3, peer4}),
+                         ConfigChangeInfo{}, CopysetStatistics{});
 
     copySetKey.second = 1;
     Operator testOperator(1, copySetKey, OperatorPriority::NormalPriority,
@@ -498,7 +471,7 @@ TEST_F(TestLeaderSchedule, test_transferLeaderIn_normal) {
         .Times(2)
         .WillOnce(Return(std::vector<CopySetInfo>({copySet1})))
         .WillOnce(Return(std::vector<CopySetInfo>({copySet3, copySet2})));
-     EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(1, _))
+    EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(1, _))
         .Times(2)
         .WillRepeatedly(DoAll(SetArgPointee<1>(csInfo1), Return(true)));
     EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(3, _))
@@ -513,7 +486,7 @@ TEST_F(TestLeaderSchedule, test_transferLeaderIn_normal) {
     ASSERT_TRUE(opController_->GetOperatorById(copySet2.id, &op));
     ASSERT_EQ(OperatorPriority::NormalPriority, op.priority);
     ASSERT_EQ(std::chrono::seconds(10), op.timeLimit);
-    TransferLeader *res = dynamic_cast<TransferLeader *>(op.step.get());
+    TransferLeader* res = dynamic_cast<TransferLeader*>(op.step.get());
     ASSERT_TRUE(res != nullptr);
     ASSERT_EQ(1, res->GetTargetPeer());
 }
@@ -521,7 +494,7 @@ TEST_F(TestLeaderSchedule, test_transferLeaderIn_normal) {
 TEST_F(TestLeaderSchedule, test_transferLeaderIn_pendding) {
     //              chunkserver1    chunkserver2    chunkserver3    chunkserver4
     // leaderCount        0              3                 2               1
-    // copyset            1              1                 1(有operator)
+    // copyset            1              1                 1(with operator)
     //                    2              2                 2
     //                                   3                 3               3
     PeerInfo peer1(1, 1, 1, "192.168.10.1", 9000);
@@ -531,19 +504,15 @@ TEST_F(TestLeaderSchedule, test_transferLeaderIn_pendding) {
     auto onlineState = ::curve::mds::topology::OnlineState::ONLINE;
     auto diskState = ::curve::mds::topology::DiskState::DISKNORMAL;
     auto statInfo = ::curve::mds::heartbeat::ChunkServerStatisticInfo();
-    ChunkServerInfo csInfo1(
-        peer1, onlineState, diskState, ChunkServerStatus::READWRITE,
-        0, 100, 10, statInfo);
+    ChunkServerInfo csInfo1(peer1, onlineState, diskState,
+                            ChunkServerStatus::READWRITE, 0, 100, 10, statInfo);
     csInfo1.startUpTime = ::curve::common::TimeUtility::GetTimeofDaySec() - 4;
-    ChunkServerInfo csInfo2(
-        peer2, onlineState, diskState, ChunkServerStatus::READWRITE,
-        3, 100, 10, statInfo);
-    ChunkServerInfo csInfo3(
-        peer3, onlineState, diskState, ChunkServerStatus::PENDDING,
-        2, 100, 10, statInfo);
-    ChunkServerInfo csInfo4(
-        peer4, onlineState, diskState, ChunkServerStatus::READWRITE,
-        1, 100, 10, statInfo);
+    ChunkServerInfo csInfo2(peer2, onlineState, diskState,
+                            ChunkServerStatus::READWRITE, 3, 100, 10, statInfo);
+    ChunkServerInfo csInfo3(peer3, onlineState, diskState,
+                            ChunkServerStatus::PENDDING, 2, 100, 10, statInfo);
+    ChunkServerInfo csInfo4(peer4, onlineState, diskState,
+                            ChunkServerStatus::READWRITE, 1, 100, 10, statInfo);
     std::vector<ChunkServerInfo> csInfos({csInfo1, csInfo2, csInfo3, csInfo4});
 
     PoolIdType poolId = 1;
@@ -554,18 +523,18 @@ TEST_F(TestLeaderSchedule, test_transferLeaderIn_pendding) {
     EpochType epoch = 1;
     ChunkServerIdType leader = 2;
     CopySetInfo copySet1(copySetKey, epoch, leader,
-        std::vector<PeerInfo>({peer1, peer2, peer3}),
-        ConfigChangeInfo{}, CopysetStatistics{});
+                         std::vector<PeerInfo>({peer1, peer2, peer3}),
+                         ConfigChangeInfo{}, CopysetStatistics{});
     copySetKey.second = 2;
     leader = 3;
     CopySetInfo copySet2(copySetKey, epoch, leader,
-        std::vector<PeerInfo>({peer1, peer2, peer3}),
-        ConfigChangeInfo{}, CopysetStatistics{});
+                         std::vector<PeerInfo>({peer1, peer2, peer3}),
+                         ConfigChangeInfo{}, CopysetStatistics{});
     copySetKey.second = 3;
     leader = 4;
     CopySetInfo copySet3(copySetKey, epoch, leader,
-        std::vector<PeerInfo>({peer2, peer3, peer4}),
-        ConfigChangeInfo{}, CopysetStatistics{});
+                         std::vector<PeerInfo>({peer2, peer3, peer4}),
+                         ConfigChangeInfo{}, CopysetStatistics{});
 
     copySetKey.second = 1;
     Operator testOperator(1, copySetKey, OperatorPriority::NormalPriority,
@@ -580,7 +549,7 @@ TEST_F(TestLeaderSchedule, test_transferLeaderIn_pendding) {
         .Times(2)
         .WillOnce(Return(std::vector<CopySetInfo>({copySet1})))
         .WillOnce(Return(std::vector<CopySetInfo>({copySet3, copySet2})));
-     EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(1, _))
+    EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(1, _))
         .Times(2)
         .WillRepeatedly(DoAll(SetArgPointee<1>(csInfo1), Return(true)));
     EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(3, _))
@@ -595,7 +564,7 @@ TEST_F(TestLeaderSchedule, test_transferLeaderIn_pendding) {
     ASSERT_TRUE(opController_->GetOperatorById(copySet2.id, &op));
     ASSERT_EQ(OperatorPriority::NormalPriority, op.priority);
     ASSERT_EQ(std::chrono::seconds(10), op.timeLimit);
-    TransferLeader *res = dynamic_cast<TransferLeader *>(op.step.get());
+    TransferLeader* res = dynamic_cast<TransferLeader*>(op.step.get());
     ASSERT_TRUE(res != nullptr);
     ASSERT_EQ(1, res->GetTargetPeer());
 }
@@ -603,7 +572,3 @@ TEST_F(TestLeaderSchedule, test_transferLeaderIn_pendding) {
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve
-
-
-
-

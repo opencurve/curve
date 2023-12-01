@@ -20,20 +20,20 @@
  * Author: wudemiao
  */
 
-#include <glog/logging.h>
-#include <gflags/gflags.h>
-#include <butil/at_exit.h>
 #include <brpc/server.h>
+#include <butil/at_exit.h>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
 
-#include "src/chunkserver/copyset_node_manager.h"
-#include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/chunk_service.h"
+#include "src/chunkserver/concurrent_apply/concurrent_apply.h"
+#include "src/chunkserver/copyset_node.h"
+#include "src/chunkserver/copyset_node_manager.h"
+#include "src/chunkserver/datastore/file_pool.h"
+#include "src/chunkserver/raftsnapshot/curve_snapshot_storage.h"
+#include "src/common/uri_parser.h"
 #include "src/fs/fs_common.h"
 #include "src/fs/local_filesystem.h"
-#include "src/chunkserver/concurrent_apply/concurrent_apply.h"
-#include "src/chunkserver/datastore/file_pool.h"
-#include "src/common/uri_parser.h"
-#include "src/chunkserver/raftsnapshot/curve_snapshot_storage.h"
 
 using curve::chunkserver::ConcurrentApplyModule;
 using curve::chunkserver::Configuration;
@@ -42,6 +42,7 @@ using curve::chunkserver::CopysetNodeManager;
 using curve::chunkserver::CopysetNodeOptions;
 using curve::chunkserver::FilePool;
 using curve::chunkserver::FilePoolHelper;
+using curve::chunkserver::FilePoolMeta;
 using curve::chunkserver::FilePoolOptions;
 using curve::chunkserver::LogicPoolID;
 using curve::chunkserver::PeerId;
@@ -52,9 +53,6 @@ using curve::common::UriParser;
 using curve::fs::FileSystemType;
 using curve::fs::LocalFileSystem;
 using curve::fs::LocalFsFactory;
-using curve::fs::FileSystemType;
-using curve::chunkserver::FilePoolHelper;
-using curve::chunkserver::FilePoolMeta;
 
 DEFINE_string(ip, "127.0.0.1",
               "Initial configuration of the replication group");
@@ -73,7 +71,7 @@ DEFINE_bool(create_chunkfilepool, true, "create chunkfile pool");
 
 butil::AtExitManager atExitManager;
 
-void CreateChunkFilePool(const std::string &dirname, uint64_t chunksize,
+void CreateChunkFilePool(const std::string& dirname, uint64_t chunksize,
                          std::shared_ptr<LocalFileSystem> fsptr) {
     std::string datadir = dirname + "/chunkfilepool";
     std::string metapath = dirname + "/chunkfilepool.meta";
@@ -110,7 +108,7 @@ void CreateChunkFilePool(const std::string &dirname, uint64_t chunksize,
     memcpy(cpopt.metaPath, metapath.c_str(), metapath.size());
 
     FilePoolMeta meta;
-    meta.chunkSize =  cpopt.fileSize;
+    meta.chunkSize = cpopt.fileSize;
     meta.metaPageSize = cpopt.metaFileSize;
     meta.hasBlockSize = true;
     meta.blockSize = cpopt.blockSize;
@@ -120,7 +118,7 @@ void CreateChunkFilePool(const std::string &dirname, uint64_t chunksize,
     (void)FilePoolHelper::PersistEnCodeMetaInfo(fsptr, meta, metapath);
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
 
     /* Generally you only need one Server. */
@@ -142,7 +140,8 @@ int main(int argc, char *argv[]) {
     std::shared_ptr<LocalFileSystem> fs(
         LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));
     const uint32_t kMaxChunkSize = 16 * 1024 * 1024;
-    // TODO(yyk) 这部分实现不太优雅，后续进行重构
+    // The implementation of TODO(yyk) is not very elegant, and will be
+    // refactored in the future
     std::string copysetUri = FLAGS_copyset_dir + "/copysets";
     CopysetNodeOptions copysetNodeOptions;
     copysetNodeOptions.ip = FLAGS_ip;

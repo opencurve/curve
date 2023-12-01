@@ -27,30 +27,28 @@
 #include <bthread/execution_queue.h>
 
 #include <functional>
-#include <string>
 #include <memory>
+#include <string>
 #include <vector>
 
-#include "nebd/src/part1/nebd_common.h"
-#include "nebd/src/common/configuration.h"
-#include "nebd/proto/client.pb.h"
-#include "nebd/src/part1/libnebd.h"
-#include "nebd/src/part1/heartbeat_manager.h"
-#include "nebd/src/part1/nebd_metacache.h"
-
 #include "include/curve_compiler_specific.h"
+#include "nebd/proto/client.pb.h"
+#include "nebd/src/common/configuration.h"
+#include "nebd/src/part1/heartbeat_manager.h"
+#include "nebd/src/part1/libnebd.h"
+#include "nebd/src/part1/nebd_common.h"
+#include "nebd/src/part1/nebd_metacache.h"
 
 namespace nebd {
 namespace client {
 
-using RpcTask = std::function<int64_t (brpc::Controller* cntl,
-                                       brpc::Channel* channel,
-                                       bool* rpcFailed)>;
+using RpcTask = std::function<int64_t(brpc::Controller* cntl,
+                                      brpc::Channel* channel, bool* rpcFailed)>;
 using nebd::common::Configuration;
 
 class NebdClient {
  public:
-    static NebdClient &GetInstance() {
+    static NebdClient& GetInstance() {
         static NebdClient client;
         return client;
     }
@@ -58,93 +56,100 @@ class NebdClient {
     ~NebdClient() = default;
 
     /**
-     *  @brief 初始化nebd，仅在第一次调用的时候真正执行初始化逻辑
-     *  @param none
-     *  @return 成功返回0，失败返回-1
+     * @brief initializes nebd and only executes the initialization logic on the
+     * first call
+     * @param none
+     * @return returns 0 for success, -1 for failure
      */
     int Init(const char* confpath);
 
     /**
-     *  @brief 反初始化nebd
-     *  @param none
-     *  @return 成功返回0，失败返回-1
+     * @brief uninitialize nebd
+     * @param none
+     * @return returns 0 for success, -1 for failure
      */
     void Uninit();
 
     /**
-     *  @brief open文件
-     *  @param filename：文件名
-     *  @return 成功返回文件fd，失败返回错误码
+     * @brief open file
+     * @param filename: File name
+     * @return successfully returned the file fd, but failed with an error code
      */
     int Open(const char* filename, const NebdOpenFlags* flags);
 
     /**
-     *  @brief close文件
-     *  @param fd：文件的fd
-     *  @return 成功返回0，失败返回错误码
+     * @brief close file
+     * @param fd: fd of the file
+     * @return success returns 0, failure returns error code
      */
     int Close(int fd);
 
     /**
-     *  @brief resize文件
-     *  @param fd：文件的fd
-     *         size：调整后的文件size
-     *  @return 成功返回0，失败返回错误码
+     * @brief resize file
+     * @param fd: fd of the file
+     *Size: adjusted file size
+     * @return success returns 0, failure returns error code
      */
     int Extend(int fd, int64_t newsize);
 
     /**
-     *  @brief 获取文件size
-     *  @param fd：文件的fd
-     *  @return 成功返回文件size，失败返回错误码
+     * @brief Get file size
+     * @param fd: fd of the file
+     * @return successfully returned the file size, but failed with an error
+     * code
      */
     int64_t GetFileSize(int fd);
 
     int64_t GetBlockSize(int fd);
 
     /**
-     *  @brief discard文件，异步函数
-     *  @param fd：文件的fd
-     *         context：异步请求的上下文，包含请求所需的信息以及回调
-     *  @return 成功返回0，失败返回错误码
+     * @brief discard file, asynchronous function
+     * @param fd: fd of the file
+     *          context: The context of an asynchronous request, including the
+     * information required for the request and the callback
+     * @return success returns 0, failure returns error code
      */
     int Discard(int fd, NebdClientAioContext* aioctx);
 
     /**
-     *  @brief 读文件，异步函数
-     *  @param fd：文件的fd
-     *         context：异步请求的上下文，包含请求所需的信息以及回调
-     *  @return 成功返回0，失败返回错误码
+     * @brief Read file, asynchronous function
+     * @param fd: fd of the file
+     *          context: The context of an asynchronous request, including the
+     * information required for the request and the callback
+     * @return success returns 0, failure returns error code
      */
     int AioRead(int fd, NebdClientAioContext* aioctx);
 
     /**
-     *  @brief 写文件，异步函数
-     *  @param fd：文件的fd
-     *         context：异步请求的上下文，包含请求所需的信息以及回调
-     *  @return 成功返回0，失败返回错误码
+     * @brief write file, asynchronous function
+     * @param fd: fd of the file
+     *          context: The context of an asynchronous request, including the
+     * information required for the request and the callback
+     * @return success returns 0, failure returns error code
      */
     int AioWrite(int fd, NebdClientAioContext* aioctx);
 
     /**
-     *  @brief flush文件，异步函数
-     *  @param fd：文件的fd
-     *         context：异步请求的上下文，包含请求所需的信息以及回调
-     *  @return 成功返回0，失败返回错误码
+     * @brief flush file, asynchronous function
+     * @param fd: fd of the file
+     *          context: The context of an asynchronous request, including the
+     * information required for the request and the callback
+     * @return success returns 0, failure returns error code
      */
     int Flush(int fd, NebdClientAioContext* aioctx);
 
     /**
-     *  @brief 获取文件info
-     *  @param fd：文件的fd
-     *  @return 成功返回文件对象size，失败返回错误码
+     * @brief Get file information
+     * @param fd: fd of the file
+     * @return successfully returned the file object size, but failed with an
+     * error code
      */
     int64_t GetInfo(int fd);
 
     /**
-     *  @brief 刷新cache，等所有异步请求返回
-     *  @param fd：文件的fd
-     *  @return 成功返回0，失败返回错误码
+     * @brief refresh cache, wait for all asynchronous requests to return
+     * @param fd: fd of the file
+     * @return success returns 0, failure returns error code
      */
     int InvalidCache(int fd);
 
@@ -159,17 +164,17 @@ class NebdClient {
     void InitLogger(const LogOption& logOption);
 
     /**
-     * @brief 替换字符串中的 '/' 为 '+'
+     * @brief replaces'/'with'+'in the string
      *
-     * @param str 需要替换的字符串
-     * @return 替换后的字符串
+     * @param str The string that needs to be replaced
+     * @return The replaced string
      */
     std::string ReplaceSlash(const std::string& str);
 
     int64_t ExecuteSyncRpc(RpcTask task);
-    // 心跳管理模块
+    // Heartbeat management module
     std::shared_ptr<HeartbeatManager> heartbeatMgr_;
-    // 缓存模块
+    // Cache module
     std::shared_ptr<NebdClientMetaCache> metaCache_;
 
     NebdClientOption option_;
@@ -183,7 +188,8 @@ class NebdClient {
 
     std::vector<bthread::ExecutionQueueId<AsyncRpcTask>> rpcTaskQueues_;
 
-    static int ExecAsyncRpcTask(void* meta, bthread::TaskIterator<AsyncRpcTask>& iter);  // NOLINT
+    static int ExecAsyncRpcTask(
+        void* meta, bthread::TaskIterator<AsyncRpcTask>& iter);  // NOLINT
 
     void PushAsyncTask(const AsyncRpcTask& task) {
         static thread_local unsigned int seed = time(nullptr);
@@ -197,7 +203,7 @@ class NebdClient {
     }
 };
 
-extern NebdClient &nebdClient;
+extern NebdClient& nebdClient;
 
 }  // namespace client
 }  // namespace nebd

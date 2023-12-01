@@ -22,39 +22,38 @@
 
 #include "test/integration/common/peer_cluster.h"
 
-#include <wait.h>
-#include <brpc/controller.h>
 #include <brpc/channel.h>
+#include <brpc/controller.h>
+#include <wait.h>
 
+#include <algorithm>
 #include <map>
 #include <utility>
-#include <algorithm>
 
-#include "src/chunkserver/cli2.h"
-#include "src/chunkserver/register.h"
+#include "proto/cli2.pb.h"
 #include "proto/copyset.pb.h"
 #include "src/chunkserver/chunkserver_helper.h"
+#include "src/chunkserver/cli2.h"
+#include "src/chunkserver/register.h"
 #include "src/fs/fs_common.h"
-#include "proto/cli2.pb.h"
 
 namespace curve {
 namespace chunkserver {
 
 using curve::fs::FileSystemType;
 
-
-PeerCluster::PeerCluster(const std::string &clusterName,
+PeerCluster::PeerCluster(const std::string& clusterName,
                          const LogicPoolID logicPoolID,
                          const CopysetID copysetID,
-                         const std::vector<Peer> &peers,
-                         std::vector<char **> params,
-                         std::map<int, int> paramsIndexs) :
-    clusterName_(clusterName),
-    snapshotIntervalS_(1),
-    electionTimeoutMs_(1000),
-    paramsIndexs_(paramsIndexs),
-    params_(params),
-    isFakeMdsStart_(false) {
+                         const std::vector<Peer>& peers,
+                         std::vector<char**> params,
+                         std::map<int, int> paramsIndexs)
+    : clusterName_(clusterName),
+      snapshotIntervalS_(1),
+      electionTimeoutMs_(1000),
+      paramsIndexs_(paramsIndexs),
+      params_(params),
+      isFakeMdsStart_(false) {
     logicPoolID_ = logicPoolID;
     copysetID_ = copysetID;
     for (auto it = peers.begin(); it != peers.end(); ++it) {
@@ -63,7 +62,7 @@ PeerCluster::PeerCluster(const std::string &clusterName,
     }
 }
 
-int PeerCluster::StartFakeTopoloyService(const std::string &listenAddr) {
+int PeerCluster::StartFakeTopoloyService(const std::string& listenAddr) {
     if (isFakeMdsStart_) {
         return 0;
     }
@@ -81,9 +80,7 @@ int PeerCluster::StartFakeTopoloyService(const std::string &listenAddr) {
     return ret;
 }
 
-int PeerCluster::StartPeer(const Peer &peer,
-                           int id,
-                           const bool empty) {
+int PeerCluster::StartPeer(const Peer& peer, int id, const bool empty) {
     LOG(INFO) << "going start peer: " << peer.address() << " " << id;
     auto it = peersMap_.find(peer.address());
     if (it != peersMap_.end()) {
@@ -109,18 +106,17 @@ int PeerCluster::StartPeer(const Peer &peer,
         LOG(ERROR) << "start peer fork failed";
         return -1;
     } else if (0 == pid) {
-        /* 在子进程起一个 ChunkServer */
+        /* Starting a ChunkServer in a child process */
         StartPeerNode(id, params_[paramsIndexs_[id]]);
         exit(0);
     }
     LOG(INFO) << "start peer success, peer id = " << pid;
     peerNode->pid = pid;
     peerNode->state = PeerNodeState::RUNNING;
-    peersMap_.insert(std::pair<std::string,
-                               std::unique_ptr<PeerNode>>(peerId.to_string(),
-                                                          std::move(peerNode)));
+    peersMap_.insert(std::pair<std::string, std::unique_ptr<PeerNode>>(
+        peerId.to_string(), std::move(peerNode)));
 
-    // 在创建copyset之前，先等chunkserver启动
+    // Before creating a copyset, wait for chunkserver to start
     ::usleep(1500 * 1000);
 
     int ret = CreateCopyset(logicPoolID_, copysetID_, peer, peers_);
@@ -133,7 +129,7 @@ int PeerCluster::StartPeer(const Peer &peer,
     return 0;
 }
 
-int PeerCluster::ShutdownPeer(const Peer &peer) {
+int PeerCluster::ShutdownPeer(const Peer& peer) {
     PeerId peerId(peer.address());
     LOG(INFO) << "going to shutdown peer: " << peerId.to_string();
     auto it = peersMap_.find(peerId.to_string());
@@ -141,8 +137,8 @@ int PeerCluster::ShutdownPeer(const Peer &peer) {
         int waitState;
         if (0 != kill(it->second->pid, SIGKILL)) {
             LOG(ERROR) << "Stop peer: " << peerId.to_string() << "failed,"
-                       << "errno: " << errno << ", error str: "
-                       << strerror(errno);
+                       << "errno: " << errno
+                       << ", error str: " << strerror(errno);
             return -1;
         }
         waitpid(it->second->pid, &waitState, 0);
@@ -156,7 +152,7 @@ int PeerCluster::ShutdownPeer(const Peer &peer) {
     }
 }
 
-int PeerCluster::HangPeer(const Peer &peer) {
+int PeerCluster::HangPeer(const Peer& peer) {
     LOG(INFO) << "peer cluster: hang " << peer.address();
     PeerId peerId(peer.address());
     auto it = peersMap_.find(peerId.to_string());
@@ -168,8 +164,8 @@ int PeerCluster::HangPeer(const Peer &peer) {
         }
         if (0 != kill(it->second->pid, SIGSTOP)) {
             LOG(ERROR) << "Hang peer: " << peerId.to_string() << "failed,"
-                       << "errno: " << errno << ", error str: "
-                       << strerror(errno);
+                       << "errno: " << errno
+                       << ", error str: " << strerror(errno);
             return -1;
         }
         int waitState;
@@ -184,7 +180,7 @@ int PeerCluster::HangPeer(const Peer &peer) {
     }
 }
 
-int PeerCluster::SignalPeer(const Peer &peer) {
+int PeerCluster::SignalPeer(const Peer& peer) {
     LOG(INFO) << "peer cluster: signal " << peer.address();
     PeerId peerId(peer.address());
     auto it = peersMap_.find(peerId.to_string());
@@ -196,8 +192,8 @@ int PeerCluster::SignalPeer(const Peer &peer) {
         }
         if (0 != kill(it->second->pid, SIGCONT)) {
             LOG(ERROR) << "Cont peer: " << peerId.to_string() << "failed,"
-                       << "errno: " << errno << ", error str: "
-                       << strerror(errno);
+                       << "errno: " << errno
+                       << ", error str: " << strerror(errno);
             return -1;
         }
         int waitState;
@@ -212,18 +208,17 @@ int PeerCluster::SignalPeer(const Peer &peer) {
     }
 }
 
-int PeerCluster:: ConfirmLeader(const LogicPoolID &logicPoolId,
-                        const CopysetID &copysetId,
-                        const std::string& leaderAddr,
-                        Peer *leader) {
+int PeerCluster::ConfirmLeader(const LogicPoolID& logicPoolId,
+                               const CopysetID& copysetId,
+                               const std::string& leaderAddr, Peer* leader) {
     brpc::Channel channel;
     auto pos = leaderAddr.rfind(":");
     std::string addr = leaderAddr.substr(0, pos);
     if (channel.Init(addr.c_str(), NULL) != 0) {
-        LOG(ERROR) <<"Fail to init channel to " << leaderAddr.c_str();
+        LOG(ERROR) << "Fail to init channel to " << leaderAddr.c_str();
         return -1;
     }
-    Peer *peer = new Peer();
+    Peer* peer = new Peer();
     CliService2_Stub stub(&channel);
     GetLeaderRequest2 request;
     GetLeaderResponse2 response;
@@ -235,7 +230,7 @@ int PeerCluster:: ConfirmLeader(const LogicPoolID &logicPoolId,
 
     stub.GetLeader(&cntl, &request, &response, NULL);
     if (cntl.Failed()) {
-        LOG(ERROR) <<"confirm leader fail";
+        LOG(ERROR) << "confirm leader fail";
         return -1;
     }
     Peer leader2 = response.leader();
@@ -244,21 +239,21 @@ int PeerCluster:: ConfirmLeader(const LogicPoolID &logicPoolId,
     PeerId leaderId1;
     leaderId1.parse(leader->address());
     if (leaderId2.is_empty()) {
-        LOG(ERROR) <<"Confirmed leaderId is null";
+        LOG(ERROR) << "Confirmed leaderId is null";
         return -1;
     }
     if (leaderId2 != leaderId1) {
-        LOG(INFO) << "twice leaderId is inconsistent, first is "
-                    << leaderId1 << " second is " << leaderId2;
+        LOG(INFO) << "twice leaderId is inconsistent, first is " << leaderId1
+                  << " second is " << leaderId2;
         return -1;
     }
     return 0;
 }
 
-int PeerCluster::WaitLeader(Peer *leaderPeer) {
+int PeerCluster::WaitLeader(Peer* leaderPeer) {
     butil::Status status;
     /**
-     * 等待选举结束
+     * Waiting for the election to end
      */
     ::usleep(3 * electionTimeoutMs_ * 1000);
     const int kMaxLoop = (3 * electionTimeoutMs_) / 100;
@@ -267,15 +262,17 @@ int PeerCluster::WaitLeader(Peer *leaderPeer) {
         status = GetLeader(logicPoolID_, copysetID_, conf_, leaderPeer);
         if (status.ok()) {
             /**
-             * 由于选举之后还需要提交应用 noop entry 之后才能提供服务，
-             * 所以这里需要等待 noop apply，这里等太短，可能容易失败，后期改进
+             * Due to the need to submit the application noop entry after the
+             * election to provide services, So we need to wait for the noop
+             * application here. If the wait time is too short, it may be easy
+             * to fail, so we need to improve it later
              */
             usleep(electionTimeoutMs_ * 1000);
             LOG(INFO) << "Wait leader success, leader is: "
                       << leaderPeer->address();
             std::string leaderAddr = leaderPeer->address();
-            int ret = ConfirmLeader(logicPoolID_, copysetID_,
-                                    leaderAddr, leaderPeer);
+            int ret =
+                ConfirmLeader(logicPoolID_, copysetID_, leaderAddr, leaderPeer);
             if (ret == 0) {
                 return ret;
             }
@@ -299,9 +296,7 @@ int PeerCluster::StopAllPeers() {
     return 0;
 }
 
-Configuration PeerCluster::CopysetConf() const {
-    return conf_;
-}
+Configuration PeerCluster::CopysetConf() const { return conf_; }
 
 int PeerCluster::SetsnapshotIntervalS(int snapshotIntervalS) {
     snapshotIntervalS_ = snapshotIntervalS;
@@ -313,10 +308,10 @@ int PeerCluster::SetElectionTimeoutMs(int electionTimeoutMs) {
     return 0;
 }
 
-int PeerCluster::StartPeerNode(int id, char *arg[]) {
+int PeerCluster::StartPeerNode(int id, char* arg[]) {
     struct RegisterOptions opt;
-    opt.chunkserverMetaUri = "local://./" + std::to_string(id) +
-                             "/chunkserver.dat";
+    opt.chunkserverMetaUri =
+        "local://./" + std::to_string(id) + "/chunkserver.dat";
     opt.fs = fs_;
     Register regist(opt);
 
@@ -334,52 +329,43 @@ int PeerCluster::StartPeerNode(int id, char *arg[]) {
     return 0;
 }
 
-const std::string PeerCluster::CopysetDirWithProtocol(const Peer &peer) {
+const std::string PeerCluster::CopysetDirWithProtocol(const Peer& peer) {
     PeerId peerId(peer.address());
     std::string copysetdir;
-    butil::string_printf(&copysetdir,
-                         "local://./%s-%d-%d",
+    butil::string_printf(&copysetdir, "local://./%s-%d-%d",
                          butil::ip2str(peerId.addr.ip).c_str(),
-                         peerId.addr.port,
-                         0);
+                         peerId.addr.port, 0);
     return copysetdir;
 }
 
-const std::string PeerCluster::CopysetDirWithoutProtocol(const Peer &peer) {
+const std::string PeerCluster::CopysetDirWithoutProtocol(const Peer& peer) {
     PeerId peerId(peer.address());
     std::string copysetdir;
-    butil::string_printf(&copysetdir,
-                         "./%s-%d-%d",
+    butil::string_printf(&copysetdir, "./%s-%d-%d",
                          butil::ip2str(peerId.addr.ip).c_str(),
-                         peerId.addr.port,
-                         0);
+                         peerId.addr.port, 0);
     return copysetdir;
 }
 
-const std::string PeerCluster::RemoveCopysetDirCmd(const Peer &peer) {
+const std::string PeerCluster::RemoveCopysetDirCmd(const Peer& peer) {
     PeerId peerId(peer.address());
     std::string cmd;
-    butil::string_printf(&cmd,
-                         "rm -fr %d/copysets", peerId.addr.port);
+    butil::string_printf(&cmd, "rm -fr %d/copysets", peerId.addr.port);
     return cmd;
 }
 
-const std::string PeerCluster::RemoveCopysetLogDirCmd(const Peer &peer,
+const std::string PeerCluster::RemoveCopysetLogDirCmd(const Peer& peer,
                                                       LogicPoolID logicPoolID,
                                                       CopysetID copysetID) {
     PeerId peerId(peer.address());
     std::string cmd;
-    butil::string_printf(&cmd,
-                         "rm -fr %d/copysets/%s",
-                         peerId.addr.port,
+    butil::string_printf(&cmd, "rm -fr %d/copysets/%s", peerId.addr.port,
                          ToGroupIdString(logicPoolID, copysetID).c_str());
     return cmd;
 }
 
-int PeerCluster::CreateCopyset(LogicPoolID logicPoolID,
-                               CopysetID copysetID,
-                               Peer peer,
-                               const std::vector<Peer>& peers) {
+int PeerCluster::CreateCopyset(LogicPoolID logicPoolID, CopysetID copysetID,
+                               Peer peer, const std::vector<Peer>& peers) {
     LOG(INFO) << "PeerCluster begin create copyset: "
               << ToGroupIdString(logicPoolID, copysetID);
 
@@ -403,17 +389,17 @@ int PeerCluster::CreateCopyset(LogicPoolID logicPoolID,
         CopysetService_Stub stub(&channel);
         stub.CreateCopysetNode(&cntl, &request, &response, nullptr);
         if (cntl.Failed()) {
-            LOG(ERROR) << "failed create copsyet, "
-                       << cntl.ErrorText() << std::endl;
+            LOG(ERROR) << "failed create copsyet, " << cntl.ErrorText()
+                       << std::endl;
             ::usleep(1000 * 1000);
             continue;
         }
 
-        if (response.status() == COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS
-            || response.status() == COPYSET_OP_STATUS::COPYSET_OP_STATUS_EXIST) {   //NOLINT
-            LOG(INFO) << "create copyset " << ToGroupIdString(logicPoolID,
-                                                              copysetID)
-                      << " success.";
+        if (response.status() == COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS ||
+            response.status() ==
+                COPYSET_OP_STATUS::COPYSET_OP_STATUS_EXIST) {  // NOLINT
+            LOG(INFO) << "create copyset "
+                      << ToGroupIdString(logicPoolID, copysetID) << " success.";
             return 0;
         }
 
@@ -423,14 +409,13 @@ int PeerCluster::CreateCopyset(LogicPoolID logicPoolID,
     return -1;
 }
 
-int PeerCluster::PeerToId(const Peer &peer) {
+int PeerCluster::PeerToId(const Peer& peer) {
     PeerId peerId(peer.address());
     return peerId.addr.port;
 }
 
-int PeerCluster::GetFollwerPeers(const std::vector<Peer>& peers,
-                                 Peer leader,
-                                 std::vector<Peer> *followers) {
+int PeerCluster::GetFollwerPeers(const std::vector<Peer>& peers, Peer leader,
+                                 std::vector<Peer>* followers) {
     for (auto& peer : peers) {
         if (leader.address() != peer.address()) {
             followers->push_back(peer);
@@ -442,28 +427,23 @@ int PeerCluster::GetFollwerPeers(const std::vector<Peer>& peers,
 
 ChunkServerID PeerCluster::chunkServerId_ = 0;
 
-std::shared_ptr<LocalFileSystem> PeerCluster::fs_
-    = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
+std::shared_ptr<LocalFileSystem> PeerCluster::fs_ =
+    LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
 
 /**
- * 正常 I/O 验证，先写进去，再读出来验证
- * @param leaderId      主的 id
- * @param logicPoolId   逻辑池 id
- * @param copysetId 复制组 id
+ * Normal I/O verification, write it in first, then read it out for verification
+ * @param leaderId      Primary ID
+ * @param logicPoolId   Logical Pool ID
+ * @param copysetId     Copy Group ID
  * @param chunkId   chunk id
- * @param length    每次 IO 的 length
- * @param fillCh    每次 IO 填充的字符
- * @param loop      重复发起 IO 的次数
- * @param sn        本次写入的版本号
+ * @param length    The length of each IO
+ * @param fillCh    Characters filled in each IO
+ * @param loop      The number of times repeatedly initiates IO
+ * @param sn        The version number written this time
  */
-void WriteThenReadVerify(Peer leaderPeer,
-                         LogicPoolID logicPoolId,
-                         CopysetID copysetId,
-                         ChunkID chunkId,
-                         int length,
-                         char fillCh,
-                         int loop,
-                         uint64_t sn) {
+void WriteThenReadVerify(Peer leaderPeer, LogicPoolID logicPoolId,
+                         CopysetID copysetId, ChunkID chunkId, int length,
+                         char fillCh, int loop, uint64_t sn) {
     LOG(INFO) << "Write then read verify: " << fillCh;
 
     PeerId leaderId(leaderPeer.address());
@@ -486,9 +466,8 @@ void WriteThenReadVerify(Peer leaderPeer,
             request.set_sn(sn);
             cntl.request_attachment().resize(length, fillCh);
             stub.WriteChunk(&cntl, &request, &response, nullptr);
-            LOG_IF(INFO, cntl.Failed()) << "error msg: "
-                                        << cntl.ErrorCode() << " : "
-                                        << cntl.ErrorText();
+            LOG_IF(INFO, cntl.Failed()) << "error msg: " << cntl.ErrorCode()
+                                        << " : " << cntl.ErrorText();
             ASSERT_FALSE(cntl.Failed());
             ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                       response.status());
@@ -507,9 +486,8 @@ void WriteThenReadVerify(Peer leaderPeer,
             request.set_size(length);
             request.set_sn(sn);
             stub.ReadChunk(&cntl, &request, &response, nullptr);
-            LOG_IF(INFO, cntl.Failed()) << "error msg: "
-                                        << cntl.ErrorCode() << " : "
-                                        << cntl.ErrorText();
+            LOG_IF(INFO, cntl.Failed()) << "error msg: " << cntl.ErrorCode()
+                                        << " : " << cntl.ErrorText();
             ASSERT_FALSE(cntl.Failed());
             ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                       response.status());
@@ -521,22 +499,17 @@ void WriteThenReadVerify(Peer leaderPeer,
 }
 
 /**
- * 正常 I/O 验证，read 数据验证
- * @param leaderId      主的 id
- * @param logicPoolId   逻辑池 id
- * @param copysetId 复制组 id
+ * Normal I/O verification, read data verification
+ * @param leaderId      Primary ID
+ * @param logicPoolId   Logical Pool ID
+ * @param copysetId Copy Group ID
  * @param chunkId   chunk id
- * @param length    每次 IO 的 length
- * @param fillCh    每次 IO 填充的字符
- * @param loop      重复发起 IO 的次数
+ * @param length    The length of each IO
+ * @param fillCh    Characters filled in each IO
+ * @param loop      The number of times repeatedly initiates IO
  */
-void ReadVerify(Peer leaderPeer,
-                LogicPoolID logicPoolId,
-                CopysetID copysetId,
-                ChunkID chunkId,
-                int length,
-                char fillCh,
-                int loop) {
+void ReadVerify(Peer leaderPeer, LogicPoolID logicPoolId, CopysetID copysetId,
+                ChunkID chunkId, int length, char fillCh, int loop) {
     LOG(INFO) << "Read verify: " << fillCh;
     PeerId leaderId(leaderPeer.address());
     brpc::Channel channel;
@@ -556,12 +529,10 @@ void ReadVerify(Peer leaderPeer,
         request.set_size(length);
         request.set_sn(sn);
         stub.ReadChunk(&cntl, &request, &response, nullptr);
-        LOG_IF(INFO, cntl.Failed()) << "error msg: "
-                                    << cntl.ErrorCode() << " : "
-                                    << cntl.ErrorText();
+        LOG_IF(INFO, cntl.Failed())
+            << "error msg: " << cntl.ErrorCode() << " : " << cntl.ErrorText();
         ASSERT_FALSE(cntl.Failed());
-        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
-                  response.status());
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS, response.status());
         std::string expectRead(length, fillCh);
         ASSERT_STREQ(expectRead.c_str(),
                      cntl.response_attachment().to_string().c_str());
@@ -569,22 +540,18 @@ void ReadVerify(Peer leaderPeer,
 }
 
 /**
- * 读chunk的snapshot进行验证
- * @param leaderId      主的 id
- * @param logicPoolId   逻辑池 id
- * @param copysetId 复制组 id
+ * Verify by reading the snapshot of the chunk
+ * @param leaderId Primary ID
+ * @param logicPoolId Logical Pool ID
+ * @param copysetId Copy Group ID
  * @param chunkId   chunk id
- * @param length    每次 IO 的 length
- * @param fillCh    每次 IO 填充的字符
- * @param loop      重复发起 IO 的次数
+ * @param length    The length of each IO
+ * @param fillCh    Characters filled in each IO
+ * @param loop      The number of times repeatedly initiates IO
  */
-void ReadSnapshotVerify(Peer leaderPeer,
-                        LogicPoolID logicPoolId,
-                        CopysetID copysetId,
-                        ChunkID chunkId,
-                        int length,
-                        char fillCh,
-                        int loop) {
+void ReadSnapshotVerify(Peer leaderPeer, LogicPoolID logicPoolId,
+                        CopysetID copysetId, ChunkID chunkId, int length,
+                        char fillCh, int loop) {
     LOG(INFO) << "Read snapshot verify: " << fillCh;
     PeerId leaderId(leaderPeer.address());
     brpc::Channel channel;
@@ -592,7 +559,7 @@ void ReadSnapshotVerify(Peer leaderPeer,
 
     ChunkService_Stub stub(&channel);
 
-    // 获取chunk的快照版本
+    // Obtain the snapshot version of the chunk
     uint64_t snapSn;
     {
         brpc::Controller cntl;
@@ -603,12 +570,10 @@ void ReadSnapshotVerify(Peer leaderPeer,
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
         stub.GetChunkInfo(&cntl, &request, &response, nullptr);
-        LOG_IF(INFO, cntl.Failed()) << "error msg: "
-                                    << cntl.ErrorCode() << " : "
-                                    << cntl.ErrorText();
+        LOG_IF(INFO, cntl.Failed())
+            << "error msg: " << cntl.ErrorCode() << " : " << cntl.ErrorText();
         ASSERT_FALSE(cntl.Failed());
-        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
-                  response.status());
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS, response.status());
         ASSERT_EQ(2, response.chunksn_size());
         snapSn = std::min(response.chunksn(0), response.chunksn(1));
     }
@@ -622,16 +587,14 @@ void ReadSnapshotVerify(Peer leaderPeer,
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
-        request.set_offset(length*i);
+        request.set_offset(length * i);
         request.set_size(length);
         request.set_sn(snapSn);
         stub.ReadChunkSnapshot(&cntl, &request, &response, nullptr);
-        LOG_IF(INFO, cntl.Failed()) << "error msg: "
-                                    << cntl.ErrorCode() << " : "
-                                    << cntl.ErrorText();
+        LOG_IF(INFO, cntl.Failed())
+            << "error msg: " << cntl.ErrorCode() << " : " << cntl.ErrorText();
         ASSERT_FALSE(cntl.Failed());
-        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
-                  response.status());
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS, response.status());
         std::string expectRead(length, fillCh);
         ASSERT_STREQ(expectRead.c_str(),
                      cntl.response_attachment().to_string().c_str());
@@ -639,18 +602,15 @@ void ReadSnapshotVerify(Peer leaderPeer,
 }
 
 /**
- * 删除chunk的snapshot进行验证
- * @param leaderId      主的 id
- * @param logicPoolId   逻辑池 id
- * @param copysetId     复制组 id
+ * Delete snapshot of chunk for verification
+ * @param leaderId      Primary ID
+ * @param logicPoolId   Logical Pool ID
+ * @param copysetId     Copy Group ID
  * @param chunkId       chunk id
  * @param csn           corrected sn
  */
-void DeleteSnapshotVerify(Peer leaderPeer,
-                          LogicPoolID logicPoolId,
-                          CopysetID copysetId,
-                          ChunkID chunkId,
-                          uint64_t csn) {
+void DeleteSnapshotVerify(Peer leaderPeer, LogicPoolID logicPoolId,
+                          CopysetID copysetId, ChunkID chunkId, uint64_t csn) {
     LOG(INFO) << "Delete snapshot verify, csn: " << csn;
     PeerId leaderId(leaderPeer.address());
     brpc::Channel channel;
@@ -668,31 +628,25 @@ void DeleteSnapshotVerify(Peer leaderPeer,
     request.set_chunkid(chunkId);
     request.set_correctedsn(csn);
     stub.DeleteChunkSnapshotOrCorrectSn(&cntl, &request, &response, nullptr);
-    LOG_IF(INFO, cntl.Failed()) << "error msg: "
-                                << cntl.ErrorCode() << " : "
-                                << cntl.ErrorText();
+    LOG_IF(INFO, cntl.Failed())
+        << "error msg: " << cntl.ErrorCode() << " : " << cntl.ErrorText();
     ASSERT_FALSE(cntl.Failed());
-    ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
-              response.status());
+    ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS, response.status());
 }
 
 /**
- * 异常I/O验证，read数据不符合预期
- * @param leaderId      主的 id
- * @param logicPoolId   逻辑池 id
- * @param copysetId 复制组 id
+ * Abnormal I/O verification, read data does not meet expectations
+ * @param leaderId      Primary ID
+ * @param logicPoolId   Logical Pool ID
+ * @param copysetId Copy Group ID
  * @param chunkId   chunk id
- * @param length    每次 IO 的 length
- * @param fillCh    每次 IO 填充的字符
- * @param loop      重复发起 IO 的次数
+ * @param length    The length of each IO
+ * @param fillCh    Characters filled in each IO
+ * @param loop      The number of times repeatedly initiates IO
  */
-void ReadNotVerify(Peer leaderPeer,
-                   LogicPoolID logicPoolId,
-                   CopysetID copysetId,
-                   ChunkID chunkId,
-                   int length,
-                   char fillCh,
-                   int loop) {
+void ReadNotVerify(Peer leaderPeer, LogicPoolID logicPoolId,
+                   CopysetID copysetId, ChunkID chunkId, int length,
+                   char fillCh, int loop) {
     LOG(INFO) << "Read not verify: " << fillCh;
     PeerId leaderId(leaderPeer.address());
     brpc::Channel channel;
@@ -712,12 +666,10 @@ void ReadNotVerify(Peer leaderPeer,
         request.set_size(length);
         request.set_sn(sn);
         stub.ReadChunk(&cntl, &request, &response, nullptr);
-        LOG_IF(INFO, cntl.Failed()) << "error msg: "
-                                    << cntl.ErrorCode() << " : "
-                                    << cntl.ErrorText();
+        LOG_IF(INFO, cntl.Failed())
+            << "error msg: " << cntl.ErrorCode() << " : " << cntl.ErrorText();
         ASSERT_FALSE(cntl.Failed());
-        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
-                  response.status());
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS, response.status());
         std::string expectRead(length, fillCh);
         ASSERT_STRNE(expectRead.c_str(),
                      cntl.response_attachment().to_string().c_str());
@@ -725,22 +677,18 @@ void ReadNotVerify(Peer leaderPeer,
 }
 
 /**
- * 通过read验证可用性
- * @param leaderId      主的 id
- * @param logicPoolId   逻辑池 id
- * @param copysetId 复制组 id
+ * Verify availability through read
+ * @param leaderId      Primary ID
+ * @param logicPoolId   Logical Pool ID
+ * @param copysetId Copy Group ID
  * @param chunkId   chunk id
- * @param length    每次 IO 的 length
- * @param fillCh    每次 IO 填充的字符
- * @param loop      重复发起 IO 的次数
+ * @param length    The length of each IO
+ * @param fillCh    Characters filled in each IO
+ * @param loop      The number of times repeatedly initiates IO
  */
-void ReadVerifyNotAvailable(Peer leaderPeer,
-                            LogicPoolID logicPoolId,
-                            CopysetID copysetId,
-                            ChunkID chunkId,
-                            int length,
-                            char fillCh,
-                            int loop) {
+void ReadVerifyNotAvailable(Peer leaderPeer, LogicPoolID logicPoolId,
+                            CopysetID copysetId, ChunkID chunkId, int length,
+                            char fillCh, int loop) {
     LOG(INFO) << "Read verify not available: " << fillCh;
     PeerId leaderId(leaderPeer.address());
     brpc::Channel channel;
@@ -760,32 +708,28 @@ void ReadVerifyNotAvailable(Peer leaderPeer,
         request.set_size(length);
         request.set_sn(sn);
         stub.ReadChunk(&cntl, &request, &response, nullptr);
-        LOG_IF(INFO, cntl.Failed()) << "error msg: "
-                                    << cntl.ErrorCode() << " : "
-                                    << cntl.ErrorText();
+        LOG_IF(INFO, cntl.Failed())
+            << "error msg: " << cntl.ErrorCode() << " : " << cntl.ErrorText();
         LOG(INFO) << "read: " << CHUNK_OP_STATUS_Name(response.status());
         ASSERT_TRUE(cntl.Failed() ||
-            response.status() != CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+                    response.status() !=
+                        CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
     }
 }
 
 /**
- * 通过write验证可用性
- * @param leaderId      主的 id
- * @param logicPoolId   逻辑池 id
- * @param copysetId 复制组 id
+ * Verify availability through write
+ * @param leaderId      Primary ID
+ * @param logicPoolId   Logical Pool ID
+ * @param copysetId Copy Group ID
  * @param chunkId   chunk id
- * @param length    每次 IO 的 length
- * @param fillCh    每次 IO 填充的字符
- * @param loop      重复发起 IO 的次数
+ * @param length    The length of each IO
+ * @param fillCh    Characters filled in each IO
+ * @param loop      The number of times repeatedly initiates IO
  */
-void WriteVerifyNotAvailable(Peer leaderPeer,
-                             LogicPoolID logicPoolId,
-                             CopysetID copysetId,
-                             ChunkID chunkId,
-                             int length,
-                             char fillCh,
-                             int loop) {
+void WriteVerifyNotAvailable(Peer leaderPeer, LogicPoolID logicPoolId,
+                             CopysetID copysetId, ChunkID chunkId, int length,
+                             char fillCh, int loop) {
     LOG(INFO) << "Write verify not available: " << fillCh;
     PeerId leaderId(leaderPeer.address());
     brpc::Channel channel;
@@ -807,23 +751,22 @@ void WriteVerifyNotAvailable(Peer leaderPeer,
         request.set_sn(sn);
         cntl.request_attachment().resize(length, fillCh);
         stub.WriteChunk(&cntl, &request, &response, nullptr);
-        LOG_IF(INFO, cntl.Failed()) << "error msg: "
-                                    << cntl.ErrorCode() << " : "
-                                    << cntl.ErrorText();
+        LOG_IF(INFO, cntl.Failed())
+            << "error msg: " << cntl.ErrorCode() << " : " << cntl.ErrorText();
         ASSERT_TRUE(cntl.Failed() ||
-            response.status() != CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+                    response.status() !=
+                        CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
     }
 }
 
 /**
- * 验证几个副本的copyset status是否一致
- * @param peerIds: 待验证的peers
- * @param logicPoolID: 逻辑池id
- * @param copysetId: 复制组id
+ * Verify if the copyset status of several replicas is consistent
+ * @param peerIds: peers to be verified
+ * @param logicPoolID: Logical Pool ID
+ * @param copysetId: Copy group ID
  */
-void CopysetStatusVerify(const std::vector<Peer> &peers,
-                         LogicPoolID logicPoolID,
-                         CopysetID copysetId,
+void CopysetStatusVerify(const std::vector<Peer>& peers,
+                         LogicPoolID logicPoolID, CopysetID copysetId,
                          uint64_t expectEpoch) {
     std::vector<CopysetStatusResponse> resps;
     for (Peer peer : peers) {
@@ -838,7 +781,7 @@ void CopysetStatusVerify(const std::vector<Peer> &peers,
         cntl.set_timeout_ms(2000);
         request.set_logicpoolid(logicPoolID);
         request.set_copysetid(copysetId);
-        Peer *peerP = new Peer();
+        Peer* peerP = new Peer();
         request.set_allocated_peer(peerP);
         peerP->set_address(peerId.to_string());
         request.set_queryhash(true);
@@ -847,7 +790,8 @@ void CopysetStatusVerify(const std::vector<Peer> &peers,
         ASSERT_FALSE(cntl.Failed());
         LOG(INFO) << peerId.to_string() << "'s status is: \n"
                   << response.DebugString();
-        // 多个副本的state是不一样的，因为有leader，也有follower
+        // The states of multiple replicas are different because there are
+        // leaders and followers
         response.clear_state();
         response.clear_peer();
         response.clear_firstindex();
@@ -869,20 +813,15 @@ void CopysetStatusVerify(const std::vector<Peer> &peers,
     }
 }
 
-
-
-void TransferLeaderAssertSuccess(PeerCluster *cluster,
-                                 const Peer &targetLeader,
+void TransferLeaderAssertSuccess(PeerCluster* cluster, const Peer& targetLeader,
                                  braft::cli::CliOptions opt) {
     Peer leaderPeer;
     const int kMaxLoop = 10;
     butil::Status status;
     for (int i = 0; i < kMaxLoop; ++i) {
-        status = TransferLeader(cluster->GetLogicPoolId(),
-                                cluster->GetCopysetId(),
-                                cluster->CopysetConf(),
-                                targetLeader,
-                                opt);
+        status =
+            TransferLeader(cluster->GetLogicPoolId(), cluster->GetCopysetId(),
+                           cluster->CopysetConf(), targetLeader, opt);
         if (0 == status.error_code()) {
             cluster->WaitLeader(&leaderPeer);
             if (leaderPeer.address() == targetLeader.address()) {
@@ -891,8 +830,7 @@ void TransferLeaderAssertSuccess(PeerCluster *cluster,
         }
         ::sleep(1);
     }
-    ASSERT_STREQ(targetLeader.address().c_str(),
-                 leaderPeer.address().c_str());
+    ASSERT_STREQ(targetLeader.address().c_str(), leaderPeer.address().c_str());
 }
 
 }  // namespace chunkserver

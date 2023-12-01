@@ -43,8 +43,10 @@
 #define SRC_CHUNKSERVER_RAFTSNAPSHOT_CURVE_SNAPSHOT_COPIER_H_
 
 #include <braft/storage.h>
-#include <vector>
+
 #include <string>
+#include <vector>
+
 #include "src/chunkserver/raftsnapshot/curve_snapshot.h"
 #include "src/chunkserver/raftsnapshot/curve_snapshot_storage.h"
 
@@ -75,7 +77,9 @@ class CurveSnapshotCopier : public braft::SnapshotCopier {
                            braft::SnapshotReader* last_snapshot);
     void filter();
     void copy_file(const std::string& filename, bool attach = false);
-    // 这里的filename是相对于快照目录的路径，为了先把文件下载到临时目录，需要把前面的..去掉
+    // The filename here is the path relative to the snapshot directory. In
+    // order to download the file to the temporary directory first, it is
+    // necessary to Remove
     std::string get_rfilename(const std::string& filename);
 
     braft::raft_mutex_t _mutex;

@@ -21,12 +21,14 @@
  */
 
 #include "nebd/src/part1/libnebd.h"
+
 #include "nebd/src/part1/libnebd_file.h"
 
 extern "C" {
 bool g_inited = false;
 
-// Note: 配置文件路径是否有上层传下来比较合适，评估是否要修改
+// Note: It is more appropriate to pass down the configuration file path from
+// the upper level, and evaluate whether it needs to be modified
 const char* confpath = "/etc/nebd/nebd-client.conf";
 int nebd_lib_init() {
     if (g_inited) {
@@ -67,17 +69,13 @@ int nebd_lib_uninit() {
     return 0;
 }
 
-int nebd_lib_open(const char* filename) {
-    return Open4Nebd(filename, nullptr);
-}
+int nebd_lib_open(const char* filename) { return Open4Nebd(filename, nullptr); }
 
 int nebd_lib_open_with_flags(const char* filename, const NebdOpenFlags* flags) {
     return Open4Nebd(filename, flags);
 }
 
-int nebd_lib_close(int fd) {
-    return Close4Nebd(fd);
-}
+int nebd_lib_close(int fd) { return Close4Nebd(fd); }
 
 int nebd_lib_pread(int fd, void* buf, off_t offset, size_t length) {
     (void)fd;
@@ -114,32 +112,20 @@ int nebd_lib_sync(int fd) {
     return 0;
 }
 
-int64_t nebd_lib_filesize(int fd) {
-    return GetFileSize4Nebd(fd);
-}
+int64_t nebd_lib_filesize(int fd) { return GetFileSize4Nebd(fd); }
 
-int64_t nebd_lib_blocksize(int fd) {
-    return GetBlockSize4Nebd(fd);
-}
+int64_t nebd_lib_blocksize(int fd) { return GetBlockSize4Nebd(fd); }
 
-int nebd_lib_resize(int fd, int64_t size) {
-    return Extend4Nebd(fd, size);
-}
+int nebd_lib_resize(int fd, int64_t size) { return Extend4Nebd(fd, size); }
 
 int nebd_lib_flush(int fd, NebdClientAioContext* context) {
     return Flush4Nebd(fd, context);
 }
 
-int64_t nebd_lib_getinfo(int fd) {
-    return GetInfo4Nebd(fd);
-}
+int64_t nebd_lib_getinfo(int fd) { return GetInfo4Nebd(fd); }
 
-int nebd_lib_invalidcache(int fd) {
-    return InvalidCache4Nebd(fd);
-}
+int nebd_lib_invalidcache(int fd) { return InvalidCache4Nebd(fd); }
 
-void nebd_lib_init_open_flags(NebdOpenFlags* flags) {
-    flags->exclusive = 1;
-}
+void nebd_lib_init_open_flags(NebdOpenFlags* flags) { flags->exclusive = 1; }
 
 }  // extern "C"

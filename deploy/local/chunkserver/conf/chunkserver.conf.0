@@ -46,7 +46,7 @@ chunkserver.meta_uri=local://./0/chunkserver.dat
 chunkserver.disk_type=nvme
 chunkserver.snapshot_throttle_throughput_bytes=41943040
 chunkserver.snapshot_throttle_check_cycles=4
-# 限制inflight io数量，一般是5000
+# Limit the number of inflight io, usually 5000
 chunkserver.max_inflight_requests=5000
 
 #
@@ -145,7 +145,7 @@ chunkfilepool.retry_times=5
 #
 # WAL file pool
 #
-# walpool是否共用chunkfilepool，如果为true，则以下配置无效
+# Does walpool share chunkfilepool? If true, the following configuration is invalid
 walfilepool.use_chunk_file_pool=true
 walfilepool.enable_get_segment_from_pool=false
 walfilepool.file_pool_dir=./0/walfilepool/

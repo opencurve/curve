@@ -21,23 +21,23 @@
  */
 
 #include <brpc/channel.h>
-#include <gtest/gtest.h>
 #include <butil/at_exit.h>
+#include <gtest/gtest.h>
 
 #include <vector>
 
-#include "test/chunkserver/chunkserver_test_util.h"
-#include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/cli.h"
+#include "src/chunkserver/copyset_node_manager.h"
 #include "src/fs/fs_common.h"
 #include "src/fs/local_filesystem.h"
+#include "test/chunkserver/chunkserver_test_util.h"
 
 namespace curve {
 namespace chunkserver {
 
+using curve::fs::FileSystemType;
 using curve::fs::LocalFileSystem;
 using curve::fs::LocalFsFactory;
-using curve::fs::FileSystemType;
 
 static constexpr uint32_t kOpRequestAlignSize = 4096;
 
@@ -61,7 +61,7 @@ class RaftSnapFilePoolTest : public testing::Test {
         Exec(TestCluster::RemoveCopysetDirCmd(peer2).c_str());
         Exec(TestCluster::RemoveCopysetDirCmd(peer3).c_str());
         Exec(TestCluster::RemoveCopysetDirCmd(peer4).c_str());
-        ::usleep(100*1000);
+        ::usleep(100 * 1000);
     }
 
  public:
@@ -74,26 +74,22 @@ class RaftSnapFilePoolTest : public testing::Test {
 };
 
 /**
- * TODO(wudemiao) 后期将发 I/O 和验证再抽象一下
+ * TODO(wudemiao) will further abstract I/O and verification in the later stage
  */
 
 /**
- * 正常 I/O 验证，先写进去，再读出来验证
- * @param leaderId      主的 id
- * @param logicPoolId   逻辑池 id
- * @param copysetId 复制组 id
- * @param chunkId   chunk id
- * @param length    每次 IO 的 length
- * @param fillCh    每次 IO 填充的字符
- * @param loop      重复发起 IO 的次数
+ * Normal I/O verification, write it in first, then read it out for verification
+ * @param leaderId      Primary ID
+ * @param logicPoolId   Logical Pool ID
+ * @param copysetId Copy Group ID
+ * @param chunkId  chunk id
+ * @param length   The length of each IO
+ * @param fillCh   Characters filled in each IO
+ * @param loop     The number of times repeatedly initiates IO
  */
-static void WriteThenReadVerify(PeerId leaderId,
-                                LogicPoolID logicPoolId,
-                                CopysetID copysetId,
-                                ChunkID chunkId,
-                                int length,
-                                char fillCh,
-                                int loop) {
+static void WriteThenReadVerify(PeerId leaderId, LogicPoolID logicPoolId,
+                                CopysetID copysetId, ChunkID chunkId,
+                                int length, char fillCh, int loop) {
     brpc::Channel* channel = new brpc::Channel;
     uint64_t sn = 1;
     ASSERT_EQ(0, channel->Init(leaderId.addr, NULL));
@@ -108,18 +104,16 @@ static void WriteThenReadVerify(PeerId leaderId,
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
-        request.set_offset(length*i);
+        request.set_offset(length * i);
         request.set_size(length);
         request.set_sn(sn);
         cntl.request_attachment().resize(length, fillCh);
         ChunkService_Stub stub(channel);
         stub.WriteChunk(&cntl, &request, &response, nullptr);
-        LOG_IF(INFO, cntl.Failed()) << "error msg: "
-                                    << cntl.ErrorCode() << " : "
-                                    << cntl.ErrorText();
+        LOG_IF(INFO, cntl.Failed())
+            << "error msg: " << cntl.ErrorCode() << " : " << cntl.ErrorText();
         ASSERT_FALSE(cntl.Failed());
-        if (response.status() ==
-            CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED) {
+        if (response.status() == CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED) {
             std::string redirect = response.redirect();
             leaderId.parse(redirect);
             delete channel;
@@ -127,8 +121,7 @@ static void WriteThenReadVerify(PeerId leaderId,
             ASSERT_EQ(0, channel->Init(leaderId.addr, NULL));
             continue;
         }
-        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
-                    response.status());
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS, response.status());
 
         // read
         {
@@ -140,13 +133,12 @@ static void WriteThenReadVerify(PeerId leaderId,
             request.set_logicpoolid(logicPoolId);
             request.set_copysetid(copysetId);
             request.set_chunkid(chunkId);
-            request.set_offset(length*i);
+            request.set_offset(length * i);
             request.set_size(length);
             request.set_sn(sn);
             stub.ReadChunk(&cntl, &request, &response, nullptr);
-            LOG_IF(INFO, cntl.Failed()) << "error msg: "
-                                        << cntl.ErrorCode() << " : "
-                                        << cntl.ErrorText();
+            LOG_IF(INFO, cntl.Failed()) << "error msg: " << cntl.ErrorCode()
+                                        << " : " << cntl.ErrorText();
             ASSERT_FALSE(cntl.Failed());
             ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                       response.status());
@@ -158,22 +150,18 @@ static void WriteThenReadVerify(PeerId leaderId,
 }
 
 /**
- * 正常 I/O 验证，read 数据验证
- * @param leaderId      主的 id
- * @param logicPoolId   逻辑池 id
- * @param copysetId 复制组 id
+ * Normal I/O verification, read data verification
+ * @param leaderId      Primary ID
+ * @param logicPoolId   Logical Pool ID
+ * @param copysetId Copy Group ID
  * @param chunkId   chunk id
- * @param length    每次 IO 的 length
- * @param fillCh    每次 IO 填充的字符
- * @param loop      重复发起 IO 的次数
+ * @param length   The length of each IO
+ * @param fillCh   Characters filled in each IO
+ * @param loop     The number of times repeatedly initiates IO
  */
-static void ReadVerify(PeerId leaderId,
-                       LogicPoolID logicPoolId,
-                       CopysetID copysetId,
-                       ChunkID chunkId,
-                       int length,
-                       char fillCh,
-                       int loop) {
+static void ReadVerify(PeerId leaderId, LogicPoolID logicPoolId,
+                       CopysetID copysetId, ChunkID chunkId, int length,
+                       char fillCh, int loop) {
     brpc::Channel channel;
     uint64_t sn = 1;
     ASSERT_EQ(0, channel.Init(leaderId.addr, NULL));
@@ -187,16 +175,14 @@ static void ReadVerify(PeerId leaderId,
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
-        request.set_offset(length*i);
+        request.set_offset(length * i);
         request.set_size(length);
         request.set_sn(sn);
         stub.ReadChunk(&cntl, &request, &response, nullptr);
-        LOG_IF(INFO, cntl.Failed()) << "error msg: "
-                                    << cntl.ErrorCode() << " : "
-                                    << cntl.ErrorText();
+        LOG_IF(INFO, cntl.Failed())
+            << "error msg: " << cntl.ErrorCode() << " : " << cntl.ErrorText();
         ASSERT_FALSE(cntl.Failed());
-        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
-                  response.status());
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS, response.status());
         std::string expectRead(length, fillCh);
         ASSERT_STREQ(expectRead.c_str(),
                      cntl.response_attachment().to_string().c_str());
@@ -204,18 +190,23 @@ static void ReadVerify(PeerId leaderId,
 }
 
 /**
- * 验证3个节点的关闭非 leader 节点，重启，控制让其从 install snapshot 恢复
- * 1. 创建3个副本的复制组
- * 2. 等待 leader 产生，write 数据，然后 read 出来验证一遍
- * 3. shutdown 非 leader
- * 4. 然后 sleep 超过一个 snapshot interval，write read 数据
- * 5. 然后再 sleep 超过一个 snapshot interval，write read 数据；4,5两步
- *    是为了保证打至少两次快照，这样，节点再重启的时候必须通过 install snapshot,
- *    因为 log 已经被删除了, install snapshot的数据从FilePool中取文件
- * 6. 等待 leader 产生，然后 read 之前写入的数据验证一遍
- * 7. transfer leader 到shut down 的peer 上
- * 8. 在 read 之前写入的数据验证
- * 9. 再 write 数据，再 read 出来验证一遍
+ * Verify the shutdown and restart of non-leader nodes in a cluster of 3 nodes,
+ * and control them to recover from installing snapshots.
+ * 1. Create a replication group with 3 replicas.
+ * 2. Wait for the leader to emerge, write data, and then read to verify.
+ * 3. Shutdown a non-leader node.
+ * 4. Sleep for a duration longer than a snapshot interval, then write and read
+ * data.
+ * 5. Sleep for a duration longer than a snapshot interval again, then write and
+ * read data. Steps 4 and 5 are to ensure that at least two snapshots are taken.
+ * Therefore, when the node restarts, it must recover via an install snapshot
+ * because the log has already been deleted. The data for the install snapshot
+ * is retrieved from the FilePool.
+ * 6. Wait for the leader to emerge, then read the previously written data for
+ * verification.
+ * 7. Transfer leadership to the shut down peer.
+ * 8. Verify the data written before the transfer of leadership.
+ * 9. Write data again, then read it to verify.
  */
 TEST_F(RaftSnapFilePoolTest, ShutdownOnePeerRestartFromInstallSnapshot) {
     LogicPoolID logicPoolId = 2;
@@ -238,75 +229,67 @@ TEST_F(RaftSnapFilePoolTest, ShutdownOnePeerRestartFromInstallSnapshot) {
     ASSERT_EQ(0, cluster.StartPeer(peer2, false, true, true));
     ASSERT_EQ(0, cluster.StartPeer(peer3, false, true, true));
 
-    // 等待FilePool创建成功
+    // Waiting for FilePool creation to succeed
     std::this_thread::sleep_for(std::chrono::seconds(60));
     PeerId leaderId;
     ASSERT_EQ(0, cluster.WaitLeader(&leaderId));
 
-    // 获取三个chunkserver的FilePool的pool容量
-    std::shared_ptr<LocalFileSystem> fs(LocalFsFactory::CreateFs(
-                                        FileSystemType::EXT4, ""));
+    // Obtain the pool capacity of FilePool for three chunkservers
+    std::shared_ptr<LocalFileSystem> fs(
+        LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));
     std::vector<std::string> Peer1ChunkPoolSize;
     std::vector<std::string> Peer2ChunkPoolSize;
     std::vector<std::string> Peer3ChunkPoolSize;
     std::string copysetdir1, copysetdir2, copysetdir3;
-    butil::string_printf(&copysetdir1,
-                         "./%s-%d-%d",
-                         butil::ip2str(peer1.addr.ip).c_str(),
-                         peer1.addr.port,
+    butil::string_printf(&copysetdir1, "./%s-%d-%d",
+                         butil::ip2str(peer1.addr.ip).c_str(), peer1.addr.port,
                          0);
-    butil::string_printf(&copysetdir2,
-                         "./%s-%d-%d",
-                         butil::ip2str(peer2.addr.ip).c_str(),
-                         peer2.addr.port,
+    butil::string_printf(&copysetdir2, "./%s-%d-%d",
+                         butil::ip2str(peer2.addr.ip).c_str(), peer2.addr.port,
                          0);
-    butil::string_printf(&copysetdir3,
-                         "./%s-%d-%d",
-                         butil::ip2str(peer3.addr.ip).c_str(),
-                         peer3.addr.port,
+    butil::string_printf(&copysetdir3, "./%s-%d-%d",
+                         butil::ip2str(peer3.addr.ip).c_str(), peer3.addr.port,
                          0);
 
-    fs->List(copysetdir1+"/chunkfilepool", &Peer1ChunkPoolSize);
-    fs->List(copysetdir2+"/chunkfilepool", &Peer2ChunkPoolSize);
-    fs->List(copysetdir3+"/chunkfilepool", &Peer3ChunkPoolSize);
+    fs->List(copysetdir1 + "/chunkfilepool", &Peer1ChunkPoolSize);
+    fs->List(copysetdir2 + "/chunkfilepool", &Peer2ChunkPoolSize);
+    fs->List(copysetdir3 + "/chunkfilepool", &Peer3ChunkPoolSize);
 
-    // 目前只有chunk文件才会从FilePool中取
-    // raft snapshot meta 和 conf epoch文件直接从文件系统创建
+    // Currently, only chunk files are retrieved from FilePool
+    // raft snapshot meta and conf epoch files are created directly from the
+    // file system
     ASSERT_EQ(20, Peer1ChunkPoolSize.size());
     ASSERT_EQ(20, Peer2ChunkPoolSize.size());
     ASSERT_EQ(20, Peer3ChunkPoolSize.size());
 
     LOG(INFO) << "write 1 start";
-    // 发起 read/write， 写数据会触发chunkserver从FilePool取chunk
-    WriteThenReadVerify(leaderId,
-                        logicPoolId,
-                        copysetId,
-                        chunkId,
-                        length,
-                        ch,
+    // Initiate read/write, writing data will trigger chunkserver to fetch
+    // chunks from FilePool
+    WriteThenReadVerify(leaderId, logicPoolId, copysetId, chunkId, length, ch,
                         loop);
 
     LOG(INFO) << "write 1 end";
-    // raft内副本之间的操作并不是全部同步的，可能存在落后的副本操作
-    // 所以先睡一会，防止并发统计文件信息
-    ::sleep(1*snapshotTimeoutS);
+    // The operations between replicas within the raft are not all synchronized,
+    // and there may be outdated replica operations So take a nap first to
+    // prevent concurrent statistics of file information
+    ::sleep(1 * snapshotTimeoutS);
 
     Peer1ChunkPoolSize.clear();
     Peer2ChunkPoolSize.clear();
     Peer3ChunkPoolSize.clear();
-    fs->List(copysetdir1+"/chunkfilepool", &Peer1ChunkPoolSize);
-    fs->List(copysetdir2+"/chunkfilepool", &Peer2ChunkPoolSize);
-    fs->List(copysetdir3+"/chunkfilepool", &Peer3ChunkPoolSize);
+    fs->List(copysetdir1 + "/chunkfilepool", &Peer1ChunkPoolSize);
+    fs->List(copysetdir2 + "/chunkfilepool", &Peer2ChunkPoolSize);
+    fs->List(copysetdir3 + "/chunkfilepool", &Peer3ChunkPoolSize);
 
-    // 写完数据后，ChunkFilePool容量少一个
+    // After writing the data, ChunkFilePool has one less capacity
     ASSERT_EQ(19, Peer1ChunkPoolSize.size());
     ASSERT_EQ(19, Peer2ChunkPoolSize.size());
     ASSERT_EQ(19, Peer3ChunkPoolSize.size());
 
-    // shutdown 某个非 leader 的 peer
+    // shutdown a non leader peer
     PeerId shutdownPeerid;
-    if (0 == ::strcmp(leaderId.to_string().c_str(),
-                      peer1.to_string().c_str())) {
+    if (0 ==
+        ::strcmp(leaderId.to_string().c_str(), peer1.to_string().c_str())) {
         shutdownPeerid = peer2;
     } else {
         shutdownPeerid = peer1;
@@ -317,68 +300,61 @@ TEST_F(RaftSnapFilePoolTest, ShutdownOnePeerRestartFromInstallSnapshot) {
                           leaderId.to_string().c_str()));
     ASSERT_EQ(0, cluster.ShutdownPeer(shutdownPeerid));
 
-    // wait snapshot, 保证能够触发打快照
-    // 本次打快照，raft会从FilePool取一个文件作为快照文件
-    // 然后会把上一次的快照文件删除，删除过的文件会被回收到FilePool
-    // 所以总体上本次写入只会导致datastore从FilePool取文件
-    // 但是快照取了一个又放回去了一个
-    ::sleep(1.5*snapshotTimeoutS);
-    // 再次发起 read/write
+    // wait snapshot, to ensure it triggers the snapshot creation.
+    // In this snapshot creation, Raft will retrieve a file from the FilePool as
+    // the snapshot file, and it will delete the previous snapshot file. The
+    // deleted file will be reclaimed into the FilePool. So overall, this
+    // snapshot creation will only result in the datastore retrieving a file
+    // from the FilePool, but a snapshot is taken and then returned.
+    ::sleep(1.5 * snapshotTimeoutS);
+    // Initiate read/write again
     LOG(INFO) << "write 2 start";
-    WriteThenReadVerify(leaderId,
-                        logicPoolId,
-                        copysetId,
-                        chunkId,
-                        length,
-                        ch + 1,
-                        loop);
+    WriteThenReadVerify(leaderId, logicPoolId, copysetId, chunkId, length,
+                        ch + 1, loop);
     LOG(INFO) << "write 2 end";
 
-    ::sleep(1*snapshotTimeoutS);
+    ::sleep(1 * snapshotTimeoutS);
 
     Peer1ChunkPoolSize.clear();
     Peer2ChunkPoolSize.clear();
     Peer3ChunkPoolSize.clear();
-    fs->List(copysetdir1+"/chunkfilepool", &Peer1ChunkPoolSize);
-    fs->List(copysetdir2+"/chunkfilepool", &Peer2ChunkPoolSize);
-    fs->List(copysetdir3+"/chunkfilepool", &Peer3ChunkPoolSize);
+    fs->List(copysetdir1 + "/chunkfilepool", &Peer1ChunkPoolSize);
+    fs->List(copysetdir2 + "/chunkfilepool", &Peer2ChunkPoolSize);
+    fs->List(copysetdir3 + "/chunkfilepool", &Peer3ChunkPoolSize);
 
-    // 写完数据后，FilePool容量少一个
+    // After writing the data, the FilePool capacity is reduced by one
     ASSERT_EQ(19, Peer1ChunkPoolSize.size());
     ASSERT_EQ(19, Peer2ChunkPoolSize.size());
     ASSERT_EQ(19, Peer3ChunkPoolSize.size());
 
-    // wait snapshot, 保证能够触发打快照
-    // 本次打快照，raft会从FilePool取一个文件作为快照文件
-    // 然后会把上一次的快照文件删除，删除过的文件会被回收到FilePool
-    // 所以总体上本次写入只会导致datastore从FilePool取文件
-    // 但是快照取了一个又放回去了一个
-    ::sleep(1.5*snapshotTimeoutS);
-    // 再次发起 read/write
+    // wait snapshot, to ensure it triggers snapshot creation.
+    // In this snapshot creation, Raft will retrieve a file from the FilePool as
+    // the snapshot file. Then, it will delete the previous snapshot file, and
+    // the deleted file will be reclaimed into the FilePool. So, overall, this
+    // snapshot creation will only result in the datastore retrieving a file
+    // from the FilePool, but it involves taking one snapshot and returning
+    // another to the FilePool.
+    ::sleep(1.5 * snapshotTimeoutS);
+    // Initiate read/write again
     LOG(INFO) << "write 3 start";
-    // 增加chunkid，使chunkserver端的chunk又被取走一个
-    WriteThenReadVerify(leaderId,
-                        logicPoolId,
-                        copysetId,
-                        chunkId + 1,
-                        length,
-                        ch + 2,
-                        loop);
+    // Add a chunkid to remove another chunk from the chunkserver side
+    WriteThenReadVerify(leaderId, logicPoolId, copysetId, chunkId + 1, length,
+                        ch + 2, loop);
     LOG(INFO) << "write 3 end";
 
     ::sleep(snapshotTimeoutS);
     Peer1ChunkPoolSize.clear();
     Peer2ChunkPoolSize.clear();
     Peer3ChunkPoolSize.clear();
-    fs->List(copysetdir1+"/chunkfilepool", &Peer1ChunkPoolSize);
-    fs->List(copysetdir2+"/chunkfilepool", &Peer2ChunkPoolSize);
-    fs->List(copysetdir3+"/chunkfilepool", &Peer3ChunkPoolSize);
+    fs->List(copysetdir1 + "/chunkfilepool", &Peer1ChunkPoolSize);
+    fs->List(copysetdir2 + "/chunkfilepool", &Peer2ChunkPoolSize);
+    fs->List(copysetdir3 + "/chunkfilepool", &Peer3ChunkPoolSize);
 
     LOG(INFO) << "chunk pool1 size = " << Peer1ChunkPoolSize.size();
     LOG(INFO) << "chunk pool2 size = " << Peer2ChunkPoolSize.size();
     LOG(INFO) << "chunk pool3 size = " << Peer3ChunkPoolSize.size();
 
-    // 写完数据后，FilePool容量少一个
+    // After writing the data, the FilePool capacity is reduced by one
     if (shutdownPeerid == peer1) {
         ASSERT_EQ(19, Peer1ChunkPoolSize.size());
         ASSERT_EQ(18, Peer2ChunkPoolSize.size());
@@ -388,22 +364,17 @@ TEST_F(RaftSnapFilePoolTest, ShutdownOnePeerRestartFromInstallSnapshot) {
     }
     ASSERT_EQ(18, Peer3ChunkPoolSize.size());
 
-    // restart, 需要从 install snapshot 恢复
+    // restart, needs to be restored from install snapshot
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeerid, false, true, false));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderId));
 
-    // 读出来验证一遍
-    ReadVerify(leaderId, logicPoolId, copysetId, chunkId + 1,
-               length, ch + 2, loop);
+    // Read it out and verify it again
+    ReadVerify(leaderId, logicPoolId, copysetId, chunkId + 1, length, ch + 2,
+               loop);
     LOG(INFO) << "write 4 start";
-    // 再次发起 read/write
-    WriteThenReadVerify(leaderId,
-                        logicPoolId,
-                        copysetId,
-                        chunkId,
-                        length,
-                        ch + 3,
-                        loop);
+    // Initiate read/write again
+    WriteThenReadVerify(leaderId, logicPoolId, copysetId, chunkId, length,
+                        ch + 3, loop);
 
     LOG(INFO) << "write 4 end";
 
@@ -416,10 +387,7 @@ TEST_F(RaftSnapFilePoolTest, ShutdownOnePeerRestartFromInstallSnapshot) {
     const int kMaxLoop = 10;
     butil::Status status;
     for (int i = 0; i < kMaxLoop; ++i) {
-        status = TransferLeader(logicPoolId,
-                                copysetId,
-                                conf,
-                                shutdownPeerid,
+        status = TransferLeader(logicPoolId, copysetId, conf, shutdownPeerid,
                                 options);
         if (0 == status.error_code()) {
             cluster.WaitLeader(&leaderId);
@@ -433,20 +401,21 @@ TEST_F(RaftSnapFilePoolTest, ShutdownOnePeerRestartFromInstallSnapshot) {
     ASSERT_EQ(0, ::strcmp(leaderId.to_string().c_str(),
                           shutdownPeerid.to_string().c_str()));
 
-    ::sleep(5*snapshotTimeoutS);
+    ::sleep(5 * snapshotTimeoutS);
     Peer1ChunkPoolSize.clear();
     Peer2ChunkPoolSize.clear();
     Peer3ChunkPoolSize.clear();
-    fs->List(copysetdir1+"/chunkfilepool", &Peer1ChunkPoolSize);
-    fs->List(copysetdir2+"/chunkfilepool", &Peer2ChunkPoolSize);
-    fs->List(copysetdir3+"/chunkfilepool", &Peer3ChunkPoolSize);
+    fs->List(copysetdir1 + "/chunkfilepool", &Peer1ChunkPoolSize);
+    fs->List(copysetdir2 + "/chunkfilepool", &Peer2ChunkPoolSize);
+    fs->List(copysetdir3 + "/chunkfilepool", &Peer3ChunkPoolSize);
 
     LOG(INFO) << "chunk pool1 size = " << Peer1ChunkPoolSize.size();
     LOG(INFO) << "chunk pool2 size = " << Peer2ChunkPoolSize.size();
     LOG(INFO) << "chunk pool3 size = " << Peer3ChunkPoolSize.size();
 
-    // 当前的raftsnapshot filesystem只存取chunk文件
-    // meta文件遵守原有逻辑，直接通过文件系统创建，所以这里只有两个chunk被取出
+    // The current raftsnapshot filesystem only accesses chunk files
+    // The meta file follows the original logic and is created directly through
+    // the file system, so only two chunks are extracted here
     ASSERT_EQ(18, Peer1ChunkPoolSize.size());
     ASSERT_EQ(18, Peer2ChunkPoolSize.size());
     ASSERT_EQ(18, Peer3ChunkPoolSize.size());

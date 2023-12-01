@@ -105,10 +105,10 @@ struct S3InfoOption {
     uint32_t objectPrefix;
 };
 
-void InitS3AdaptorOptionExceptS3InfoOption(Configuration *conf,
-                                           S3AdapterOption *s3Opt);
+void InitS3AdaptorOptionExceptS3InfoOption(Configuration* conf,
+                                           S3AdapterOption* s3Opt);
 
-void InitS3AdaptorOption(Configuration *conf, S3AdapterOption *s3Opt);
+void InitS3AdaptorOption(Configuration* conf, S3AdapterOption* s3Opt);
 
 using GetObjectAsyncCallBack = std::function<void(
     const S3Adapter*, const std::shared_ptr<GetObjectAsyncContext>&)>;
@@ -185,27 +185,27 @@ class S3Adapter {
     }
     virtual ~S3Adapter() { Deinit(); }
     /**
-     * 初始化S3Adapter
+     * Initialize S3Adapter
      */
-    virtual void Init(const std::string &path);
+    virtual void Init(const std::string& path);
     /**
-     * 初始化S3Adapter
-     * 但不包括 S3InfoOption
+     * Initialize S3Adapter
+     * But not including S3InfoOption
      */
-    virtual void InitExceptFsS3Option(const std::string &path);
+    virtual void InitExceptFsS3Option(const std::string& path);
     /**
-     * 初始化S3Adapter
+     * Initialize S3Adapter
      */
-    virtual void Init(const S3AdapterOption &option);
+    virtual void Init(const S3AdapterOption& option);
     /**
      * @brief
      *
      * @details
      */
-    virtual void SetS3Option(const S3InfoOption &fsS3Opt);
+    virtual void SetS3Option(const S3InfoOption& fsS3Opt);
 
     /**
-     * 释放S3Adapter资源
+     * Release S3Adapter resources
      */
     virtual void Deinit();
     /**
@@ -215,7 +215,7 @@ class S3Adapter {
     /**
      * reinit s3client with new AWSCredentials
      */
-    virtual void Reinit(const S3AdapterOption &option);
+    virtual void Reinit(const S3AdapterOption& option);
     /**
      * get s3 ak
      */
@@ -229,39 +229,40 @@ class S3Adapter {
      */
     virtual std::string GetS3Endpoint();
     /**
-     * 创建存储快照数据的桶（桶名称由配置文件指定，需要全局唯一）
-     * @return: 0 创建成功/ -1 创建失败
+     * Create a bucket for storing snapshot data (the bucket name is specified
+     * by the configuration file and needs to be globally unique)
+     * @return: 0 successfully created/-1 failed to create
      */
     virtual int CreateBucket();
     /**
-     * 删除桶
-     * @return 0 删除成功/-1 删除失败
+     * Delete Bucket
+     * @return 0 deleted successfully/-1 deleted failed
      */
     virtual int DeleteBucket();
     /**
-     * 判断快照数据的桶是否存在
-     * @return true 桶存在/ false 桶不存在
+     * Determine whether the bucket of snapshot data exists
+     * @return true bucket exists/false bucket does not exist
      */
     virtual bool BucketExist();
     /**
-     * 上传数据到对象存储
-     * @param 对象名
-     * @param 数据内容
-     * @param 数据内容大小
-     * @return:0 上传成功/ -1 上传失败
+     * Upload data to object storage
+     * @param object name
+     * @param data content
+     * @param data content size
+     * @return: 0 Upload successful/-1 Upload failed
      */
-    virtual int PutObject(const Aws::String &key, const char *buffer,
+    virtual int PutObject(const Aws::String& key, const char* buffer,
                           const size_t bufferSize);
     // Get object to buffer[bufferSize]
     // int GetObject(const Aws::String &key, void *buffer,
     //        const int bufferSize);
     /**
-     * 上传数据到对象存储
-     * @param 对象名
-     * @param 数据内容
-     * @return:0 上传成功/ -1 上传失败
+     * Upload data to object storage
+     * @param object name
+     * @param data content
+     * @return: 0 Upload successful/-1 Upload failed
      */
-    virtual int PutObject(const Aws::String &key, const std::string &data);
+    virtual int PutObject(const Aws::String& key, const std::string& data);
     virtual void PutObjectAsync(std::shared_ptr<PutObjectAsyncContext> context);
     /**
      * Get object from s3,
@@ -273,40 +274,40 @@ class S3Adapter {
      * @param pointer which contain the data
      * @return 0 success / -1 fail
      */
-    virtual int GetObject(const Aws::String &key, std::string *data);
+    virtual int GetObject(const Aws::String& key, std::string* data);
     /**
-     * 从对象存储读取数据
-     * @param 对象名
-     * @param[out] 返回读取的数据
-     * @param 读取的偏移
-     * @param 读取的长度
+     * Reading data from object storage
+     * @param object name
+     * @param[out] returns the read data
+     * @param read Offset read
+     * @param The read length read
      */
-    virtual int GetObject(const std::string &key, char *buf, off_t offset,
+    virtual int GetObject(const std::string& key, char* buf, off_t offset,
                           size_t len);  // NOLINT
 
     /**
-     * @brief 异步从对象存储读取数据
+     * @brief asynchronously reads data from object storage
      *
-     * @param context 异步上下文
+     * @param context asynchronous context
      */
     virtual void GetObjectAsync(std::shared_ptr<GetObjectAsyncContext> context);
     /**
-     * 删除对象
-     * @param 对象名
-     * @return: 0 删除成功/ -
+     * Delete Object
+     * @param object name
+     * @return: 0 successfully deleted/-
      */
-    virtual int DeleteObject(const Aws::String &key);
+    virtual int DeleteObject(const Aws::String& key);
 
-    virtual int DeleteObjects(const std::list<Aws::String> &keyList);
+    virtual int DeleteObjects(const std::list<Aws::String>& keyList);
     /**
-     * 判断对象是否存在
-     * @param 对象名
-     * @return: true 对象存在/ false 对象不存在
+     * Determine whether the object exists
+     * @param object name
+     * @return: true object exists/false object does not exist
      */
-    virtual bool ObjectExist(const Aws::String &key);
+    virtual bool ObjectExist(const Aws::String& key);
     /*
     // Update object meta content
-    // Todo 接口还有问题 need fix
+    // There are still issues with the Todo interface, need fix
     virtual int UpdateObjectMeta(const Aws::String &key,
                          const Aws::Map<Aws::String, Aws::String> &meta);
     // Get object meta content
@@ -314,51 +315,53 @@ class S3Adapter {
                       Aws::Map<Aws::String, Aws::String> *meta);
     */
     /**
-     * 初始化对象的分片上传任务
-     * @param 对象名
-     * @return 任务名
+     * Initialize the sharding upload task of the object
+     * @param object name
+     * @return Task Name
      */
-    virtual Aws::String MultiUploadInit(const Aws::String &key);
+    virtual Aws::String MultiUploadInit(const Aws::String& key);
     /**
-     * 增加一个分片到分片上传任务中
-     * @param 对象名
-     * @param 任务名
-     * @param 第几个分片（从1开始）
-     * @param 分片大小
-     * @param 分片的数据内容
-     * @return: 分片任务管理对象
+     * Add a shard to the shard upload task
+     * @param object name
+     * @param Task Name
+     * @param Which shard (starting from 1)
+     * @param shard size
+     * @param sharded data content
+     * @return: Fragmented task management object
      */
-    virtual Aws::S3::Model::CompletedPart
-    UploadOnePart(const Aws::String &key, const Aws::String &uploadId,
-                  int partNum, int partSize, const char *buf);
+    virtual Aws::S3::Model::CompletedPart UploadOnePart(
+        const Aws::String& key, const Aws::String& uploadId, int partNum,
+        int partSize, const char* buf);
     /**
-     * 完成分片上传任务
-     * @param 对象名
-     * @param 分片上传任务id
-     * @管理分片上传任务的vector
-     * @return 0 任务完成/ -1 任务失败
+     * Complete the shard upload task
+     * @param object name
+     * @param Partitioning Upload Task ID
+     * @param Manage vector for sharded upload tasks
+     * @return 0 task completed/-1 task failed
      */
-    virtual int
-    CompleteMultiUpload(const Aws::String &key, const Aws::String &uploadId,
-                        const Aws::Vector<Aws::S3::Model::CompletedPart> &cp_v);
+    virtual int CompleteMultiUpload(
+        const Aws::String& key, const Aws::String& uploadId,
+        const Aws::Vector<Aws::S3::Model::CompletedPart>& cp_v);
     /**
-     * 终止一个对象的分片上传任务
-     * @param 对象名
-     * @param 任务id
-     * @return 0 终止成功/ -1 终止失败
+     * Terminate the sharding upload task of an object
+     * @param object name
+     * @param Task ID
+     * @return 0 Terminated successfully/-1 Terminated failed
      */
-    virtual int AbortMultiUpload(const Aws::String &key,
-                                 const Aws::String &uploadId);
-    void SetBucketName(const Aws::String &name) { bucketName_ = name; }
+    virtual int AbortMultiUpload(const Aws::String& key,
+                                 const Aws::String& uploadId);
+    void SetBucketName(const Aws::String& name) { bucketName_ = name; }
     Aws::String GetBucketName() { return bucketName_; }
 
-    Aws::Client::ClientConfiguration *GetConfig() { return clientCfg_; }
+    Aws::Client::ClientConfiguration* GetConfig() { return clientCfg_; }
 
  private:
     class AsyncRequestInflightBytesThrottle {
      public:
         explicit AsyncRequestInflightBytesThrottle(uint64_t maxInflightBytes)
-            : maxInflightBytes_(maxInflightBytes), inflightBytes_(0), mtx_(),
+            : maxInflightBytes_(maxInflightBytes),
+              inflightBytes_(0),
+              mtx_(),
               cond_() {}
 
         void OnStart(uint64_t len);
@@ -373,19 +376,20 @@ class S3Adapter {
     };
 
  private:
-    // S3服务器地址
+    // S3 server address
     Aws::String s3Address_;
-    // 用于用户认证的AK/SK，需要从对象存储的用户管理中申请
+    // AK/SK for user authentication needs to be applied for from user
+    // management in object storage
     Aws::String s3Ak_;
     Aws::String s3Sk_;
-    // 对象的桶名
+    // The bucket name of the object
     Aws::String bucketName_;
-    // aws sdk的配置
-    Aws::Client::ClientConfiguration *clientCfg_;
-    Aws::S3::S3Client *s3Client_;
+    // Configuration of AWS SDK
+    Aws::Client::ClientConfiguration* clientCfg_;
+    Aws::S3::S3Client* s3Client_;
     Configuration conf_;
 
-    Throttle *throttle_;
+    Throttle* throttle_;
 
     std::unique_ptr<AsyncRequestInflightBytesThrottle> inflightBytesThrottle_;
 };
@@ -397,7 +401,7 @@ class FakeS3Adapter : public S3Adapter {
 
     bool BucketExist() override { return true; }
 
-    int PutObject(const Aws::String &key, const char *buffer,
+    int PutObject(const Aws::String& key, const char* buffer,
                   const size_t bufferSize) override {
         (void)key;
         (void)buffer;
@@ -405,20 +409,20 @@ class FakeS3Adapter : public S3Adapter {
         return 0;
     }
 
-    int PutObject(const Aws::String &key, const std::string &data) override {
+    int PutObject(const Aws::String& key, const std::string& data) override {
         (void)key;
         (void)data;
         return 0;
     }
 
-    void
-    PutObjectAsync(std::shared_ptr<PutObjectAsyncContext> context) override {
+    void PutObjectAsync(
+        std::shared_ptr<PutObjectAsyncContext> context) override {
         context->retCode = 0;
         context->timer.stop();
         context->cb(context);
     }
 
-    int GetObject(const Aws::String &key, std::string *data) override {
+    int GetObject(const Aws::String& key, std::string* data) override {
         (void)key;
         (void)data;
         // just return 4M data
@@ -426,7 +430,7 @@ class FakeS3Adapter : public S3Adapter {
         return 0;
     }
 
-    int GetObject(const std::string &key, char *buf, off_t offset,
+    int GetObject(const std::string& key, char* buf, off_t offset,
                   size_t len) override {
         (void)key;
         (void)offset;
@@ -435,29 +439,28 @@ class FakeS3Adapter : public S3Adapter {
         return 0;
     }
 
-    void
-    GetObjectAsync(std::shared_ptr<GetObjectAsyncContext> context) override {
+    void GetObjectAsync(
+        std::shared_ptr<GetObjectAsyncContext> context) override {
         memset(context->buf, '1', context->len);
         context->retCode = 0;
         context->cb(this, context);
     }
 
-    int DeleteObject(const Aws::String &key) override {
+    int DeleteObject(const Aws::String& key) override {
         (void)key;
         return 0;
     }
 
-    int DeleteObjects(const std::list<Aws::String> &keyList) override {
+    int DeleteObjects(const std::list<Aws::String>& keyList) override {
         (void)keyList;
         return 0;
     }
 
-    bool ObjectExist(const Aws::String &key) override {
+    bool ObjectExist(const Aws::String& key) override {
         (void)key;
         return true;
     }
 };
-
 
 }  // namespace common
 }  // namespace curve

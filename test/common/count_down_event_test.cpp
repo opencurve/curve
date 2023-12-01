@@ -20,13 +20,13 @@
  * Author: wudemiao
  */
 
+#include "src/common/concurrent/count_down_event.h"
+
 #include <gtest/gtest.h>
 
-#include <thread>   //NOLINT
 #include <atomic>
-#include <chrono>   //NOLINT
-
-#include "src/common/concurrent/count_down_event.h"
+#include <chrono>  //NOLINT
+#include <thread>  //NOLINT
 
 namespace curve {
 namespace common {
@@ -62,7 +62,7 @@ TEST(CountDownEventTest, basic) {
         };
 
         std::thread t1(func);
-        std::this_thread::sleep_for(std::chrono::milliseconds(3*sleepMs));
+        std::this_thread::sleep_for(std::chrono::milliseconds(3 * sleepMs));
         ASSERT_TRUE(isRun.load());
 
         t1.join();
@@ -89,8 +89,7 @@ TEST(CountDownEventTest, basic) {
         cond.WaitFor(1000);
     }
 
-
-    /* 1. initCnt==Signal次数 */
+    /* 1. InitCnt==Signal count */
     {
         std::atomic<int> signalCount;
         signalCount.store(0, std::memory_order_release);
@@ -111,13 +110,13 @@ TEST(CountDownEventTest, basic) {
         t1.join();
     }
 
-    /* 2. initCnt<Signal次数 */
+    /* 2. InitCnt<Signal count */
     {
         std::atomic<int> signalCount;
         signalCount.store(0, std::memory_order_release);
 
         const int kEventNum = 20;
-        const int kInitCnt  = kEventNum - 10;
+        const int kInitCnt = kEventNum - 10;
         CountDownEvent cond(kInitCnt);
         auto func = [&] {
             for (int i = 0; i < kEventNum; ++i) {
@@ -128,7 +127,7 @@ TEST(CountDownEventTest, basic) {
 
         std::thread t1(func);
 
-        /* 等到Signal次数>initCnt */
+        /* Wait until SignalCount>initCnt */
         while (true) {
             ::usleep(5);
             if (signalCount.load(std::memory_order_acquire) > kInitCnt) {
@@ -141,13 +140,13 @@ TEST(CountDownEventTest, basic) {
         t1.join();
     }
 
-    /* 3. initCnt>Signal次数 */
+    /* 3. initCnt>SignalCount */
     {
         std::atomic<int> signalCount;
         signalCount.store(0, std::memory_order_release);
 
         const int kEventNum = 10;
-        /* kSignalEvent1 + kSignalEvent2等于kEventNum */
+        /* kSignalEvent1 + kSignalEvent2 = kEventNum */
         const int kSignalEvent1 = kEventNum - 5;
         const int kSignalEvent2 = 5;
         CountDownEvent cond(kEventNum);
@@ -167,7 +166,8 @@ TEST(CountDownEventTest, basic) {
         };
         std::thread waitThread(waitFunc);
 
-        /* 由于t1 唤醒的次数不够，所以waitThread会阻塞在wait那里 */
+        /* Due to insufficient wake-up times for t1, waitThread will block at
+         * the wait location */
         ASSERT_EQ(false, passWait.load(std::memory_order_acquire));
 
         auto func2 = [&] {
@@ -176,7 +176,7 @@ TEST(CountDownEventTest, basic) {
                 cond.Signal();
             }
         };
-        /* 运行t2，补上不够的唤醒次数 */
+        /* Run t2 to make up for insufficient wake-up times */
         std::thread t2(func2);
 
         t1.join();
@@ -203,8 +203,9 @@ TEST(CountDownEventTest, basic) {
 
         std::chrono::duration<double, std::milli> elpased = end - start;
         std::cerr << "elapsed: " << elpased.count() << std::endl;
-        // 事件未到达，超时返回，可以容许在一定的误差
-        ASSERT_GT(static_cast<int>(elpased.count()), waitForMs-1000);
+        // The event did not arrive and returned after a timeout, allowing for a
+        // certain error
+        ASSERT_GT(static_cast<int>(elpased.count()), waitForMs - 1000);
 
         t1.join();
     }
@@ -226,7 +227,7 @@ TEST(CountDownEventTest, basic) {
 
         std::chrono::duration<double, std::milli> elpased = end - start;
         std::cerr << "elapsed: " << elpased.count() << std::endl;
-        // 事件达到，提前返回
+        // Event reached, return early
         ASSERT_GT(waitForMs, static_cast<int>(elpased.count()));
 
         t1.join();

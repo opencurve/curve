@@ -57,13 +57,13 @@ std::ostream& operator<<(std::ostream& os, const OpenFlags* flags) {
 }
 
 NebdFileEntity::NebdFileEntity()
-    : fd_(0)
-    , fileName_("")
-    , status_(NebdFileStatus::CLOSED)
-    , timeStamp_(0)
-    , fileInstance_(nullptr)
-    , executor_(nullptr)
-    , metaFileManager_(nullptr) {}
+    : fd_(0),
+      fileName_(""),
+      status_(NebdFileStatus::CLOSED),
+      timeStamp_(0),
+      fileInstance_(nullptr),
+      executor_(nullptr),
+      metaFileManager_(nullptr) {}
 
 NebdFileEntity::~NebdFileEntity() {}
 
@@ -117,8 +117,7 @@ int NebdFileEntity::Open(const OpenFlags* openflags) {
         return -1;
     }
     LOG(INFO) << "Open file success. "
-              << "fd: " << fd_
-              << ", filename: " << fileName_;
+              << "fd: " << fd_ << ", filename: " << fileName_;
 
     if (openflags) {
         openFlags_.reset(new OpenFlags{*openflags});
@@ -157,26 +156,28 @@ int NebdFileEntity::Reopen(const ExtendAttribute& xattr) {
     }
 
     LOG(INFO) << "Reopen file success. "
-              << "fd: " << fd_
-              << ", filename: " << fileName_;
+              << "fd: " << fd_ << ", filename: " << fileName_;
     return fd_;
 }
 
 int NebdFileEntity::Close(bool removeMeta) {
     CHECK(executor_ != nullptr) << "file entity is not inited. "
                                 << "filename: " << fileName_;
-    // 用于和其他用户请求互斥，避免文件被close后，请求发到后端导致返回失败
+    // This is used to prevent conflicts with other user requests to ensure that
+    // a file is not closed, and requests sent to the backend after the file has
+    // been closed result in failures.
     WriteLockGuard writeLock(rwLock_);
-    // 这里的互斥锁是为了跟open请求互斥，以下情况可能导致close和open并发
-    // part2重启，导致文件被reopen，然后由于超时，文件准备被close
-    // 此时用户发送了挂载卷请求对文件进行open
+    // The mutex lock here is to prevent conflicts with open requests. The
+    // following scenarios may lead to concurrent close and open operations:
+    // part2 restarts, causing the file to be reopened. Due to a timeout, the
+    // file is about to be closed. At this point, a user sends a request to
+    // mount a volume, which involves opening the file.
     std::unique_lock<bthread::Mutex> lock(fileStatusMtx_);
     if (status_ == NebdFileStatus::OPENED) {
         int ret = executor_->Close(fileInstance_.get());
         if (ret < 0) {
             LOG(ERROR) << "Close file failed. "
-                       << "fd: " << fd_
-                       << ", filename: " << fileName_;
+                       << "fd: " << fd_ << ", filename: " << fileName_;
             return -1;
         }
         status_ = NebdFileStatus::CLOSED;
@@ -186,15 +187,13 @@ int NebdFileEntity::Close(bool removeMeta) {
         int ret = metaFileManager_->RemoveFileMeta(fileName_);
         if (ret != 0) {
             LOG(ERROR) << "Remove file record failed. "
-                    << "fd: " << fd_
-                    << ", filename: " << fileName_;
+                       << "fd: " << fd_ << ", filename: " << fileName_;
             return -1;
         }
         status_ = NebdFileStatus::DESTROYED;
     }
     LOG(INFO) << "Close file success. "
-              << "fd: " << fd_
-              << ", filename: " << fileName_
+              << "fd: " << fd_ << ", filename: " << fileName_
               << ", meta removed? " << (removeMeta ? "yes" : "no");
     return 0;
 }
@@ -204,8 +203,7 @@ int NebdFileEntity::Discard(NebdServerAioContext* aioctx) {
         int ret = executor_->Discard(fileInstance_.get(), aioctx);
         if (ret < 0) {
             LOG(ERROR) << "Discard file failed. "
-                       << "fd: " << fd_
-                       << ", fileName: " << fileName_
+                       << "fd: " << fd_ << ", fileName: " << fileName_
                        << ", context: " << *aioctx;
             return -1;
         }
@@ -219,8 +217,7 @@ int NebdFileEntity::AioRead(NebdServerAioContext* aioctx) {
         int ret = executor_->AioRead(fileInstance_.get(), aioctx);
         if (ret < 0) {
             LOG(ERROR) << "AioRead file failed. "
-                       << "fd: " << fd_
-                       << ", fileName: " << fileName_
+                       << "fd: " << fd_ << ", fileName: " << fileName_
                        << ", context: " << *aioctx;
             return -1;
         }
@@ -234,8 +231,7 @@ int NebdFileEntity::AioWrite(NebdServerAioContext* aioctx) {
         int ret = executor_->AioWrite(fileInstance_.get(), aioctx);
         if (ret < 0) {
             LOG(ERROR) << "AioWrite file failed. "
-                       << "fd: " << fd_
-                       << ", fileName: " << fileName_
+                       << "fd: " << fd_ << ", fileName: " << fileName_
                        << ", context: " << *aioctx;
             return -1;
         }
@@ -249,8 +245,7 @@ int NebdFileEntity::Flush(NebdServerAioContext* aioctx) {
         int ret = executor_->Flush(fileInstance_.get(), aioctx);
         if (ret < 0) {
             LOG(ERROR) << "Flush file failed. "
-                       << "fd: " << fd_
-                       << ", fileName: " << fileName_
+                       << "fd: " << fd_ << ", fileName: " << fileName_
                        << ", context: " << *aioctx;
             return -1;
         }
@@ -264,8 +259,7 @@ int NebdFileEntity::Extend(int64_t newsize) {
         int ret = executor_->Extend(fileInstance_.get(), newsize);
         if (ret < 0) {
             LOG(ERROR) << "Extend file failed. "
-                       << "fd: " << fd_
-                       << ", newsize: " << newsize
+                       << "fd: " << fd_ << ", newsize: " << newsize
                        << ", fileName" << fileName_;
             return -1;
         }
@@ -279,8 +273,7 @@ int NebdFileEntity::GetInfo(NebdFileInfo* fileInfo) {
         int ret = executor_->GetInfo(fileInstance_.get(), fileInfo);
         if (ret < 0) {
             LOG(ERROR) << "Get file info failed. "
-                       << "fd: " << fd_
-                       << ", fileName" << fileName_;
+                       << "fd: " << fd_ << ", fileName" << fileName_;
             return -1;
         }
         return 0;
@@ -293,8 +286,7 @@ int NebdFileEntity::InvalidCache() {
         int ret = executor_->InvalidCache(fileInstance_.get());
         if (ret < 0) {
             LOG(ERROR) << "Invalid cache failed. "
-                       << "fd: " << fd_
-                       << ", fileName" << fileName_;
+                       << "fd: " << fd_ << ", fileName" << fileName_;
             return -1;
         }
         return 0;
@@ -318,8 +310,7 @@ int NebdFileEntity::ProcessSyncRequest(ProcessTask task) {
     int ret = task();
     if (ret < 0) {
         LOG(ERROR) << "Process sync request failed. "
-                   << "fd: " << fd_
-                   << ", fileName" << fileName_;
+                   << "fd: " << fd_ << ", fileName" << fileName_;
         return -1;
     }
     return 0;
@@ -340,18 +331,19 @@ int NebdFileEntity::ProcessAsyncRequest(ProcessTask task,
         return -1;
     }
 
-    // 对于异步请求，将此closure传给aiocontext，从而在请求返回时释放读锁
+    // For asynchronous requests, pass this closure to aiocontext to release the
+    // read lock when the request returns
     done->SetClosure(aioctx->done);
     aioctx->done = doneGuard.release();
     int ret = task();
     if (ret < 0) {
-        // 如果请求失败,这里要主动释放锁,并将aiocontext还原回去
+        // If the request fails, the lock should be actively released here and
+        // the aiocontext should be restored back
         brpc::ClosureGuard doneGuard(done);
         aioctx->done = done->GetClosure();
         done->SetClosure(nullptr);
         LOG(ERROR) << "Process async request failed. "
-                   << "fd: " << fd_
-                   << ", fileName" << fileName_;
+                   << "fd: " << fd_ << ", fileName" << fileName_;
         return -1;
     }
     return 0;
@@ -381,11 +373,11 @@ int NebdFileEntity::UpdateFileStatus(NebdFileInstancePtr fileInstance) {
 }
 
 bool NebdFileEntity::GuaranteeFileOpened() {
-    // 文件如果已经被用户close了，就不允许后面请求再自动打开进行操作了
+    // If the file has already been closed by the user, subsequent requests for
+    // automatic opening for operation are not allowed
     if (status_ == NebdFileStatus::DESTROYED) {
         LOG(ERROR) << "File has been destroyed. "
-                   << "filename: " << fileName_
-                   << ", fd: " << fd_;
+                   << "filename: " << fileName_ << ", fd: " << fd_;
         return false;
     }
 
@@ -393,8 +385,7 @@ bool NebdFileEntity::GuaranteeFileOpened() {
         int ret = Open(openFlags_.get());
         if (ret != fd_) {
             LOG(ERROR) << "Get opened file failed. "
-                       << "filename: " << fileName_
-                       << ", fd: " << fd_
+                       << "filename: " << fileName_ << ", fd: " << fd_
                        << ", ret: " << ret;
             return false;
         }
@@ -404,8 +395,8 @@ bool NebdFileEntity::GuaranteeFileOpened() {
 
 std::ostream& operator<<(std::ostream& os, const NebdFileEntity& entity) {
     std::string standardTime;
-    TimeUtility::TimeStampToStandard(
-        entity.GetFileTimeStamp() / 1000, &standardTime);
+    TimeUtility::TimeStampToStandard(entity.GetFileTimeStamp() / 1000,
+                                     &standardTime);
     os << "[filename: " << entity.GetFileName() << ", fd: " << entity.GetFd()
        << ", status: " << NebdFileStatus2Str(entity.GetFileStatus())
        << ", timestamp: " << standardTime << "]";

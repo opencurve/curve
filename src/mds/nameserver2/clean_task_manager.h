@@ -22,20 +22,21 @@
 #ifndef SRC_MDS_NAMESERVER2_CLEAN_TASK_MANAGER_H_
 #define SRC_MDS_NAMESERVER2_CLEAN_TASK_MANAGER_H_
 
-#include <unordered_map>
-#include <thread> //NOLINT
-#include <mutex>  //NOLINT
 #include <memory>
+#include <mutex>   //NOLINT
+#include <thread>  //NOLINT
+#include <unordered_map>
+
+#include "src/common/channel_pool.h"
+#include "src/common/concurrent/concurrent.h"
 #include "src/common/concurrent/task_thread_pool.h"
 #include "src/common/interruptible_sleeper.h"
-#include "src/common/concurrent/concurrent.h"
-#include "src/common/channel_pool.h"
 #include "src/mds/common/mds_define.h"
 #include "src/mds/nameserver2/clean_task.h"
 
 using ::curve::common::Atomic;
-using ::curve::common::InterruptibleSleeper;
 using ::curve::common::ChannelPool;
+using ::curve::common::InterruptibleSleeper;
 
 namespace curve {
 namespace mds {
@@ -43,40 +44,40 @@ namespace mds {
 class CleanTaskManager {
  public:
     /**
-     *  @brief 初始化TaskManager
-     *  @param channelPool: 连接池
-     *  @param threadNum: worker线程的数量
-     *  @param checkPeriod: 周期性任务检查线程时间, ms
+     * @brief Initialize TaskManager
+     * @param channelPool: Connection Pool
+     * @param threadNum: Number of worker threads
+     * @param checkPeriod: Periodic task check thread time, ms
      */
     explicit CleanTaskManager(std::shared_ptr<ChannelPool> channelPool,
                               int threadNum = 10, int checkPeriod = 10000);
-    ~CleanTaskManager() {
-        Stop();
-    }
+    ~CleanTaskManager() { Stop(); }
 
     /**
-     * @brief 启动worker线程池、启动检查线程
+     * @brief: Start worker thread pool, start check thread
      *
      */
     bool Start(void);
 
     /**
-     * @brief 停止worker线程池、启动检查线程
+     * @brief: Stop worker thread pool, start check thread
      *
      */
     bool Stop(void);
 
     /**
-     *  @brief 向线程池推送task
-     *  @param task: 对应的工作任务
-     *  @return 推送task是否成功，如已存在对应的任务，推送是吧
+     * @brief Push task to thread pool
+     * @param task: corresponding work task
+     * @return: Is the task successfully pushed? If a corresponding task already
+     * exists, is it pushed
      */
     bool PushTask(std::shared_ptr<Task> task);
 
     /**
-     * @brief 获取当前的task
-     * @param id: 对应任务的相关文件InodeID
-     * @return 返回对应task的shared_ptr 或者 不存在返回nullptr
+     * @brief Get the current task
+     * @param id: The relevant file InodeID of the corresponding task
+     * @return returns the shared_ptr of the corresponding task or return
+     * nullptr if it does not exist
      */
     std::shared_ptr<Task> GetTask(TaskIDType id);
 
@@ -85,20 +86,21 @@ class CleanTaskManager {
 
  private:
     int threadNum_;
-    ::curve::common::TaskThreadPool<> *cleanWorkers_;
+    ::curve::common::TaskThreadPool<>* cleanWorkers_;
     // for period check snapshot delete status
     std::unordered_map<TaskIDType, std::shared_ptr<Task>> cleanTasks_;
     common::Mutex mutex_;
-    common::Thread *checkThread_;
+    common::Thread* checkThread_;
     int checkPeriod_;
 
     Atomic<bool> stopFlag_;
     InterruptibleSleeper sleeper_;
-    // 连接池，和chunkserverClient共享，没有任务在执行时清空
+    // Connection pool, shared with chunkserverClient, no tasks cleared during
+    // execution
     std::shared_ptr<ChannelPool> channelPool_;
 };
 
-}   //  namespace mds
-}   //  namespace curve
+}  //  namespace mds
+}  //  namespace curve
 
 #endif  // SRC_MDS_NAMESERVER2_CLEAN_TASK_MANAGER_H_

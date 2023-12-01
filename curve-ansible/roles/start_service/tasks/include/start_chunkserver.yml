@@ -27,7 +27,7 @@
   poll: "{{ service_poll }}"
   failed_when: start_chunkserver_res.rc != 0 or "down" in start_chunkserver_res.stdout
 
-# 打印控制台输出
+# Print Console Output
 - name: print console output
   debug:
     var: start_chunkserver_res.stdout_lines

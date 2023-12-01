@@ -23,12 +23,13 @@
 #ifndef SRC_CLIENT_IO_CONDITION_VARAIABLE_H_
 #define SRC_CLIENT_IO_CONDITION_VARAIABLE_H_
 
-#include <condition_variable>   //NOLINT
-#include <mutex>    //NOLINT
+#include <condition_variable>  //NOLINT
+#include <mutex>               //NOLINT
 
 namespace curve {
 namespace client {
-// IOConditionVariable是用户同步IO场景下IO等待条件变量
+// IOConditionVariable is the IO waiting condition variable in the user
+// synchronous IO scenario
 class IOConditionVariable {
  public:
     IOConditionVariable() : retCode_(-1), done_(false), mtx_(), cv_() {}
@@ -36,9 +37,10 @@ class IOConditionVariable {
     ~IOConditionVariable() = default;
 
     /**
-     * 条件变量唤醒函数，因为底层的RPC request是异步的，所以用户下发同步IO的时候需要
-     * 在发送读写请求的时候暂停等待IO返回。
-     * @param: retcode是当前IO的返回值
+     * Condition variable wakeup function. Since the underlying RPC requests are
+     * asynchronous, when users initiate synchronous IO, they need to pause and
+     * wait for the IO to return while sending read/write requests.
+     * @param: retcode is the return value of the current IO.
      */
     void Complete(int retcode) {
         std::unique_lock<std::mutex> lk(mtx_);
@@ -48,7 +50,8 @@ class IOConditionVariable {
     }
 
     /**
-     * 是用户IO需要等待时候调用的函数，这个函数会在Complete被调用的时候返回
+     * This is a function called when user IO needs to wait, and this function
+     * will return when Complete is called
      */
     int Wait() {
         std::unique_lock<std::mutex> lk(mtx_);
@@ -58,20 +61,20 @@ class IOConditionVariable {
     }
 
  private:
-    // 当前IO的返回值
-    int     retCode_;
+    // The return value of the current IO
+    int retCode_;
 
-    // 当前IO是否完成
-    bool    done_;
+    // Is the current IO completed
+    bool done_;
 
-    // 条件变量使用的锁
-    std::mutex  mtx_;
+    // Locks used by conditional variables
+    std::mutex mtx_;
 
-    // 条件变量用于等待
+    // Condition variable used for waiting
     std::condition_variable cv_;
 };
 
-}   // namespace client
-}   // namespace curve
+}  // namespace client
+}  // namespace curve
 
 #endif  // SRC_CLIENT_IO_CONDITION_VARAIABLE_H_

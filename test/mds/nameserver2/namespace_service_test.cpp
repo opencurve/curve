@@ -19,40 +19,42 @@
  * Created Date: Wednesday September 26th 2018
  * Author: hzsunjianliang
  */
-#include <unistd.h>
-#include <glog/logging.h>
-#include <gtest/gtest.h>
+#include "src/mds/nameserver2/namespace_service.h"
+
 #include <brpc/channel.h>
 #include <brpc/server.h>
-#include "src/mds/nameserver2/namespace_service.h"
-#include "src/mds/nameserver2/curvefs.h"
-#include "src/mds/nameserver2/chunk_allocator.h"
-#include "src/common/timeutility.h"
+#include <glog/logging.h>
+#include <gtest/gtest.h>
+#include <unistd.h>
+
+#include "src/common/authenticator.h"
 #include "src/common/configuration.h"
 #include "src/common/string_util.h"
-#include "test/mds/nameserver2/fakes.h"
-#include "test/mds/nameserver2/mock/mock_clean_manager.h"
-#include "test/mds/nameserver2/mock/mock_chunk_allocate.h"
-#include "src/mds/nameserver2/clean_manager.h"
-#include "src/mds/nameserver2/clean_core.h"
-#include "src/mds/nameserver2/clean_task_manager.h"
-#include "src/common/authenticator.h"
-#include "test/mds/mock/mock_topology.h"
-#include "test/mds/mock/mock_chunkserver.h"
+#include "src/common/timeutility.h"
 #include "src/mds/chunkserverclient/copyset_client.h"
+#include "src/mds/nameserver2/chunk_allocator.h"
+#include "src/mds/nameserver2/clean_core.h"
+#include "src/mds/nameserver2/clean_manager.h"
+#include "src/mds/nameserver2/clean_task_manager.h"
+#include "src/mds/nameserver2/curvefs.h"
 #include "test/mds/mock/mock_alloc_statistic.h"
+#include "test/mds/mock/mock_chunkserver.h"
+#include "test/mds/mock/mock_topology.h"
+#include "test/mds/nameserver2/fakes.h"
+#include "test/mds/nameserver2/mock/mock_chunk_allocate.h"
+#include "test/mds/nameserver2/mock/mock_clean_manager.h"
 
-using curve::common::TimeUtility;
 using curve::common::Authenticator;
-using curve::mds::topology::MockTopology;
+using curve::common::TimeUtility;
 using ::curve::mds::chunkserverclient::ChunkServerClientOption;
+using curve::mds::topology::MockTopology;
 using ::testing::_;
-using ::testing::Return;
 using ::testing::AtLeast;
-using ::testing::SetArgPointee;
 using ::testing::DoAll;
 using ::testing::Invoke;
 using ::testing::Matcher;
+using ::testing::Return;
+using ::testing::SetArgPointee;
 
 namespace curve {
 namespace mds {
@@ -74,34 +76,33 @@ class NameSpaceServiceTest : public ::testing::Test {
  protected:
     void SetUp() override {
         // init the kcurvefs, use the fake element
-        storage_ =  std::make_shared<FakeNameServerStorage>();
+        storage_ = std::make_shared<FakeNameServerStorage>();
         inodeGenerator_ = std::make_shared<FakeInodeIDGenerator>(0);
 
         topology_ = std::make_shared<MockTopology>();
         ChunkServerClientOption option;
         auto channelPool = std::make_shared<ChannelPool>();
-        auto client = std::make_shared<CopysetClient>(topology_,
-                                                        option, channelPool);
+        auto client =
+            std::make_shared<CopysetClient>(topology_, option, channelPool);
         allocStatistic_ = std::make_shared<MockAllocStatistic>();
-        cleanCore_ = std::make_shared<CleanCore>(
-            storage_, client, allocStatistic_);
+        cleanCore_ =
+            std::make_shared<CleanCore>(storage_, client, allocStatistic_);
 
         // new taskmanger for 2 worker thread, and check thread period 2 second
-        cleanTaskManager_ = std::make_shared<CleanTaskManager>(channelPool,
-                                                                    2, 2000);
+        cleanTaskManager_ =
+            std::make_shared<CleanTaskManager>(channelPool, 2, 2000);
 
-        cleanManager_ = std::make_shared<CleanManager>(cleanCore_,
-                cleanTaskManager_, storage_);
+        cleanManager_ = std::make_shared<CleanManager>(
+            cleanCore_, cleanTaskManager_, storage_);
 
         ASSERT_EQ(cleanManager_->Start(), true);
 
         std::shared_ptr<FackTopologyChunkAllocator> topologyChunkAllocator =
-                                std::make_shared<FackTopologyChunkAllocator>();
+            std::make_shared<FackTopologyChunkAllocator>();
         std::shared_ptr<FackChunkIDGenerator> chunkIdGenerator =
-                            std::make_shared<FackChunkIDGenerator>();
-        chunkSegmentAllocate_ =
-                std::make_shared<ChunkSegmentAllocatorImpl>(
-                        topologyChunkAllocator, chunkIdGenerator);
+            std::make_shared<FackChunkIDGenerator>();
+        chunkSegmentAllocate_ = std::make_shared<ChunkSegmentAllocatorImpl>(
+            topologyChunkAllocator, chunkIdGenerator);
 
         fileRecordManager_ = std::make_shared<FileRecordManager>();
         fileRecordOptions.fileRecordExpiredTimeUs = 5 * 1000;
@@ -118,16 +119,13 @@ class NameSpaceServiceTest : public ::testing::Test {
         curveFSOptions.authOptions = authOptions;
 
         kCurveFS.Init(storage_, inodeGenerator_, chunkSegmentAllocate_,
-                        cleanManager_,
-                        fileRecordManager_,
-                        allocStatistic_,
-                        curveFSOptions, topology_,
-                        nullptr);
+                      cleanManager_, fileRecordManager_, allocStatistic_,
+                      curveFSOptions, topology_, nullptr);
 
         ASSERT_EQ(curveFSOptions.defaultChunkSize,
-                       kCurveFS.GetDefaultChunkSize());
+                  kCurveFS.GetDefaultChunkSize());
         ASSERT_EQ(curveFSOptions.defaultSegmentSize,
-                       kCurveFS.GetDefaultSegmentSize());
+                  kCurveFS.GetDefaultSegmentSize());
         ASSERT_EQ(curveFSOptions.minFileLength, kCurveFS.GetMinFileLength());
         ASSERT_EQ(curveFSOptions.maxFileLength, kCurveFS.GetMaxFileLength());
         DefaultSegmentSize = kCurveFS.GetDefaultSegmentSize();
@@ -150,7 +148,7 @@ class NameSpaceServiceTest : public ::testing::Test {
         }
     }
 
-    template<typename T>
+    template <typename T>
     void SetRequestAuth(T* request, RequestOption option) {
         uint64_t date = TimeUtility::GetTimeofDayUs();
         request->set_date(date);
@@ -173,18 +171,16 @@ class NameSpaceServiceTest : public ::testing::Test {
 
         uint64_t time;
         auto n = items.size();
-        if (n <= 2 || !::curve::common::StringToUll(items[n - 1], &time)
-            || time < dtime || time - dtime > 1) {
+        if (n <= 2 || !::curve::common::StringToUll(items[n - 1], &time) ||
+            time < dtime || time - dtime > 1) {
             LOG(INFO) << "unexpected filename: " << filename
-                      << ", dtime: " << dtime
-                      << ", time in file: " << time;
+                      << ", dtime: " << dtime << ", time in file: " << time;
             return false;
         }
         return true;
     }
 
-    bool DeleteFile(const std::string& filename,
-                    RequestOption option,
+    bool DeleteFile(const std::string& filename, RequestOption option,
                     DeleteFileResponse* response) {
         brpc::Controller cntl;
         DeleteFileRequest request;
@@ -201,8 +197,7 @@ class NameSpaceServiceTest : public ::testing::Test {
         return true;
     }
 
-    bool GetFileInfo(const std::string& filename,
-                     RequestOption option,
+    bool GetFileInfo(const std::string& filename, RequestOption option,
                      GetFileInfoResponse* response) {
         brpc::Controller cntl;
         GetFileInfoRequest request;
@@ -218,8 +213,7 @@ class NameSpaceServiceTest : public ::testing::Test {
         return true;
     }
 
-    bool ListDir(const std::string& dirname,
-                 RequestOption option,
+    bool ListDir(const std::string& dirname, RequestOption option,
                  ListDirResponse* response) {
         brpc::Controller cntl;
         ListDirRequest request;
@@ -260,8 +254,9 @@ TEST_F(NameSpaceServiceTest, test1) {
 
     // start server
     NameSpaceService namespaceService(new FileLockManager(8));
-    ASSERT_EQ(server.AddService(&namespaceService,
-            brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(
+        server.AddService(&namespaceService, brpc::SERVER_DOESNT_OWN_SERVICE),
+        0);
 
     brpc::ServerOptions option;
     option.idle_timeout_sec = -1;
@@ -272,7 +267,6 @@ TEST_F(NameSpaceServiceTest, test1) {
     ASSERT_EQ(channel.Init(server.listen_address(), nullptr), 0);
 
     CurveFSService_Stub stub(&channel);
-
 
     // test CreateFile
     // create /file1(owner1) , /file2(owner2), /dir/file3(owner3)
@@ -285,7 +279,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     brpc::Controller cntl;
     uint64_t fileLength = kMiniFileLength;
 
-    // 创建file1,owner1
+    // Create file1, owner1
     request.set_filename("/file1");
     request.set_owner("owner1");
     request.set_date(TimeUtility::GetTimeofDayUs());
@@ -347,7 +341,7 @@ TEST_F(NameSpaceServiceTest, test1) {
         FAIL();
     }
 
-    // 在一个不存在的目录下创建文件，会失败 kFileNotExists
+    // Creating a file in a non-existent directory will fail kFileNotExists
     cntl.Reset();
     request.set_filename("/dir4/file4");
     request.set_owner("owner4");
@@ -363,7 +357,7 @@ TEST_F(NameSpaceServiceTest, test1) {
         FAIL();
     }
 
-    // 在一个文件下创建文件，会失败 kNotDirectory
+    // Creating a file under one file will fail kNotDirectory
     cntl.Reset();
     request.set_filename("/file2/file4");
     request.set_owner("owner2");
@@ -379,7 +373,7 @@ TEST_F(NameSpaceServiceTest, test1) {
         FAIL();
     }
 
-    // 如果创建一个已经存在的文件，会创建失败kFileExists
+    // If you create an existing file, it will fail to create kFileExists
     cntl.Reset();
     request.set_filename("/file2");
     request.set_poolset("");
@@ -396,7 +390,7 @@ TEST_F(NameSpaceServiceTest, test1) {
         FAIL();
     }
 
-    // 如果创建一个已经存在的目录，会创建失败kFileExists
+    // If you create an existing directory, it will fail to create kFileExist
     cntl.Reset();
     request.set_filename("/dir");
     request.set_owner("owner3");
@@ -412,7 +406,7 @@ TEST_F(NameSpaceServiceTest, test1) {
         FAIL();
     }
 
-    // 创建其他类型文件，返回kNotSupported
+    // Create other types of files and return kNotSupported
     cntl.Reset();
     request.set_filename("/file4");
     request.set_owner("owner4");
@@ -457,7 +451,7 @@ TEST_F(NameSpaceServiceTest, test1) {
         FAIL();
     }
 
-    // 创建文件名不规范的文件会失败
+    // Creating files with non-standard file names will fail
     cntl.Reset();
     request.set_filename("/file4/");
     request.set_owner("owner4");
@@ -515,10 +509,10 @@ TEST_F(NameSpaceServiceTest, test1) {
 
         cntl.Reset();
         uint64_t date = TimeUtility::GetTimeofDayUs();
-        std::string str2sig = Authenticator::GetString2Signature(date,
-                                                authOptions.rootOwner);
-        std::string sig = Authenticator::CalcString2Signature(str2sig,
-                                                authOptions.rootPassword);
+        std::string str2sig =
+            Authenticator::GetString2Signature(date, authOptions.rootOwner);
+        std::string sig = Authenticator::CalcString2Signature(
+            str2sig, authOptions.rootPassword);
         listRequest.set_signature(sig);
         listRequest.set_filename("/");
         listRequest.set_owner(authOptions.rootOwner);
@@ -527,7 +521,7 @@ TEST_F(NameSpaceServiceTest, test1) {
         if (!cntl.Failed()) {
             ASSERT_EQ(listResponse.statuscode(), StatusCode::kOK);
             ASSERT_EQ(listResponse.fileinfo_size(), 4);
-         } else {
+        } else {
             ASSERT_TRUE(false);
         }
     }
@@ -559,7 +553,7 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_EQ(response1.fileinfo().parentid(), 0);
         ASSERT_EQ(response1.fileinfo().filetype(), INODE_PAGEFILE);
         ASSERT_EQ(response1.fileinfo().chunksize(),
-                            curveFSOptions.defaultChunkSize);
+                  curveFSOptions.defaultChunkSize);
         ASSERT_EQ(response1.fileinfo().segmentsize(), DefaultSegmentSize);
         ASSERT_EQ(response1.fileinfo().length(), fileLength);
     } else {
@@ -567,7 +561,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     }
 
     // test GetOrAllocateSegment
-    // 为file1分配空间
+    // Allocate space for file1
     cntl.Reset();
     GetOrAllocateSegmentRequest request2;
     GetOrAllocateSegmentResponse response2;
@@ -606,13 +600,13 @@ TEST_F(NameSpaceServiceTest, test1) {
     if (!cntl.Failed()) {
         ASSERT_EQ(response2.statuscode(), StatusCode::kOK);
         ASSERT_EQ(response2.pagefilesegment().segmentsize(),
-            response1.fileinfo().segmentsize());
+                  response1.fileinfo().segmentsize());
         ASSERT_EQ(response2.pagefilesegment().chunksize(),
-            response1.fileinfo().chunksize());
+                  response1.fileinfo().chunksize());
         ASSERT_EQ(response2.pagefilesegment().startoffset(), request2.offset());
 
-        int chunkNumber = response2.pagefilesegment().segmentsize()/
-                            response2.pagefilesegment().chunksize();
+        int chunkNumber = response2.pagefilesegment().segmentsize() /
+                          response2.pagefilesegment().chunksize();
 
         ASSERT_EQ(response2.pagefilesegment().chunks().size(), chunkNumber);
     } else {
@@ -631,7 +625,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     if (!cntl.Failed()) {
         ASSERT_EQ(response3.statuscode(), StatusCode::kOK);
         ASSERT_EQ(response3.pagefilesegment().SerializeAsString(),
-            response2.pagefilesegment().SerializeAsString());
+                  response2.pagefilesegment().SerializeAsString());
     } else {
         ASSERT_TRUE(false);
     }
@@ -682,8 +676,8 @@ TEST_F(NameSpaceServiceTest, test1) {
 
     // test change owner
     {
-        // 当前有文件 /file1(owner1) , /file2(owner2), /dir/file3(owner3)
-        // changeowner success
+        // There are currently /file1(owner1) , /file2(owner2),
+        // /dir/file3(owner3) changeowner success
         cntl.Reset();
         ChangeOwnerRequest request;
         ChangeOwnerResponse response;
@@ -694,10 +688,10 @@ TEST_F(NameSpaceServiceTest, test1) {
         request.set_filename("/file1");
         request.set_newowner("newowner1");
         date = TimeUtility::GetTimeofDayUs();
-        str2sig = Authenticator::GetString2Signature(date,
-                                                    authOptions.rootOwner);
+        str2sig =
+            Authenticator::GetString2Signature(date, authOptions.rootOwner);
         sig = Authenticator::CalcString2Signature(str2sig,
-                                                    authOptions.rootPassword);
+                                                  authOptions.rootPassword);
         request.set_rootowner(authOptions.rootOwner);
         request.set_signature(sig);
         request.set_date(date);
@@ -713,10 +707,10 @@ TEST_F(NameSpaceServiceTest, test1) {
         request.set_filename("/file1");
         request.set_newowner("newowner1");
         date = TimeUtility::GetTimeofDayUs();
-        str2sig = Authenticator::GetString2Signature(date,
-                                                    authOptions.rootOwner);
+        str2sig =
+            Authenticator::GetString2Signature(date, authOptions.rootOwner);
         sig = Authenticator::CalcString2Signature(str2sig,
-                                                    authOptions.rootPassword);
+                                                  authOptions.rootPassword);
         request.set_rootowner(authOptions.rootOwner);
         request.set_signature(sig);
         request.set_date(date);
@@ -732,10 +726,10 @@ TEST_F(NameSpaceServiceTest, test1) {
         request.set_filename("/file1");
         request.set_newowner("owner1");
         date = TimeUtility::GetTimeofDayUs();
-        str2sig = Authenticator::GetString2Signature(date,
-                                                    authOptions.rootOwner);
+        str2sig =
+            Authenticator::GetString2Signature(date, authOptions.rootOwner);
         sig = Authenticator::CalcString2Signature(str2sig,
-                                                    authOptions.rootPassword);
+                                                  authOptions.rootPassword);
         request.set_rootowner("newowner1");
         request.set_signature(sig);
         request.set_date(date);
@@ -766,10 +760,10 @@ TEST_F(NameSpaceServiceTest, test1) {
         request.set_filename("/file1");
         request.set_newowner("owner1");
         date = TimeUtility::GetTimeofDayUs();
-        str2sig = Authenticator::GetString2Signature(date,
-                                                    authOptions.rootOwner);
+        str2sig =
+            Authenticator::GetString2Signature(date, authOptions.rootOwner);
         sig = Authenticator::CalcString2Signature(str2sig,
-                                                    authOptions.rootPassword);
+                                                  authOptions.rootPassword);
         request.set_rootowner(authOptions.rootOwner);
         request.set_signature(sig);
         request.set_date(date + kStaledRequestTimeIntervalUs * 2);
@@ -785,10 +779,10 @@ TEST_F(NameSpaceServiceTest, test1) {
         request.set_filename("/file1");
         request.set_newowner("owner1");
         date = TimeUtility::GetTimeofDayUs();
-        str2sig = Authenticator::GetString2Signature(date,
-                                                    authOptions.rootOwner);
+        str2sig =
+            Authenticator::GetString2Signature(date, authOptions.rootOwner);
         sig = Authenticator::CalcString2Signature(str2sig,
-                                                    authOptions.rootPassword);
+                                                  authOptions.rootPassword);
         request.set_rootowner(authOptions.rootOwner);
         request.set_signature(sig);
         request.set_date(date);
@@ -799,15 +793,15 @@ TEST_F(NameSpaceServiceTest, test1) {
             ASSERT_TRUE(false);
         }
 
-        // changeowner 文件名不规范，失败
+        // changeowner file name is not standardized, failed
         cntl.Reset();
         request.set_filename("/file1/");
         request.set_newowner("owner1");
         date = TimeUtility::GetTimeofDayUs();
-        str2sig = Authenticator::GetString2Signature(date,
-                                                    authOptions.rootOwner);
+        str2sig =
+            Authenticator::GetString2Signature(date, authOptions.rootOwner);
         sig = Authenticator::CalcString2Signature(str2sig,
-                                                    authOptions.rootPassword);
+                                                  authOptions.rootPassword);
         request.set_rootowner(authOptions.rootOwner);
         request.set_signature(sig);
         request.set_date(date);
@@ -820,12 +814,12 @@ TEST_F(NameSpaceServiceTest, test1) {
     }
 
     // test RenameFile
-    // 重命名到根目录下，非root owner，失败
-    // fileinfoid不匹配，失败
-    // 重命名成功 /dir/file3 -> /dir/file4
-    // 原文件不存在，重命名失败
-    // 重命名到根目录下，root owner，成功 /dir/file4 -> /file4
-    // 文件名不规范，失败
+    // Renaming to root directory, not root owner, failed
+    // fileinfoid mismatch, failed
+    // Rename successful  /dir/file3 -> /dir/file4
+    // The original file does not exist, renaming failed
+    // Rename to the root directory, root owner, successful  /dir/file4 ->
+    // /file4 File name not standardized, failed
     cntl.Reset();
     RenameFileRequest request4;
     RenameFileResponse response4;
@@ -858,10 +852,10 @@ TEST_F(NameSpaceServiceTest, test1) {
 
     std::string oldname = "/dir/file4";
     uint64_t date = TimeUtility::GetTimeofDayUs();
-    std::string str2sig = Authenticator::GetString2Signature(date,
-                                                authOptions.rootOwner);
-    std::string sig = Authenticator::CalcString2Signature(str2sig,
-                                                authOptions.rootPassword);
+    std::string str2sig =
+        Authenticator::GetString2Signature(date, authOptions.rootOwner);
+    std::string sig =
+        Authenticator::CalcString2Signature(str2sig, authOptions.rootPassword);
 
     request4.set_oldfilename(oldname);
     request4.set_newfilename("/file4");
@@ -951,8 +945,8 @@ TEST_F(NameSpaceServiceTest, test1) {
     }
 
     // test ExtendFile
-    // 扩容file2,第一次扩大，成功；第二次缩小，失败
-    // 扩容的文件名不符合规范，失败
+    // Expanding file2 for the first time, successful; Second reduction, failed
+    // The expanded file name does not meet the specifications and failed
     uint64_t newsize = kMiniFileLength * 2;
     cntl.Reset();
     ExtendFileRequest request5;
@@ -992,8 +986,9 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_TRUE(false);
     }
 
-    // begin session test，开始测试时，有/file1,/file2和/file4
-    // OpenFile case1. 文件不存在，返回kFileNotExists
+    // begin session test, at the beginning of the session test, there are
+    // /file1,/file2, and/file4 OpenFile case1. File does not exist, returned
+    // kFileNotExists
     cntl.Reset();
     OpenFileRequest request8;
     OpenFileResponse response8;
@@ -1008,7 +1003,8 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_TRUE(false);
     }
 
-    // OpenFile case2. 文件存在，没有open过，返回成功、session、fileInfo
+    // OpenFile case2. The file exists and has not been opened. Success,
+    // session, and fileInfo are returned
     cntl.Reset();
     OpenFileRequest request9;
     OpenFileResponse response9;
@@ -1020,7 +1016,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     if (!cntl.Failed()) {
         ASSERT_EQ(response9.statuscode(), StatusCode::kOK);
         ASSERT_EQ(response9.protosession().sessionstatus(),
-                                    SessionStatus::kSessionOK);
+                  SessionStatus::kSessionOK);
         ASSERT_EQ(response9.fileinfo().filename(), "file2");
     } else {
         ASSERT_TRUE(false);
@@ -1037,13 +1033,13 @@ TEST_F(NameSpaceServiceTest, test1) {
     if (!cntl.Failed()) {
         ASSERT_EQ(response10.statuscode(), StatusCode::kOK);
         ASSERT_EQ(response10.protosession().sessionstatus(),
-                                                SessionStatus::kSessionOK);
+                  SessionStatus::kSessionOK);
         ASSERT_EQ(response10.fileinfo().filename(), "file1");
     } else {
         ASSERT_TRUE(false);
     }
 
-    // openFile case3, 文件名不符合规范
+    // OpenFile case3, file name does not meet specifications
     OpenFileRequest request11;
     OpenFileResponse response11;
     cntl.Reset();
@@ -1058,7 +1054,7 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_TRUE(false);
     }
 
-    // CloseFile case1. 文件不存在，返回kFileNotExists
+    // CloseFile case1 File does not exist, returned kFileNotExists
     cntl.Reset();
     CloseFileRequest request12;
     CloseFileResponse response12;
@@ -1074,7 +1070,7 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_TRUE(false);
     }
 
-    // CloseFile case2. 文件存在，session存在，返回成功
+    // CloseFile case2 File exists, session exists, success returne
     CloseFileRequest request13;
     CloseFileResponse response13;
     cntl.Reset();
@@ -1092,7 +1088,7 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_TRUE(false);
     }
 
-    // CloseFile case3. 文件名不符合规范
+    // CloseFile case3. The file name does not meet the specification
     cntl.Reset();
     request14.set_filename("/file2/");
     request14.set_owner("owner2");
@@ -1106,7 +1102,7 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_TRUE(false);
     }
 
-    // RefreshSession case1. 文件不存在，返回kFileNotExists
+    // RefreshSession case1. File does not exist, returned kFileNotExists
     cntl.Reset();
     ReFreshSessionRequest request15;
     ReFreshSessionResponse response15;
@@ -1124,7 +1120,7 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_TRUE(false);
     }
 
-    // RefreshSession case2. 文件名不符合规范
+    // RefreshSession case2. The file name does not meet the specifications
     ReFreshSessionRequest request18;
     ReFreshSessionResponse response18;
     cntl.Reset();
@@ -1155,8 +1151,9 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
 
     // start server
     NameSpaceService namespaceService(new FileLockManager(8));
-    ASSERT_EQ(server.AddService(&namespaceService,
-            brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(
+        server.AddService(&namespaceService, brpc::SERVER_DOESNT_OWN_SERVICE),
+        0);
 
     brpc::ServerOptions option;
     option.idle_timeout_sec = -1;
@@ -1167,7 +1164,6 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     ASSERT_EQ(channel.Init(server.listen_address(), nullptr), 0);
 
     CurveFSService_Stub stub(&channel);
-
 
     // test create file
     std::vector<PoolIdType> logicalPools{1, 2, 3};
@@ -1188,7 +1184,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     request.set_filelength(fileLength);
 
     cntl.set_log_id(2);
-    stub.CreateFile(&cntl,  &request, &response,  NULL);
+    stub.CreateFile(&cntl, &request, &response, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response.statuscode(), StatusCode::kOK);
     } else {
@@ -1204,7 +1200,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     request1.set_date(TimeUtility::GetTimeofDayUs());
     stub.GetFileInfo(&cntl, &request1, &response1, NULL);
     if (!cntl.Failed()) {
-        FileInfo  file = response1.fileinfo();
+        FileInfo file = response1.fileinfo();
         ASSERT_EQ(response1.statuscode(), StatusCode::kOK);
         ASSERT_EQ(file.id(), 1);
         ASSERT_EQ(file.filename(), "file1");
@@ -1246,7 +1242,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     snapshotRequest.set_date(TimeUtility::GetTimeofDayUs());
     stub.CreateSnapShot(&cntl, &snapshotRequest, &snapshotResponses, NULL);
     if (!cntl.Failed()) {
-         ASSERT_EQ(snapshotResponses.statuscode(), StatusCode::kParaError);
+        ASSERT_EQ(snapshotResponses.statuscode(), StatusCode::kParaError);
     } else {
         ASSERT_TRUE(false);
     }
@@ -1310,11 +1306,11 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     getSegmentRequest.set_offset(DefaultSegmentSize);
     getSegmentRequest.set_allocateifnotexist(false);
     getSegmentRequest.set_seqnum(1);
-    stub.GetSnapShotFileSegment(&cntl, &getSegmentRequest,
-                            &getSegmentResponse, NULL);
+    stub.GetSnapShotFileSegment(&cntl, &getSegmentRequest, &getSegmentResponse,
+                                NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(getSegmentResponse.statuscode(),
-                        StatusCode::kSegmentNotAllocated);
+                  StatusCode::kSegmentNotAllocated);
     } else {
         ASSERT_TRUE(false);
     }
@@ -1326,8 +1322,8 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     getSegmentRequest.set_offset(DefaultSegmentSize);
     getSegmentRequest.set_allocateifnotexist(false);
     getSegmentRequest.set_seqnum(1);
-    stub.GetSnapShotFileSegment(&cntl, &getSegmentRequest,
-                            &getSegmentResponse, NULL);
+    stub.GetSnapShotFileSegment(&cntl, &getSegmentRequest, &getSegmentResponse,
+                                NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(getSegmentResponse.statuscode(), StatusCode::kParaError);
     } else {
@@ -1407,13 +1403,14 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
 
     // start server
     NameSpaceService namespaceService(new FileLockManager(8));
-    ASSERT_EQ(server.AddService(&namespaceService,
-            brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(
+        server.AddService(&namespaceService, brpc::SERVER_DOESNT_OWN_SERVICE),
+        0);
 
     using ::curve::chunkserver::MockChunkService;
-    MockChunkService *chunkService = new MockChunkService();
-    ASSERT_EQ(server.AddService(chunkService,
-                                      brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    MockChunkService* chunkService = new MockChunkService();
+    ASSERT_EQ(server.AddService(chunkService, brpc::SERVER_DOESNT_OWN_SERVICE),
+              0);
 
     brpc::ServerOptions option;
     option.idle_timeout_sec = -1;
@@ -1426,7 +1423,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
 
     CurveFSService_Stub stub(&channel);
 
-    // 先创建文件/file1，目录/dir1，文件/dir1/file2
+    // First create file '/file1', directory '/dir1', file '/dir1/file2'
     std::vector<PoolIdType> logicalPools{1, 2, 3};
     EXPECT_CALL(*topology_, GetLogicalPoolInCluster(_))
         .Times(AtLeast(1))
@@ -1444,7 +1441,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     request.set_filelength(fileLength);
 
     cntl.set_log_id(2);
-    stub.CreateFile(&cntl,  &request, &response,  NULL);
+    stub.CreateFile(&cntl, &request, &response, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response.statuscode(), StatusCode::kOK);
     } else {
@@ -1480,7 +1477,8 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         FAIL();
     }
 
-    // 查看文件/file1，目录/dir1，文件/dir1/file2的状态
+    // View the status of file '/file1', directory '/dir1', and file
+    // '/dir1/file2'
     cntl.Reset();
     GetFileInfoRequest request1;
     GetFileInfoResponse response1;
@@ -1489,7 +1487,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     request1.set_date(TimeUtility::GetTimeofDayUs());
     stub.GetFileInfo(&cntl, &request1, &response1, NULL);
     if (!cntl.Failed()) {
-        FileInfo  file = response1.fileinfo();
+        FileInfo file = response1.fileinfo();
         ASSERT_EQ(response1.statuscode(), StatusCode::kOK);
         ASSERT_EQ(file.id(), 1);
         ASSERT_EQ(file.filename(), "file1");
@@ -1509,7 +1507,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     request1.set_date(TimeUtility::GetTimeofDayUs());
     stub.GetFileInfo(&cntl, &request1, &response1, NULL);
     if (!cntl.Failed()) {
-        FileInfo  file = response1.fileinfo();
+        FileInfo file = response1.fileinfo();
         ASSERT_EQ(response1.statuscode(), StatusCode::kOK);
         ASSERT_EQ(file.id(), 2);
         ASSERT_EQ(file.filename(), "dir1");
@@ -1539,7 +1537,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_TRUE(false);
     }
 
-    // 文件/dir1/file2申请segment
+    // File '/dir1/file2' application segment
     GetOrAllocateSegmentRequest allocRequest;
     GetOrAllocateSegmentResponse allocResponse;
     for (int i = 0; i < 10; i++) {
@@ -1551,15 +1549,15 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         allocRequest.set_allocateifnotexist(true);
         stub.GetOrAllocateSegment(&cntl, &allocRequest, &allocResponse, NULL);
         if (!cntl.Failed()) {
-            ASSERT_EQ(allocResponse.statuscode(),
-                                        StatusCode::kOK);
+            ASSERT_EQ(allocResponse.statuscode(), StatusCode::kOK);
         } else {
             ASSERT_TRUE(false);
         }
     }
 
-    // 开始测试删除文件逻辑
-    // 1 如果文件有快照，那么删除文件返回kFileUnderSnapShot
+    // Start testing delete file logic
+    // 1. If the file has a snapshot, deleting the file returns
+    // kFileUnderSnapShot
     cntl.Reset();
     CreateSnapShotRequest snapshotRequest;
     CreateSnapShotResponse snapshotResponses;
@@ -1623,7 +1621,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         stub.CheckSnapShotStatus(&cntl, &checkRequest, &checkResponse, NULL);
         if (!cntl.Failed()) {
             if (checkResponse.statuscode() ==
-                                    StatusCode::kSnapshotFileNotExists) {
+                StatusCode::kSnapshotFileNotExists) {
                 break;
             } else {
                 ASSERT_EQ(checkResponse.statuscode(), StatusCode::kOK);
@@ -1636,10 +1634,10 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         }
     }
     ASSERT_LE(attempts, 100)
-            << "max attempts for check snapshot status exhausted";
+        << "max attempts for check snapshot status exhausted";
 
-
-    // 2 如果目录下有文件，那么删除目录返回kDirNotEmpty
+    // 2. If there are files in the directory, deleting the directory returns
+    // kDirNotEmpty
     cntl.Reset();
     request3.set_filename("/dir1");
     request3.set_owner("owner");
@@ -1653,7 +1651,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_TRUE(false);
     }
 
-    // 3 如果传入的fileid不匹配，删除文件失败
+    // 3. If the passed in fileids do not match, deleting the file fails
     cntl.Reset();
     DeleteFileRequest request5;
     DeleteFileResponse response5;
@@ -1670,7 +1668,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_TRUE(false);
     }
 
-    // 4 删除文件/file1成功，查询文件已经删除
+    // 4. Successfully deleted file '/file1', query file has been deleted
     cntl.Reset();
     request3.set_filename("/file1");
     request3.set_owner("owner");
@@ -1696,15 +1694,15 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_TRUE(false);
     }
 
-    // 查询垃圾箱
+    // Query Trash Bin
     ListDirRequest listRequest;
     ListDirResponse listResponse;
     cntl.Reset();
     uint64_t date = TimeUtility::GetTimeofDayUs();
-    std::string str2sig = Authenticator::GetString2Signature(date,
-                                            authOptions.rootOwner);
-    std::string sig = Authenticator::CalcString2Signature(str2sig,
-                                            authOptions.rootPassword);
+    std::string str2sig =
+        Authenticator::GetString2Signature(date, authOptions.rootOwner);
+    std::string sig =
+        Authenticator::CalcString2Signature(str2sig, authOptions.rootPassword);
     listRequest.set_signature(sig);
     listRequest.set_filename(RECYCLEBINDIR);
     listRequest.set_owner(authOptions.rootOwner);
@@ -1716,37 +1714,36 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         FileInfo file = listResponse.fileinfo(0);
         ASSERT_TRUE(CheckFilename(file.filename(), dtime));  // file1-1-${dtime}
         ASSERT_EQ(file.filestatus(), FileStatus::kFileCreated);
-        } else {
+    } else {
         ASSERT_TRUE(false);
     }
 
-    // 删除文件/dir1/file2成功，删除目录/dir1成功，查询目录和文件均已经删除
-    using ::curve::mds::topology::ChunkServerStatus;
-    using ::curve::mds::topology::OnlineState;
+    // Successfully deleted file '/dir1/file2', deleted directory '/dir1',
+    // queried directory and files have been deleted
+    using ::curve::chunkserver::CHUNK_OP_STATUS;
     using ::curve::chunkserver::ChunkRequest;
     using ::curve::chunkserver::ChunkResponse;
-    using ::curve::chunkserver::CHUNK_OP_STATUS;
+    using ::curve::mds::topology::ChunkServerStatus;
+    using ::curve::mds::topology::OnlineState;
 
     CopySetInfo copyset(1, 1);
     copyset.SetLeader(1);
     EXPECT_CALL(*topology_, GetCopySet(_, _))
-            .WillRepeatedly(
-                    DoAll(SetArgPointee<1>(copyset), Return(true)));
+        .WillRepeatedly(DoAll(SetArgPointee<1>(copyset), Return(true)));
     ChunkServer chunkserver(1, "", "", 1, "127.0.0.1", listenAddr.port, "",
-            ChunkServerStatus::READWRITE, OnlineState::ONLINE);
+                            ChunkServerStatus::READWRITE, OnlineState::ONLINE);
     EXPECT_CALL(*topology_, GetChunkServer(_, _))
-            .WillRepeatedly(DoAll(SetArgPointee<1>(chunkserver), Return(true)));
+        .WillRepeatedly(DoAll(SetArgPointee<1>(chunkserver), Return(true)));
 
     ChunkResponse chunkResponse;
     chunkResponse.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
     EXPECT_CALL(*chunkService, DeleteChunk(_, _, _, _))
-        .WillRepeatedly(DoAll(SetArgPointee<2>(chunkResponse),
-                Invoke([](RpcController *controller,
-                          const ChunkRequest *chunkRequest,
-                          ChunkResponse *chunkResponse,
-                          Closure *done){
-                          brpc::ClosureGuard doneGuard(done);
-                    })));
+        .WillRepeatedly(DoAll(
+            SetArgPointee<2>(chunkResponse),
+            Invoke([](RpcController* controller,
+                      const ChunkRequest* chunkRequest,
+                      ChunkResponse* chunkResponse,
+                      Closure* done) { brpc::ClosureGuard doneGuard(done); })));
 
     stub_ = std::make_shared<CurveFSService_Stub>(&channel);
 
@@ -1858,8 +1855,9 @@ TEST_F(NameSpaceServiceTest, clonetest) {
 
     // start server
     NameSpaceService namespaceService(new FileLockManager(8));
-    ASSERT_EQ(server.AddService(&namespaceService,
-            brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(
+        server.AddService(&namespaceService, brpc::SERVER_DOESNT_OWN_SERVICE),
+        0);
 
     brpc::ServerOptions option;
     option.idle_timeout_sec = -1;
@@ -1944,8 +1942,9 @@ TEST_F(NameSpaceServiceTest, listClientTest) {
 
     // start server
     NameSpaceService namespaceService(new FileLockManager(8));
-    ASSERT_EQ(server.AddService(&namespaceService,
-            brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(
+        server.AddService(&namespaceService, brpc::SERVER_DOESNT_OWN_SERVICE),
+        0);
 
     brpc::ServerOptions option;
     option.idle_timeout_sec = -1;
@@ -1979,8 +1978,9 @@ TEST_F(NameSpaceServiceTest, listAllClientTest) {
 
     // start server
     NameSpaceService namespaceService(new FileLockManager(8));
-    ASSERT_EQ(server.AddService(&namespaceService,
-            brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(
+        server.AddService(&namespaceService, brpc::SERVER_DOESNT_OWN_SERVICE),
+        0);
 
     brpc::ServerOptions option;
     option.idle_timeout_sec = -1;
@@ -2085,8 +2085,9 @@ TEST_F(NameSpaceServiceTest, ListVolumesOnCopysets) {
 
     // start server
     NameSpaceService namespaceService(new FileLockManager(8));
-    ASSERT_EQ(server.AddService(&namespaceService,
-            brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(
+        server.AddService(&namespaceService, brpc::SERVER_DOESNT_OWN_SERVICE),
+        0);
 
     brpc::ServerOptions option;
     option.idle_timeout_sec = -1;
@@ -2116,8 +2117,9 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
 
     // start server
     NameSpaceService namespaceService(new FileLockManager(8));
-    ASSERT_EQ(server.AddService(&namespaceService,
-            brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(
+        server.AddService(&namespaceService, brpc::SERVER_DOESNT_OWN_SERVICE),
+        0);
 
     brpc::ServerOptions option;
     option.idle_timeout_sec = -1;
@@ -2143,7 +2145,7 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     createRequest.set_date(TimeUtility::GetTimeofDayUs());
     createRequest.set_filetype(INODE_PAGEFILE);
     createRequest.set_filelength(fileLength);
-    stub.CreateFile(&cntl,  &createRequest, &createResponse,  NULL);
+    stub.CreateFile(&cntl, &createRequest, &createResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(createResponse.statuscode(), StatusCode::kOK);
     } else {
@@ -2187,7 +2189,7 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     getRequest.set_date(TimeUtility::GetTimeofDayUs());
     stub.GetFileInfo(&cntl, &getRequest, &getResponse, NULL);
     if (!cntl.Failed()) {
-        FileInfo  file = getResponse.fileinfo();
+        FileInfo file = getResponse.fileinfo();
         ASSERT_EQ(getResponse.statuscode(), StatusCode::kOK);
         ASSERT_EQ(file.id(), 1);
         ASSERT_EQ(file.filename(), "file1");
@@ -2207,7 +2209,7 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     getRequest.set_date(TimeUtility::GetTimeofDayUs());
     stub.GetFileInfo(&cntl, &getRequest, &getResponse, NULL);
     if (!cntl.Failed()) {
-        FileInfo  file = getResponse.fileinfo();
+        FileInfo file = getResponse.fileinfo();
         ASSERT_EQ(getResponse.statuscode(), StatusCode::kOK);
         ASSERT_EQ(file.id(), 2);
         ASSERT_EQ(file.filename(), "dir1");
@@ -2249,8 +2251,7 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
         allocRequest.set_allocateifnotexist(true);
         stub.GetOrAllocateSegment(&cntl, &allocRequest, &allocResponse, NULL);
         if (!cntl.Failed()) {
-            ASSERT_EQ(allocResponse.statuscode(),
-                                        StatusCode::kOK);
+            ASSERT_EQ(allocResponse.statuscode(), StatusCode::kOK);
         } else {
             ASSERT_TRUE(false);
         }
@@ -2278,10 +2279,10 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     ListDirRequest listRequest;
     ListDirResponse listResponse;
     uint64_t date = TimeUtility::GetTimeofDayUs();
-    std::string str2sig = Authenticator::GetString2Signature(date,
-                                            authOptions.rootOwner);
-    std::string sig = Authenticator::CalcString2Signature(str2sig,
-                                            authOptions.rootPassword);
+    std::string str2sig =
+        Authenticator::GetString2Signature(date, authOptions.rootOwner);
+    std::string sig =
+        Authenticator::CalcString2Signature(str2sig, authOptions.rootPassword);
     listRequest.set_signature(sig);
     listRequest.set_filename(RECYCLEBINDIR);
     listRequest.set_owner(authOptions.rootOwner);
@@ -2295,7 +2296,7 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
         ASSERT_EQ(file.originalfullpathname(), "/dir1/file2");
         ASSERT_EQ(file.filestatus(), FileStatus::kFileCreated);
         ASSERT_EQ(listResponse.fileinfo_size(), 1);
-        } else {
+    } else {
         ASSERT_TRUE(false);
     }
 
@@ -2327,7 +2328,7 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
         ASSERT_EQ(file.filename(), "file2");
         ASSERT_EQ(file.filestatus(), FileStatus::kFileCreated);
         ASSERT_EQ(listResponse.fileinfo_size(), 1);
-        } else {
+    } else {
         ASSERT_TRUE(false);
     }
 
@@ -2400,14 +2401,14 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
         ASSERT_TRUE(false);
     }
 
-    // 3. check the ctime of recovered file is greater than the other in recyclebin //NOLINT
+    // 3. check the ctime of recovered file is greater than the other in
+    // recyclebin //NOLINT
     FileInfo recycleFile;
     cntl.Reset();
     date = TimeUtility::GetTimeofDayUs();
-    str2sig = Authenticator::GetString2Signature(date,
-                                            authOptions.rootOwner);
-    sig = Authenticator::CalcString2Signature(str2sig,
-                                            authOptions.rootPassword);
+    str2sig = Authenticator::GetString2Signature(date, authOptions.rootOwner);
+    sig =
+        Authenticator::CalcString2Signature(str2sig, authOptions.rootPassword);
     listRequest.set_signature(sig);
     listRequest.set_filename(RECYCLEBINDIR);
     listRequest.set_owner(authOptions.rootOwner);
@@ -2471,10 +2472,9 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     // 3. check the fileId of recovered file 3 and not recovered is 4
     cntl.Reset();
     date = TimeUtility::GetTimeofDayUs();
-    str2sig = Authenticator::GetString2Signature(date,
-                                            authOptions.rootOwner);
-    sig = Authenticator::CalcString2Signature(str2sig,
-                                            authOptions.rootPassword);
+    str2sig = Authenticator::GetString2Signature(date, authOptions.rootOwner);
+    sig =
+        Authenticator::CalcString2Signature(str2sig, authOptions.rootPassword);
     listRequest.set_signature(sig);
     listRequest.set_filename(RECYCLEBINDIR);
     listRequest.set_owner(authOptions.rootOwner);
@@ -2588,8 +2588,8 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     createCloneRequest.set_poolset(kDefaultPoolset);
     createCloneRequest.set_clonesource("/sourcefile1");
     cntl.Reset();
-    stub.CreateCloneFile(&cntl, &createCloneRequest,
-                         &createCloneResponse, NULL);
+    stub.CreateCloneFile(&cntl, &createCloneRequest, &createCloneResponse,
+                         NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(createCloneResponse.statuscode(), StatusCode::kOK);
     } else {
@@ -2632,7 +2632,7 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     stub.RecoverFile(&cntl, &recoverRequest, &recoverRresponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(recoverRresponse.statuscode(),
-        StatusCode::kRecoverFileCloneMetaInstalled);
+                  StatusCode::kRecoverFileCloneMetaInstalled);
     } else {
         std::cout << cntl.ErrorText();
         ASSERT_TRUE(false);
@@ -2649,8 +2649,8 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     createCloneRequest.set_owner("owner");
     createCloneRequest.set_clonesource("/sourcefile1");
     cntl.Reset();
-    stub.CreateCloneFile(&cntl, &createCloneRequest,
-                         &createCloneResponse, NULL);
+    stub.CreateCloneFile(&cntl, &createCloneRequest, &createCloneResponse,
+                         NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(createCloneResponse.statuscode(), StatusCode::kOK);
     } else {
@@ -2690,8 +2690,7 @@ TEST_F(NameSpaceServiceTest, testRecoverFile) {
     recoverRequest.set_date(TimeUtility::GetTimeofDayUs());
     stub.RecoverFile(&cntl, &recoverRequest, &recoverRresponse, NULL);
     if (!cntl.Failed()) {
-        ASSERT_EQ(recoverRresponse.statuscode(),
-        StatusCode::kRecoverFileError);
+        ASSERT_EQ(recoverRresponse.statuscode(), StatusCode::kRecoverFileError);
     } else {
         std::cout << cntl.ErrorText();
         ASSERT_TRUE(false);
@@ -2754,9 +2753,9 @@ TEST_F(NameSpaceServiceTest, TestDeAllocateSegment) {
     // create file and allocate segment
     {
         std::vector<PoolIdType> logicalPools{1, 2, 3};
-         EXPECT_CALL(*topology_, GetLogicalPoolInCluster(_))
-         .Times(AtLeast(1))
-         .WillRepeatedly(Return(logicalPools));
+        EXPECT_CALL(*topology_, GetLogicalPoolInCluster(_))
+            .Times(AtLeast(1))
+            .WillRepeatedly(Return(logicalPools));
         CreateFileRequest createRequest;
         CreateFileResponse createResponse;
         createRequest.set_filename(filename);

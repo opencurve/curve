@@ -28,9 +28,9 @@
 #include <atomic>
 #include <string>
 
+#include "include/curve_compiler_specific.h"
 #include "src/client/client_common.h"
 #include "src/client/request_closure.h"
-#include "include/curve_compiler_specific.h"
 
 namespace curve {
 namespace client {
@@ -73,13 +73,14 @@ struct CURVE_CACHELINE_ALIGNMENT RequestContext {
         done_ = nullptr;
     }
 
-    // chunk的ID信息，sender在发送rpc的时候需要附带其ID信息
-    ChunkIDInfo         idinfo_;
+    // The ID information of the chunk, which the sender needs to include when
+    // sending rpc
+    ChunkIDInfo idinfo_;
 
-    // 用户IO被拆分之后，其小IO有自己的offset和length
-    off_t               offset_ = 0;
-    OpType              optype_ = OpType::UNKNOWN;
-    size_t              rawlength_ = 0;
+    // After user IO is split, its small IO has its own offset and length
+    off_t offset_ = 0;
+    OpType optype_ = OpType::UNKNOWN;
+    size_t rawlength_ = 0;
 
     // user's single io request will split into several requests
     // subIoIndex_ is an index of serveral requests
@@ -91,29 +92,31 @@ struct CURVE_CACHELINE_ALIGNMENT RequestContext {
     // write data of current request
     butil::IOBuf writeData_;
 
-    // 因为RPC都是异步发送，因此在一个Request结束时，RPC回调调用当前的done
-    // 来告知当前的request结束了
-    RequestClosure*     done_ = nullptr;
+    // Because RPC is sent asynchronously, at the end of a request, the RPC
+    // callback calls the current done To inform you that the current request is
+    // over
+    RequestClosure* done_ = nullptr;
 
     // file id
     uint64_t fileId_;
     // file epoch
     uint64_t epoch_;
-    // request的版本信息
-    uint64_t            seq_ = 0;
+    // Version information of request
+    uint64_t seq_ = 0;
 
-    // 这个对应的GetChunkInfo的出参
-    ChunkInfoDetail*    chunkinfodetail_ = nullptr;
+    // The output parameter of this corresponding GetChunkInfo
+    ChunkInfoDetail* chunkinfodetail_ = nullptr;
 
-    // clone chunk请求需要携带源chunk的location及所需要创建的chunk的大小
-    uint32_t            chunksize_ = 0;
-    std::string         location_;
-    RequestSourceInfo   sourceInfo_;
-    // create clone chunk时候用于修改chunk的correctedSn
-    uint64_t            correctedSeq_ = 0;
+    // The clone chunk request needs to carry the location of the source chunk
+    // and the size of the chunk that needs to be created
+    uint32_t chunksize_ = 0;
+    std::string location_;
+    RequestSourceInfo sourceInfo_;
+    // CorrectedSn used to modify a chunk when creating a clone chunk
+    uint64_t correctedSeq_ = 0;
 
-    // 当前request context id
-    uint64_t            id_ = 0;
+    // Current request context id
+    uint64_t id_ = 0;
 
     static RequestContext* NewInitedRequestContext() {
         RequestContext* ctx = new (std::nothrow) RequestContext();
@@ -139,10 +142,8 @@ inline std::ostream& operator<<(std::ostream& os,
     os << "logicpool id = " << reqCtx.idinfo_.lpid_
        << ", copyset id = " << reqCtx.idinfo_.cpid_
        << ", chunk id = " << reqCtx.idinfo_.cid_
-       << ", offset = " << reqCtx.offset_
-       << ", length = " << reqCtx.rawlength_
-       << ", sub-io index = " << reqCtx.subIoIndex_
-       << ", sn = " << reqCtx.seq_
+       << ", offset = " << reqCtx.offset_ << ", length = " << reqCtx.rawlength_
+       << ", sub-io index = " << reqCtx.subIoIndex_ << ", sn = " << reqCtx.seq_
        << ", source info = " << reqCtx.sourceInfo_;
 
     return os;

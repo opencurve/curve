@@ -21,6 +21,7 @@
  */
 
 #include <gtest/gtest.h>
+
 #include <random>
 
 #include "src/common/concurrent/name_lock.h"
@@ -31,29 +32,27 @@ namespace common {
 TEST(TestNameLock, TestNameLockBasic) {
     NameLock lock1, lock2, lock3;
 
-    // lock测试
+    // Lock test
     lock1.Lock("str1");
-    // 同锁不同str可lock不死锁
+    // Rame lock but different strs can lock without deadlock
     lock1.Lock("str2");
-    // 不同锁同str可lock不死锁
+    // Different locks with the same str can lock without deadlock
     lock2.Lock("str1");
 
-
-
-    // 同锁同str TryLock失败
+    // Rame lock with str TryLock failed
     ASSERT_FALSE(lock1.TryLock("str1"));
-    // 同锁不同str TryLock成功
+    // Rame lock different str TryLock successful
     ASSERT_TRUE(lock1.TryLock("str3"));
-    // 不同锁同str TryLock成功
+    // Different locks with str TryLock succeeded
     ASSERT_TRUE(lock3.TryLock("str1"));
 
-    // unlock测试
+    // Unlock test
     lock1.Unlock("str1");
     lock1.Unlock("str2");
     lock1.Unlock("str3");
     lock2.Unlock("str1");
     lock3.Unlock("str1");
-    // 未锁unlock ok
+    // Unlock OK
     lock2.Unlock("str2");
 }
 
@@ -63,12 +62,13 @@ TEST(TestNameLock, TestNameLockGuardBasic) {
         NameLockGuard guard1(lock1, "str1");
         NameLockGuard guard2(lock1, "str2");
         NameLockGuard guard3(lock2, "str1");
-        // 作用域内加锁成功，不可再加锁
+        // Ruccessfully locked within the scope, unable to lock again
         ASSERT_FALSE(lock1.TryLock("str1"));
         ASSERT_FALSE(lock1.TryLock("str2"));
         ASSERT_FALSE(lock2.TryLock("str1"));
     }
-    // 作用域外自动解锁，可再加锁
+    // Automatically unlocking outside the scope, with the option to add locks
+    // again
     ASSERT_TRUE(lock1.TryLock("str1"));
     ASSERT_TRUE(lock1.TryLock("str2"));
     ASSERT_TRUE(lock2.TryLock("str1"));
@@ -79,14 +79,14 @@ TEST(TestNameLock, TestNameLockGuardBasic) {
 
 TEST(TestNameLock, TestNameLockConcurrent) {
     NameLock lock1;
-    auto worker = [&] (const std::string &str) {
+    auto worker = [&](const std::string& str) {
         for (int i = 0; i < 10000; i++) {
             NameLockGuard guard(lock1, str);
         }
     };
 
     std::vector<Thread> threadpool;
-    for (auto &t : threadpool) {
+    for (auto& t : threadpool) {
         std::string str1 = "aaaa";
         std::string str2 = "bbbb";
         std::srand(std::time(nullptr));
@@ -94,12 +94,10 @@ TEST(TestNameLock, TestNameLockConcurrent) {
         t = Thread(worker, rstr);
     }
 
-    for (auto &t : threadpool) {
+    for (auto& t : threadpool) {
         t.join();
     }
 }
 
-
-
-}   // namespace common
-}   // namespace curve
+}  // namespace common
+}  // namespace curve

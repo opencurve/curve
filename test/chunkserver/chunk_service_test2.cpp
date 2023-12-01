@@ -20,24 +20,23 @@
  * Author: wudemiao
  */
 
-
-#include <unistd.h>
-#include <gtest/gtest.h>
-#include <gflags/gflags.h>
-#include <glog/logging.h>
-#include <bthread/bthread.h>
 #include <brpc/channel.h>
 #include <brpc/controller.h>
 #include <brpc/server.h>
+#include <bthread/bthread.h>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
+#include <unistd.h>
 
 #include "include/chunkserver/chunkserver_common.h"
+#include "proto/copyset.pb.h"
+#include "src/chunkserver/chunk_service.h"
+#include "src/chunkserver/cli.h"
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/copyset_node_manager.h"
-#include "src/chunkserver/cli.h"
-#include "proto/copyset.pb.h"
-#include "test/chunkserver/chunkserver_test_util.h"
 #include "src/common/uuid.h"
-#include "src/chunkserver/chunk_service.h"
+#include "test/chunkserver/chunkserver_test_util.h"
 
 namespace curve {
 namespace chunkserver {
@@ -76,9 +75,9 @@ class ChunkService2Test : public testing::Test {
 butil::AtExitManager atExitManager;
 
 TEST_F(ChunkService2Test, illegial_parameters_test) {
-    const char *ip = "127.0.0.1";
+    const char* ip = "127.0.0.1";
     int port = 9023;
-    const char *confs = "127.0.0.1:9023:0,127.0.0.1:9024:0,127.0.0.1:9025:0";
+    const char* confs = "127.0.0.1:9023:0,127.0.0.1:9024:0,127.0.0.1:9025:0";
     int rpcTimeoutMs = 3000;
     int snapshotInterval = 600;
 
@@ -95,12 +94,8 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         ASSERT_TRUE(false);
     } else if (0 == pid1) {
         std::string copysetdir = "local://./" + dir1;
-        StartChunkserver(ip,
-                         port + 0,
-                         copysetdir.c_str(),
-                         confs,
-                         snapshotInterval,
-                         electionTimeoutMs);
+        StartChunkserver(ip, port + 0, copysetdir.c_str(), confs,
+                         snapshotInterval, electionTimeoutMs);
         return;
     }
 
@@ -110,12 +105,8 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         ASSERT_TRUE(false);
     } else if (0 == pid2) {
         std::string copysetdir = "local://./" + dir2;
-        StartChunkserver(ip,
-                         port + 1,
-                         copysetdir.c_str(),
-                         confs,
-                         snapshotInterval,
-                         electionTimeoutMs);
+        StartChunkserver(ip, port + 1, copysetdir.c_str(), confs,
+                         snapshotInterval, electionTimeoutMs);
         return;
     }
 
@@ -125,16 +116,12 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         ASSERT_TRUE(false);
     } else if (0 == pid3) {
         std::string copysetdir = "local://./" + dir3;
-        StartChunkserver(ip,
-                         port + 2,
-                         copysetdir.c_str(),
-                         confs,
-                         snapshotInterval,
-                         electionTimeoutMs);
+        StartChunkserver(ip, port + 2, copysetdir.c_str(), confs,
+                         snapshotInterval, electionTimeoutMs);
         return;
     }
 
-    /* 保证进程一定会退出 */
+    /*Ensure that the process will definitely exit*/
     class WaitpidGuard {
      public:
         WaitpidGuard(pid_t pid1, pid_t pid2, pid_t pid3) {
@@ -151,6 +138,7 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
             kill(pid3_, SIGINT);
             waitpid(pid3_, &waitState, 0);
         }
+
      private:
         pid_t pid1_;
         pid_t pid2_;
@@ -177,13 +165,13 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
     LOG_IF(INFO, status.ok()) << "leader id: " << leader.to_string();
     ASSERT_TRUE(status.ok());
 
-    /* 非法参数 request 测试 */
+    /*Illegal parameter request test*/
     brpc::Channel channel;
     if (channel.Init(leader.addr, NULL) != 0) {
         LOG(ERROR) << "Fail to init channel to " << leader;
     }
     ChunkService_Stub stub(&channel);
-    /* read 溢出 */
+    /*Read overflow*/
     {
         brpc::Controller cntl;
         cntl.set_timeout_ms(rpcTimeoutMs);
@@ -201,7 +189,7 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
                   response.status());
     }
-    /* read offset没对齐 */
+    /*Read offset not aligned*/
     {
         brpc::Controller cntl;
         cntl.set_timeout_ms(rpcTimeoutMs);
@@ -219,7 +207,7 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
                   response.status());
     }
-    /* read size没对齐 */
+    /*Read size not aligned*/
     {
         brpc::Controller cntl;
         cntl.set_timeout_ms(rpcTimeoutMs);
@@ -237,7 +225,7 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
                   response.status());
     }
-    /* read copyset 不存在 */
+    /*Read copyset does not exist*/
     {
         brpc::Controller cntl;
         cntl.set_timeout_ms(rpcTimeoutMs);
@@ -256,7 +244,7 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
                   response.status());
     }
-    /* read snapshot 溢出 */
+    /*Read snapshot overflow*/
     {
         brpc::Controller cntl;
         cntl.set_timeout_ms(rpcTimeoutMs);
@@ -274,7 +262,7 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
                   response.status());
     }
-    /* read snapshot offset没对齐 */
+    /*Read snapshot offset not aligned*/
     {
         brpc::Controller cntl;
         cntl.set_timeout_ms(rpcTimeoutMs);
@@ -293,7 +281,7 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
                   response.status());
     }
-    /* read snapshot size没对齐 */
+    /*Read snapshot size not aligned*/
     {
         brpc::Controller cntl;
         cntl.set_timeout_ms(rpcTimeoutMs);
@@ -312,7 +300,7 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
                   response.status());
     }
-    /* read snapshot copyset 不存在 */
+    /*Read snapshot copyset does not exist*/
     {
         brpc::Controller cntl;
         cntl.set_timeout_ms(rpcTimeoutMs);
@@ -331,7 +319,7 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
                   response.status());
     }
-    /* write 溢出 */
+    /*Write overflow*/
     {
         brpc::Controller cntl;
         cntl.set_timeout_ms(rpcTimeoutMs);
@@ -350,7 +338,7 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
                   response.status());
     }
-    /* write offset没对齐 */
+    /*Write offset not aligned*/
     {
         brpc::Controller cntl;
         cntl.set_timeout_ms(rpcTimeoutMs);
@@ -369,7 +357,7 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
                   response.status());
     }
-    /* write size没对齐 */
+    /*Write size not aligned*/
     {
         brpc::Controller cntl;
         cntl.set_timeout_ms(rpcTimeoutMs);
@@ -388,7 +376,7 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
                   response.status());
     }
-    /* write copyset 不存在 */
+    /*The write copyset does not exist*/
     {
         brpc::Controller cntl;
         cntl.set_timeout_ms(rpcTimeoutMs);
@@ -407,7 +395,7 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
                   response.status());
     }
-    /* delete copyset 不存在*/
+    /*Delete copyset does not exist*/
     {
         brpc::Controller cntl;
         cntl.set_timeout_ms(rpcTimeoutMs);
@@ -423,7 +411,7 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
                   response.status());
     }
-    /* delete snapshot copyset 不存在*/
+    /*Delete snapshot copyset does not exist*/
     {
         brpc::Controller cntl;
         cntl.set_timeout_ms(rpcTimeoutMs);
@@ -434,9 +422,7 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         request.set_copysetid(copysetId + 1);
         request.set_chunkid(chunkId);
         request.set_correctedsn(sn);
-        stub.DeleteChunkSnapshotOrCorrectSn(&cntl,
-                                            &request,
-                                            &response,
+        stub.DeleteChunkSnapshotOrCorrectSn(&cntl, &request, &response,
                                             nullptr);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
@@ -456,7 +442,7 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
                   response.status());
     }
-    /* 不是 leader */
+    /*Not a leader*/
     {
         PeerId peer1;
         PeerId peer2;
@@ -562,13 +548,12 @@ TEST_F(ChunkService2Test, illegial_parameters_test) {
 
 class ChunkServiceTestClosure : public ::google::protobuf::Closure {
  public:
-    explicit ChunkServiceTestClosure(int sleepUs = 0) : sleep_(sleepUs) {
-    }
+    explicit ChunkServiceTestClosure(int sleepUs = 0) : sleep_(sleepUs) {}
     virtual ~ChunkServiceTestClosure() = default;
 
     void Run() override {
         if (0 != sleep_) {
-            // 睡眠一会方面测试，overload
+            // Sleep test, overload
             ::usleep(sleep_);
             LOG(INFO) << "return rpc";
         }
@@ -580,13 +565,12 @@ class ChunkServiceTestClosure : public ::google::protobuf::Closure {
 
 class UpdateEpochTestClosure : public ::google::protobuf::Closure {
  public:
-    explicit UpdateEpochTestClosure(int sleepUs = 0) : sleep_(sleepUs) {
-    }
+    explicit UpdateEpochTestClosure(int sleepUs = 0) : sleep_(sleepUs) {}
     virtual ~UpdateEpochTestClosure() = default;
 
     void Run() override {
         if (0 != sleep_) {
-            // 睡眠一会方面测试，overload
+            // Sleep test, overload
             ::usleep(sleep_);
             LOG(INFO) << "return rpc";
         }
@@ -602,12 +586,12 @@ TEST_F(ChunkService2Test, overload_test) {
 
     // inflight throttle
     uint64_t maxInflight = 0;
-    std::shared_ptr<InflightThrottle> inflightThrottle
-        = std::make_shared<InflightThrottle>(maxInflight);
+    std::shared_ptr<InflightThrottle> inflightThrottle =
+        std::make_shared<InflightThrottle>(maxInflight);
     CHECK(nullptr != inflightThrottle) << "new inflight throttle failed";
 
     // chunk service
-    CopysetNodeManager &nodeManager = CopysetNodeManager::GetInstance();
+    CopysetNodeManager& nodeManager = CopysetNodeManager::GetInstance();
     ChunkServiceOptions chunkServiceOptions;
     chunkServiceOptions.copysetNodeManager = &nodeManager;
     chunkServiceOptions.inflightThrottle = inflightThrottle;
@@ -690,9 +674,7 @@ TEST_F(ChunkService2Test, overload_test) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
-        chunkService.DeleteChunkSnapshotOrCorrectSn(&cntl,
-                                                    &request,
-                                                    &response,
+        chunkService.DeleteChunkSnapshotOrCorrectSn(&cntl, &request, &response,
                                                     &done);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD, response.status());
     }
@@ -750,12 +732,12 @@ TEST_F(ChunkService2Test, overload_concurrency_test) {
 
     // inflight throttle
     uint64_t maxInflight = 10;
-    std::shared_ptr<InflightThrottle> inflightThrottle
-        = std::make_shared<InflightThrottle>(maxInflight);
+    std::shared_ptr<InflightThrottle> inflightThrottle =
+        std::make_shared<InflightThrottle>(maxInflight);
     CHECK(nullptr != inflightThrottle) << "new inflight throttle failed";
 
     // chunk service
-    CopysetNodeManager &nodeManager = CopysetNodeManager::GetInstance();
+    CopysetNodeManager& nodeManager = CopysetNodeManager::GetInstance();
     ChunkServiceOptions chunkServiceOptions;
     chunkServiceOptions.copysetNodeManager = &nodeManager;
     chunkServiceOptions.inflightThrottle = inflightThrottle;
@@ -780,17 +762,17 @@ TEST_F(ChunkService2Test, overload_concurrency_test) {
     };
 
     std::vector<std::thread> threads;
-    // 启动10个线程，将chunkserver压满
+    // Start 10 threads to fully load the chunkserver
     for (int i = 0; i < 10; ++i) {
         std::thread t1(writeFunc);
         threads.push_back(std::move(t1));
     }
 
-    // 等待进程启动起来
+    // Waiting for the process to start
     ::usleep(500 * 1000);
     ASSERT_FALSE(inflightThrottle->IsOverLoad());
 
-    // 压满之后chunkserver后面收到的request都会被拒绝
+    // All requests received after the chunkserver is filled will be rejected
     // write chunk
     {
         brpc::Controller cntl;
@@ -863,9 +845,7 @@ TEST_F(ChunkService2Test, overload_concurrency_test) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
-        chunkService.DeleteChunkSnapshotOrCorrectSn(&cntl,
-                                                    &request,
-                                                    &response,
+        chunkService.DeleteChunkSnapshotOrCorrectSn(&cntl, &request, &response,
                                                     &done);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD, response.status());
     }
@@ -916,7 +896,8 @@ TEST_F(ChunkService2Test, overload_concurrency_test) {
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD, response.status());
     }
 
-    // 等待request处理完成，之后chunkserver又重新可以接收新的request
+    // Wait for the request processing to complete, and then chunkserver can
+    // receive new requests again
     for (auto it = threads.begin(); it != threads.end(); ++it) {
         it->join();
     }
@@ -995,9 +976,7 @@ TEST_F(ChunkService2Test, overload_concurrency_test) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
-        chunkService.DeleteChunkSnapshotOrCorrectSn(&cntl,
-                                                    &request,
-                                                    &response,
+        chunkService.DeleteChunkSnapshotOrCorrectSn(&cntl, &request, &response,
                                                     &done);
         ASSERT_NE(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD, response.status());
     }
@@ -1055,12 +1034,12 @@ TEST_F(ChunkService2Test, CheckEpochTest) {
 
     // inflight throttle
     uint64_t maxInflight = 10000;
-    std::shared_ptr<InflightThrottle> inflightThrottle
-        = std::make_shared<InflightThrottle>(maxInflight);
+    std::shared_ptr<InflightThrottle> inflightThrottle =
+        std::make_shared<InflightThrottle>(maxInflight);
     CHECK(nullptr != inflightThrottle) << "new inflight throttle failed";
 
     // chunk service
-    CopysetNodeManager &nodeManager = CopysetNodeManager::GetInstance();
+    CopysetNodeManager& nodeManager = CopysetNodeManager::GetInstance();
     ChunkServiceOptions chunkServiceOptions;
     chunkServiceOptions.copysetNodeManager = &nodeManager;
     chunkServiceOptions.inflightThrottle = inflightThrottle;
@@ -1083,7 +1062,7 @@ TEST_F(ChunkService2Test, CheckEpochTest) {
         request.set_chunkid(chunkId);
         chunkService.WriteChunk(&cntl, &request, &response, &done);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
-            response.status());
+                  response.status());
     }
 
     // write chunk request have epoch, but epoch map have no epoch
@@ -1100,7 +1079,7 @@ TEST_F(ChunkService2Test, CheckEpochTest) {
         request.set_epoch(1);
         chunkService.WriteChunk(&cntl, &request, &response, &done);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
-            response.status());
+                  response.status());
     }
     // update epoch map to {(1, 1) , (2, 2)}
     {
@@ -1130,7 +1109,7 @@ TEST_F(ChunkService2Test, CheckEpochTest) {
         request.set_epoch(1);
         chunkService.WriteChunk(&cntl, &request, &response, &done);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
-            response.status());
+                  response.status());
     }
     // write chunk check epoch failed
     {
@@ -1146,7 +1125,7 @@ TEST_F(ChunkService2Test, CheckEpochTest) {
         request.set_epoch(1);
         chunkService.WriteChunk(&cntl, &request, &response, &done);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_EPOCH_TOO_OLD,
-            response.status());
+                  response.status());
     }
 
     // update epoch map to {(1, 2) , (2, 2)}
@@ -1174,7 +1153,7 @@ TEST_F(ChunkService2Test, CheckEpochTest) {
         request.set_epoch(1);
         chunkService.WriteChunk(&cntl, &request, &response, &done);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_EPOCH_TOO_OLD,
-            response.status());
+                  response.status());
     }
 }
 
