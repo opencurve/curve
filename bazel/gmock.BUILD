@@ -42,3 +42,11 @@ cc_library(
       visibility = ["//visibility:public"],
       deps = [":gtest"],
 )
+
+# Library that defines the FRIEND_TEST macro.
+cc_library(
+    name = "gtest_prod",
+    hdrs = ["googletest/include/gtest/gtest_prod.h"],
+    includes = ["googletest/include"],
+    visibility = ["//visibility:public"],
+)

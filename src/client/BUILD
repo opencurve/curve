@@ -56,6 +56,7 @@ cc_library(
         "//proto:topology_cc_proto",
         "//proto:chunkserver-cc-protos",
         # "//src/chunkserver:chunkserver-lib"
+        "@com_google_googletest//:gtest_prod",
     ],
     linkopts = [
         "-luuid"
