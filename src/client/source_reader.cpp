@@ -133,15 +133,22 @@ SourceReader::ReadHandler* SourceReader::GetReadHandler(
     instance->GetIOManager4File()->SetDisableStripe();
 
     curve::common::WriteLockGuard wlk(rwLock_);
+    auto iter = readHandlers_.find(fileName);
+    if (iter != readHandlers_.end()) {
+        instance->UnInitialize();
+        delete instance;
+
+        iter->second.lastUsedSec_.store(::time(nullptr),
+                                        std::memory_order_relaxed);
+        return &iter->second;
+    }
+
     auto res = readHandlers_.emplace(
         std::piecewise_construct,
         std::forward_as_tuple(fileName),
         std::forward_as_tuple(instance, ::time(nullptr), true));
 
-    if (res.second == false) {
-        instance->UnInitialize();
-        delete instance;
-    }
+    CHECK(res.second);
 
     return &res.first->second;
 }
