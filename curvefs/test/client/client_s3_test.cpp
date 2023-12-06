@@ -67,6 +67,34 @@ TEST_F(ClientS3Test, init_s3Adapter_userAgent) {
     ASSERT_STREQ(userAgent.c_str(), s3Adapter.GetConfig()->userAgent.c_str());
 }
 
+TEST_F(ClientS3Test, init_s3Adapter_retry_strategy) {
+    curve::common::S3Adapter s3Adapter;
+    curve::common::S3AdapterOption option;
+
+    std::string retryMode = "default";
+    int maxRetries = 10;
+    int scaleFactors = 25;
+    option.retryMode = retryMode;
+    option.maxRetries = maxRetries;
+    option.scaleFactor = scaleFactors;
+    s3Adapter.Init(option);
+    ASSERT_EQ(maxRetries + 1,
+              (int)s3Adapter.GetConfig()->retryStrategy->GetMaxAttempts());
+
+    retryMode = "standard";
+    maxRetries = 2;
+    option.retryMode = retryMode;
+    option.maxRetries = maxRetries;
+    s3Adapter.Init(option);
+    ASSERT_EQ(maxRetries + 1,
+              (int)s3Adapter.GetConfig()->retryStrategy->GetMaxAttempts());
+
+    retryMode = "disable";
+    option.retryMode = retryMode;
+    s3Adapter.Init(option);
+    ASSERT_EQ(1, (int)s3Adapter.GetConfig()->retryStrategy->GetMaxAttempts());
+}
+
 TEST_F(ClientS3Test, upload) {
     const std::string obj("test");
     uint64_t len = 1024;
@@ -122,12 +150,10 @@ TEST_F(ClientS3Test, downloadAsync) {
 
     auto context = std::make_shared<GetObjectAsyncContext>("name", buf, 1, 10);
 
-    EXPECT_CALL(*s3Client_, GetObjectAsync(_))
-        .WillOnce(Return());
+    EXPECT_CALL(*s3Client_, GetObjectAsync(_)).WillOnce(Return());
     client_->DownloadAsync(context);
     delete[] buf;
 }
-
 
 }  // namespace client
 }  // namespace curvefs
