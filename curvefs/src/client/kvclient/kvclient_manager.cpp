@@ -62,10 +62,12 @@ void KVClientManager::Uninit() {
 }
 
 void KVClientManager::Set(std::shared_ptr<SetKVCacheTask> task) {
+    kvClientManagerMetric_->setQueueSize << 1;
     threadPool_.Enqueue([task, this]() {
         std::string error_log;
         task->res =
             client_->Set(task->key, task->value, task->length, &error_log);
+        kvClientManagerMetric_->setQueueSize << -1;
         if (task->res) {
             kvClientManagerMetric_->count << 1;
         }
@@ -96,12 +98,14 @@ void UpdateHitMissMetric(memcached_return_t retCode,
 }
 
 void KVClientManager::Get(std::shared_ptr<GetKVCacheTask> task) {
+    kvClientManagerMetric_->getQueueSize << 1;
     threadPool_.Enqueue([task, this]() {
         std::string error_log;
         memcached_return_t retCode;
         task->res = client_->Get(task->key, task->value, task->offset,
                                  task->valueLength, &error_log, &task->length,
                                  &retCode);
+        kvClientManagerMetric_->getQueueSize << -1;
         UpdateHitMissMetric(retCode, kvClientManagerMetric_.get());
         OnReturn(&kvClientManagerMetric_->get, task);
     });

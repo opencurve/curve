@@ -317,6 +317,10 @@ struct KVClientManagerMetric {
     bvar::Adder<uint64_t> hit;
     // kvcache miss
     bvar::Adder<uint64_t> miss;
+    // kvcache getQueueSize
+    bvar::Adder<uint64_t> getQueueSize;
+    // kvcache setQueueSize
+    bvar::Adder<uint64_t> setQueueSize;
 
     explicit KVClientManagerMetric(const std::string& name = "")
         : fsName(!name.empty() ? name
@@ -325,7 +329,9 @@ struct KVClientManagerMetric {
           set(prefix, fsName + "_set"),
           count(prefix, fsName + "_count"),
           hit(prefix, fsName + "_hit"),
-          miss(prefix, fsName + "_miss") {}
+          miss(prefix, fsName + "_miss"),
+          getQueueSize(prefix, fsName + "_get_queue_size"),
+          setQueueSize(prefix, fsName + "_set_queue_size") {}
 };
 
 struct MemcacheClientMetric {
