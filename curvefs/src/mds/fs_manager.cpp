@@ -1305,6 +1305,11 @@ bool FsManager::FillVolumeInfo(common::Volume* volume) {
     return true;
 }
 
+std::string FsManager::GetClientMdsAddrsOverride() {
+    ReadLockGuard lock(clientMdsAddrsOverrideMutex_);
+    return clientMdsAddrsOverride_;
+}
+
 void FsManager::SetClientMdsAddrsOverride(const std::string& addrs) {
     // always add active mds to override to improve availability
     auto addrsWithActiveMds = addrs + "," + option_.mdsListenAddr;
