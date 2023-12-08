@@ -495,7 +495,7 @@ TEST_F(RaftCliService2Test, ChangePeerTest) {
         brpc::Controller cntl;
         CliService2_Stub stub(&channel_);
         stub.ChangePeers(&cntl, &request, &response, nullptr);
-        ASSERT_FALSE(cntl.Failed());
+        ASSERT_FALSE(cntl.Failed()) << cntl.ErrorText();
 
         // check response
         ASSERT_EQ(3, response.oldpeers_size());
