@@ -92,6 +92,9 @@ void TrashImpl::Remove(uint64_t inodeId) {
 
 void TrashImpl::ScanTrash() {
     LockGuard lgScan(scanMutex_);
+    LOG(INFO) << "ScanTrash, fsId = " << fsId_
+              << ", partitionId = " << partitionId_
+              << ", trashItems size = " << trashItems_.size();
     // only scan on leader
     if (copysetNode_ == nullptr || !copysetNode_->IsLeaderTerm()) {
         return;
@@ -103,22 +106,25 @@ void TrashImpl::ScanTrash() {
         trashItems_.swap(temp);
     }
 
-    for (auto& it : temp) {
+    for (auto it = temp.begin(); it != temp.end();) {
         if (isStop_ || !copysetNode_->IsLeaderTerm()) {
             return;
         }
-        if (NeedDelete(it.second)) {
-            MetaStatusCode ret = DeleteInodeAndData(it.first);
+        if (NeedDelete(it->second)) {
+            MetaStatusCode ret = DeleteInodeAndData(it->first);
             if (ret != MetaStatusCode::OK) {
                 LOG(ERROR) << "DeleteInodeAndData fail, fsId = " << fsId_
-                           << ", inodeId = " << it.first
+                           << ", inodeId = " << it->first
                            << ", ret = " << MetaStatusCode_Name(ret);
+                it++;
                 continue;
             }
             LOG(INFO) << "Trash delete inode, fsId = " << fsId_
                       << ", partitionId = " << partitionId_
-                      << ", inodeId = " << it.first;
-            temp.erase(it.first);
+                      << ", inodeId = " << it->first;
+            it = temp.erase(it);
+        } else {
+            it++;
         }
     }
 

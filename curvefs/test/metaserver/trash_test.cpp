@@ -162,11 +162,11 @@ TEST_F(TestTrash, testAdd3ItemAndDelete) {
     option.mdsClient = mdsClient_;
     option.s3Adaptor = s3Adaptor_;
     FLAGS_trash_scanPeriodSec = 1;
-    FLAGS_trash_expiredAfterSec = 1;
+    FLAGS_trash_expiredAfterSec = 4;
     trashManager_->Init(option);
     trashManager_->Run();
     auto trash1 = std::make_shared<TrashImpl>(inodeStorage_, 1, 1, 1, 1);
-    auto trash2 = std::make_shared<TrashImpl>(inodeStorage_, 2, 2, 2, 2);
+    auto trash2 = std::make_shared<TrashImpl>(inodeStorage_, 2, 1, 2, 2);
     trashManager_->Add(1, trash1);
     trashManager_->Add(2, trash2);
     trash1->SetCopysetNode(copysetNode_);
@@ -214,12 +214,12 @@ TEST_F(TestTrash, testAdd3ItemAndDelete) {
             task.done->Run();
         }));
 
-    uint64_t dtime = curve::common::TimeUtility::GetTimeofDaySec() - 2;
-    trash1->Add(1, dtime);
-    trash1->Add(2, dtime);
+    uint64_t dtime = curve::common::TimeUtility::GetTimeofDaySec();
+    trash1->Add(1, dtime - 6);
+    trash1->Add(2, dtime - 2);
     trash2->Add(1, dtime);
 
-    std::this_thread::sleep_for(std::chrono::seconds(2));
+    std::this_thread::sleep_for(std::chrono::seconds(5));
 
     ASSERT_EQ(0, trashManager_->Size());
     ASSERT_EQ(inodeStorage_->Size(), 0);
