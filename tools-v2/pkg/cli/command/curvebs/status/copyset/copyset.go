@@ -23,14 +23,11 @@ package copyset
 
 import (
 	"fmt"
-	"sort"
-	"strings"
+	"strconv"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
-	checkcopyset "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/check/copyset"
-	clustercopyset "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/copyset"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
 	"github.com/spf13/cobra"
@@ -38,6 +35,7 @@ import (
 
 type CopysetCommand struct {
 	basecmd.FinalCurveCmd
+	healthy cobrautil.ClUSTER_HEALTH_STATUS
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*CopysetCommand)(nil) // check interface
@@ -47,6 +45,7 @@ func NewCopysetCommand() *cobra.Command {
 }
 
 func (cCmd *CopysetCommand) AddFlags() {
+	config.AddHttpTimeoutFlag(cCmd.Cmd)
 	config.AddRpcTimeoutFlag(cCmd.Cmd)
 	config.AddRpcRetryTimesFlag(cCmd.Cmd)
 	config.AddBsMdsFlagOption(cCmd.Cmd)
@@ -54,52 +53,97 @@ func (cCmd *CopysetCommand) AddFlags() {
 }
 
 func (cCmd *CopysetCommand) Init(cmd *cobra.Command, args []string) error {
-	header := []string{cobrautil.ROW_COPYSET_KEY, cobrautil.ROW_COPYSET_ID,
-		cobrautil.ROW_POOL_ID, cobrautil.ROW_STATUS, cobrautil.ROW_LOG_GAP,
-		cobrautil.ROW_EXPLAIN,
-	}
+	header := []string{cobrautil.ROW_EXPLAIN, cobrautil.ROW_COPYSET_KEY, cobrautil.ROW_HEALTHY_RATIO, cobrautil.ROW_STATUS}
 	cCmd.SetHeader(header)
 	cCmd.TableNew.SetAutoMergeCellsByColumnIndex(cobrautil.GetIndexSlice(
-		cCmd.Header, []string{cobrautil.ROW_COPYSET_ID, cobrautil.ROW_POOL_ID,
+		cCmd.Header, []string{
+			cobrautil.ROW_EXPLAIN,
 			cobrautil.ROW_STATUS,
 		},
 	))
+	cCmd.TableNew.SetColumnAlignment([]int{1, 3, 1, 1})
+	cs := NewCopyset()
+	_, err := cs.checkCopysetsInCluster(cCmd.Cmd)
+	if err != nil {
+		return err
+	}
+	copysetsFromCS := cs.getCopysetTotalNum()
+	unhealthyCopysetsFromCS := cs.getCopysetUnhealthyNum()
+	healthyCopysetsFromCS := copysetsFromCS - unhealthyCopysetsFromCS
 
-	config.AddBsFilterOptionFlag(cCmd.Cmd)
-	cCmd.Cmd.ParseFlags([]string{fmt.Sprintf("--%s=%s", config.CURVEBS_FIlTER, cobrautil.FALSE_STRING)})
-	copysetsInfo, err := clustercopyset.GetCopySetsInCluster(cCmd.Cmd)
-	if err.TypeCode() != cmderror.CODE_SUCCESS {
-		return err.ToError()
+	totalGroupIds := cs.copyset[COPYSET_TOTAL]
+	delete(cs.copyset, COPYSET_TOTAL)
+	rows := [][]string{}
+	var ishealthy string
+	for state, groupIds := range cs.copyset {
+		switch state {
+		case COPYSET_CHECK_HEALTHY:
+			ishealthy = COPYSET_CHECK_HEALTHY
+		default:
+			ishealthy = cobrautil.ROW_UNHEALTHY
+		}
+		row := []string{}
+		row = append(row, state)
+		var str, allGroups string
+		for i, group := range groupIds.ToSlice() {
+			if i%5 == 0 && i >= 5 {
+				str += "\n"
+				allGroups += str
+				str = ""
+			}
+			str += group + ","
+		}
+		allGroups += str
+		row = append(row, allGroups)
+		row = append(row, strconv.Itoa(int(cs.copyset[state].Cardinality()))+" / "+strconv.Itoa(int(copysetsFromCS)))
+		row = append(row, ishealthy)
+		rows = append(rows, row)
 	}
-	var copysetIds []string
-	var poolIds []string
-	for _, info := range copysetsInfo {
-		copysetIds = append(copysetIds, fmt.Sprintf("%d", info.GetCopysetId()))
-		poolIds = append(poolIds, fmt.Sprintf("%d", info.GetLogicalPoolId()))
+	row := []string{
+		"healthy",
+		"-",
+		strconv.Itoa(int(healthyCopysetsFromCS)) +
+			" / " +
+			strconv.Itoa(int(copysetsFromCS)),
+		"healthy",
 	}
-	config.AddBsCopysetIdSliceRequiredFlag(cCmd.Cmd)
-	config.AddBsLogicalPoolIdSliceRequiredFlag(cCmd.Cmd)
-	cCmd.Cmd.ParseFlags([]string{
-		fmt.Sprintf("--%s", config.CURVEBS_COPYSET_ID), strings.Join(copysetIds, ","),
-		fmt.Sprintf("--%s", config.CURVEBS_LOGIC_POOL_ID), strings.Join(poolIds, ","),
-	})
+	cCmd.TableNew.Append(row)
+	cCmd.TableNew.AppendBulk(rows)
 
-	results, err := checkcopyset.GetCopysetsStatus(cCmd.Cmd)
-	if err.TypeCode() != cmderror.CODE_SUCCESS {
-		return err.ToError()
+	// final result for 'bs status cluster'
+	// has some scenarios may cause to 'error' state
+	// 1. no leader peer
+	// 2. most of peers offline
+	// 3. not consistent with mds
+	if _, ok := cs.copysetStat[int32(cobrautil.COPYSET_ERROR)]; ok &&
+		cs.copysetStat[int32(cobrautil.COPYSET_ERROR)].Cardinality() > 0 {
+		cCmd.healthy = cobrautil.HEALTH_ERROR
+	} else if _, ok := cs.copysetStat[int32(cobrautil.COPYSET_WARN)]; ok &&
+		cs.copysetStat[int32(cobrautil.COPYSET_WARN)].Cardinality() > 0 {
+		cCmd.healthy = cobrautil.HEALTH_WARN
+	} else {
+		cCmd.healthy = cobrautil.HEALTH_OK
 	}
-	cCmd.Error = err
-	if results != nil && *results != nil {
-		cCmd.Result = *results
-		rows := (*results).([]map[string]string)
-		sort.Slice(rows, func(i, j int) bool {
-			return rows[i][cobrautil.ROW_COPYSET_KEY] < rows[j][cobrautil.ROW_COPYSET_KEY]
-		})
-		list := cobrautil.ListMap2ListSortByKeys(rows, cCmd.Header, []string{
-			cobrautil.ROW_POOL_ID, cobrautil.ROW_STATUS, cobrautil.ROW_COPYSET_ID,
-		})
-		cCmd.TableNew.AppendBulk(list)
+
+	// check consistence with mds
+	cs.copyset[COPYSET_TOTAL] = totalGroupIds
+	consistent, mdsCopysets, _ := cs.checkCopysetsWithMds(cCmd.Cmd)
+	if !consistent {
+		cCmd.healthy = cobrautil.HEALTH_ERROR
+		fmt.Printf("\nCopyset numbers in chunkservers not consistent with mds,"+
+			"please check! copysets on chunkserver: %d; copysets in mds: %d\n",
+			cs.copyset[COPYSET_TOTAL].Cardinality(), mdsCopysets)
 	}
+
+	ret := make(map[string]string)
+	ret[cobrautil.ROW_TOTAL] = strconv.Itoa(int(copysetsFromCS))
+	ret[cobrautil.ROW_HEALTHY] = strconv.Itoa(int(healthyCopysetsFromCS))
+	ret[cobrautil.ROW_UNHEALTHY] = strconv.Itoa(int(unhealthyCopysetsFromCS))
+	ret[cobrautil.ROW_UNHEALTHY_RATIO] = fmt.Sprintf("%.2f%%", float64(unhealthyCopysetsFromCS)/float64(copysetsFromCS)*100)
+	res := []map[string]string{}
+	res = append(res, ret)
+	cCmd.Result = res
+
 	return nil
 }
 
@@ -139,5 +183,5 @@ func GetCopysetsStatus(caller *cobra.Command) (*interface{}, *cmderror.CmdError,
 		retErr.Format(err.Error())
 		return nil, retErr, cobrautil.HEALTH_ERROR
 	}
-	return &cCmd.Result, cmderror.Success(), cobrautil.HEALTH_OK
+	return &cCmd.Result, cmderror.Success(), cCmd.healthy
 }

@@ -81,13 +81,12 @@ struct IOContext {
 // NBDServer负责与nbd内核进行数据通信
 class NBDServer {
  public:
-    NBDServer(int sock, NBDControllerPtr nbdCtrl,
+    NBDServer(int sock,
               std::shared_ptr<ImageInstance> imageInstance,
               std::shared_ptr<SafeIO> safeIO = std::make_shared<SafeIO>())
         : started_(false),
           terminated_(false),
           sock_(sock),
-          nbdCtrl_(nbdCtrl),
           image_(imageInstance),
           pendingRequestCounts_(0),
           safeIO_(safeIO) {}
@@ -109,10 +108,6 @@ class NBDServer {
      */
     bool IsTerminated() const {
         return terminated_;
-    }
-
-    NBDControllerPtr GetController() {
-        return nbdCtrl_;
     }
 
  private:
@@ -173,7 +168,6 @@ class NBDServer {
 
     // 与内核通信的socket fd
     int sock_;
-    NBDControllerPtr nbdCtrl_;
     std::shared_ptr<ImageInstance> image_;
     std::shared_ptr<SafeIO> safeIO_;
 

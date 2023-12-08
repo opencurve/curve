@@ -31,6 +31,7 @@
 #include "src/client/client_metric.h"
 #include "src/client/inflight_controller.h"
 #include "src/common/concurrent/concurrent.h"
+#include "src/common/timeutility.h"
 
 namespace curve {
 namespace client {
@@ -138,20 +139,14 @@ class CURVE_CACHELINE_ALIGNMENT RequestClosure
         nextTimeoutMS_ = timeout;
     }
 
-    /**
-     * 设置当前的IO为悬挂IO
-     */
-    void SetSuspendRPCFlag() {
-        suspendRPC_ = true;
-    }
+    bool IsSlowRequest() const { return slowRequest_; }
 
-    bool IsSuspendRPC() const {
-        return suspendRPC_;
-    }
+    void MarkAsSlowRequest() { slowRequest_ = true; }
+
+    uint64_t CreatedMS() const { return createdMS_; }
 
  private:
-    // suspend io标志
-    bool suspendRPC_ = false;
+    bool slowRequest_ = false;
 
     // whether own inflight count
     bool ownInflight_ = false;
@@ -176,6 +171,9 @@ class CURVE_CACHELINE_ALIGNMENT RequestClosure
 
     // 下一次rpc超时时间
     uint64_t nextTimeoutMS_ = 0;
+
+    // create time of this closure(in millisecond)
+    uint64_t createdMS_ = common::TimeUtility::GetTimeofDayMs();
 };
 
 }  // namespace client

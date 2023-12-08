@@ -26,11 +26,12 @@
 #include <glog/logging.h>
 
 #include <algorithm>
+#include <cstdio>
+#include <list>
 #include <memory>
 #include <mutex>   // NOLINT
 #include <thread>  // NOLINT
 #include <utility>
-#include <list>
 
 #include "include/client/libcurve.h"
 #include "include/curve_compiler_specific.h"
@@ -42,10 +43,11 @@
 #include "src/client/iomanager4file.h"
 #include "src/client/service_helper.h"
 #include "src/client/source_reader.h"
+#include "src/client/utils.h"
 #include "src/common/curve_version.h"
 #include "src/common/net_common.h"
-#include "src/common/uuid.h"
 #include "src/common/string_util.h"
+#include "src/common/uuid.h"
 #include "src/common/fast_align.h"
 
 #define PORT_LIMIT  65535
@@ -130,22 +132,26 @@ int FileClient::Init(const std::string& configpath) {
         return -LIBCURVE_ERROR::FAILED;
     }
 
+    const auto& fileSvcOpts = clientconfig_.GetFileServiceOption();
+
+    static std::once_flag adjustOpenFileLimitFlag;
+    std::call_once(adjustOpenFileLimitFlag, AdjustOpenFileSoftLimitToHardLimit,
+                   fileSvcOpts.commonOpt.minimalOpenFiles);
 
     auto tmpMdsClient = std::make_shared<MDSClient>();
 
-    auto ret = tmpMdsClient->Initialize(
-        clientconfig_.GetFileServiceOption().metaServerOpt);
+    auto ret = tmpMdsClient->Initialize(fileSvcOpts.metaServerOpt);
     if (LIBCURVE_ERROR::OK != ret) {
         LOG(ERROR) << "Init global mds client failed!";
         return -LIBCURVE_ERROR::FAILED;
     }
 
-    if (clientconfig_.GetFileServiceOption().commonOpt.turnOffHealthCheck) {
+    if (fileSvcOpts.commonOpt.turnOffHealthCheck) {
         brpc::FLAGS_health_check_interval = -1;
     }
 
     // set option for source reader
-    SourceReader::GetInstance().SetOption(clientconfig_.GetFileServiceOption());
+    SourceReader::GetInstance().SetOption(fileSvcOpts);
 
     bool rc = StartDummyServer();
     if (rc == false) {
@@ -154,14 +160,12 @@ int FileClient::Init(const std::string& configpath) {
 
     mdsClient_ = std::move(tmpMdsClient);
 
-    int rc2 = csClient_->Init(
-        clientconfig_.GetFileServiceOption().csClientOpt);
+    int rc2 = csClient_->Init(fileSvcOpts.csClientOpt);
     if (rc2 != 0) {
         LOG(ERROR) << "Init ChunkServer Client failed!";
         return -LIBCURVE_ERROR::FAILED;
     }
-    rc2 = csBroadCaster_->Init(
-        clientconfig_.GetFileServiceOption().csBroadCasterOpt);
+    rc2 = csBroadCaster_->Init(fileSvcOpts.csBroadCasterOpt);
     if (rc2 != 0) {
         LOG(ERROR) << "Init ChunkServer BroadCaster failed!";
         return -LIBCURVE_ERROR::FAILED;
@@ -539,7 +543,7 @@ int FileClient::StatFile(int fd, FileStatInfo *finfo) {
             return -LIBCURVE_ERROR::FAILED;
         }
         FileInstance *instance = fileserviceMap_[fd];
-        fi = instance->GetCurrentFileInfo();
+        fi = instance->GetCurrentFileInfo(/*force=*/true);
     }
     BuildFileStatInfo(fi, finfo);
 

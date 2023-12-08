@@ -116,9 +116,16 @@ int ClientConfig::Init(const std::string& configpath) {
         << "config no chunkserver.minRetryTimesForceTimeoutBackoff "
         << "using default value";
 
-    ret = conf_.GetUInt64Value("chunkserver.maxRetryTimesBeforeConsiderSuspend",
-        &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.chunkserverMaxRetryTimesBeforeConsiderSuspend);   // NOLINT
-    LOG_IF(ERROR, ret == false) << "config no chunkserver.maxRetryTimesBeforeConsiderSuspend info";             // NOLINT
+    constexpr const char* kChunkserverSlowRequestThresholdMS =
+        "chunkserver.slowRequestThresholdMS";
+    ret = conf_.GetUInt32Value(
+        kChunkserverSlowRequestThresholdMS,
+        &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt
+             .chunkserverSlowRequestThresholdMS);
+    LOG_IF(WARNING, !ret) << "config no `" << kChunkserverSlowRequestThresholdMS
+                          << "`, use default value "
+                          << fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt
+                                 .chunkserverSlowRequestThresholdMS;
 
     ret = conf_.GetUInt64Value("global.fileMaxInFlightRPCNum",
         &fileServiceOption_.ioOpt.ioSenderOpt.inflightOpt.fileMaxInFlightRPCNum);   // NOLINT
@@ -235,6 +242,13 @@ int ClientConfig::Init(const std::string& configpath) {
     LOG_IF(WARNING, ret == false)
         << "config no global.turnOffHealthCheck info, using default value "
         << fileServiceOption_.commonOpt.turnOffHealthCheck;
+
+    constexpr const char* kMinOpenFileLimit = "global.minOpenFileLimit";
+    ret = conf_.GetUInt32Value(kMinOpenFileLimit,
+                               &fileServiceOption_.commonOpt.minimalOpenFiles);
+    LOG_IF(WARNING, !ret) << "config no `" << kMinOpenFileLimit
+                          << "` info, using default value "
+                          << fileServiceOption_.commonOpt.minimalOpenFiles;
 
     ret = conf_.GetUInt32Value(
         "closefd.timeout",

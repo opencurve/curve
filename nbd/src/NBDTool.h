@@ -114,6 +114,7 @@ class NBDTool {
 
     NBDSocketPair socketPair_;
     NBDServerPtr nbdServer_;
+    NBDControllerPtr controller_;
     std::shared_ptr<NBDWatchContext> nbdWatchCtx_;
 };
 

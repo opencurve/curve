@@ -79,6 +79,7 @@ cc_test(
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
         "//test/integration/cluster_common:integration_cluster_common",
+        "//test/client/mock:curve_client_mock",
     ],
 )
 

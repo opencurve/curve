@@ -114,6 +114,11 @@ int main(int argc, char **argv) {
 
     FLAGS_vlog_level = FLAGS_v;
 
+    // reset SIGPIPE handler
+    // etcdclient register SIGPIPE handler in its initialization progress, which
+    // will cause mds exit due to write to a closed socket
+    signal(SIGPIPE, SIG_IGN);
+
     curve::mds::MDS mds;
 
     // initialize MDS options

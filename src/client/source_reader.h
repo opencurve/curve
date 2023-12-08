@@ -23,6 +23,8 @@
 #ifndef SRC_CLIENT_SOURCE_READER_H_
 #define SRC_CLIENT_SOURCE_READER_H_
 
+#include <gtest/gtest_prod.h>
+
 #include <atomic>
 #include <mutex>
 #include <string>
@@ -97,6 +99,8 @@ class SourceReader {
         const std::unordered_map<std::string, ReadHandler>& handlers);
 
  private:
+    FRIEND_TEST(SourceReaderTest, ConcurrentTest);
+
     SourceReader() = default;
     ~SourceReader();
     SourceReader(const SourceReader&);

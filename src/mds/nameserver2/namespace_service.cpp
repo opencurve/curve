@@ -46,11 +46,11 @@ void NameSpaceService::CreateFile(::google::protobuf::RpcController* controller,
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", CreateFile request path is invalid, filename = "
-            << request->filename()
-            << ", filetype = " << request->filetype()
-            << ", filelength = " << request->filelength();
+        LOG(WARNING) << "logid = " << cntl->log_id()
+                     << ", CreateFile request path is invalid, filename = "
+                     << request->filename()
+                     << ", filetype = " << request->filetype()
+                     << ", filelength = " << request->filelength();
         return;
     }
 
@@ -123,9 +123,9 @@ void NameSpaceService::DeleteFile(::google::protobuf::RpcController* controller,
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", DeleteFile request path is invalid, filename = "
-            << request->filename();
+        LOG(WARNING) << "logid = " << cntl->log_id()
+                     << ", DeleteFile request path is invalid, filename = "
+                     << request->filename();
         return;
     }
 
@@ -233,9 +233,9 @@ void NameSpaceService::RecoverFile(
     // check the filename is valid
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", RecoverFile request path is invalid, filename = "
-            << request->filename();
+        LOG(WARNING) << "logid = " << cntl->log_id()
+                     << ", RecoverFile request path is invalid, filename = "
+                     << request->filename();
         return;
     }
 
@@ -361,9 +361,9 @@ void NameSpaceService::GetFileInfo(
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", GetFileInfo request path is invalid, filename = "
-            << request->filename();
+        LOG(WARNING) << "logid = " << cntl->log_id()
+                     << ", GetFileInfo request path is invalid, filename = "
+                     << request->filename();
         return;
     }
 
@@ -437,11 +437,11 @@ void NameSpaceService::GetOrAllocateSegment(
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
-        LOG(ERROR) << "logid = " << cntl->log_id()
+        LOG(WARNING)
+            << "logid = " << cntl->log_id()
             << ", GetOrAllocateSegment request path is invalid, filename = "
-            << request->filename()
-            << ", offset = " << request->offset() << ", allocateTag = "
-            << request->allocateifnotexist();
+            << request->filename() << ", offset = " << request->offset()
+            << ", allocateTag = " << request->allocateifnotexist();
         return;
     }
 
@@ -549,10 +549,10 @@ void NameSpaceService::RenameFile(::google::protobuf::RpcController* controller,
         || !isPathValid(request->newfilename())
         || !IsRenamePathValid(request->oldfilename(), request->newfilename())) {
         response->set_statuscode(StatusCode::kParaError);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-                    << ", RenameFile request path is invalid, oldfilename = "
-                    << request->oldfilename()
-                    << ", newfilename = " << request->newfilename();
+        LOG(WARNING) << "logid = " << cntl->log_id()
+                     << ", RenameFile request path is invalid, oldfilename = "
+                     << request->oldfilename()
+                     << ", newfilename = " << request->newfilename();
         return;
     }
 
@@ -660,10 +660,10 @@ void NameSpaceService::ExtendFile(::google::protobuf::RpcController* controller,
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-                << ", ExtendFile request path is invalid, filename = "
-                << request->filename()
-                << ", newsize = " << request->newsize();
+        LOG(WARNING) << "logid = " << cntl->log_id()
+                     << ", ExtendFile request path is invalid, filename = "
+                     << request->filename()
+                     << ", newsize = " << request->newsize();
         return;
     }
 
@@ -740,10 +740,10 @@ void NameSpaceService::ChangeOwner(
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-                << ", ChangeOwner request path is invalid, filename = "
-                << request->filename()
-                << ", newOwner = " << request->newowner();
+        LOG(WARNING) << "logid = " << cntl->log_id()
+                     << ", ChangeOwner request path is invalid, filename = "
+                     << request->filename()
+                     << ", newOwner = " << request->newowner();
         return;
     }
 
@@ -814,9 +814,9 @@ void NameSpaceService::ListDir(::google::protobuf::RpcController* controller,
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", ListDir request path is invalid, filename = "
-            << request->filename();
+        LOG(WARNING) << "logid = " << cntl->log_id()
+                     << ", ListDir request path is invalid, filename = "
+                     << request->filename();
         return;
     }
 
@@ -892,7 +892,8 @@ void NameSpaceService::IncreaseFileEpoch(
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
-        LOG(ERROR) << "logid = " << cntl->log_id()
+        LOG(WARNING)
+            << "logid = " << cntl->log_id()
             << ", IncreaseFileEpoch request path is invalid, filename = "
             << request->filename();
         return;
@@ -984,10 +985,9 @@ void NameSpaceService::CreateSnapShot(
     }
     if (!isPathValid(srcFileName)) {
         response->set_statuscode(StatusCode::kParaError);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-                  << ", CreateSnapShot request path is invalid, "
-                  << "filename = "
-                  << request->filename();
+        LOG(WARNING) << "logid = " << cntl->log_id()
+                     << ", CreateSnapShot request path is invalid, filename = "
+                     << request->filename();
         return;
     }
 
@@ -1060,9 +1060,9 @@ void NameSpaceService::ListSnapShot(
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-                  << ", CreateSnapShot request path is invalid, filename = "
-                  << request->filename();
+        LOG(WARNING) << "logid = " << cntl->log_id()
+                     << ", CreateSnapShot request path is invalid, filename = "
+                     << request->filename();
         return;
     }
 
@@ -1177,7 +1177,7 @@ void NameSpaceService::DeleteSnapShot(
 
     if (!isPathValid(srcFileName)) {
         response->set_statuscode(StatusCode::kParaError);
-        LOG(ERROR) << "logid = " << cntl->log_id()
+        LOG(WARNING) << "logid = " << cntl->log_id()
                   << ", DeleteSnapShot request path is invalid, "
                   << "filename = "
                   << request->filename();
@@ -1262,10 +1262,10 @@ void NameSpaceService::CheckSnapShotStatus(
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-                << ", CheckSnapShotStatus request path is invalid, filename = "
-                << request->filename()
-                << ", seqnum" << request->seq();
+        LOG(WARNING)
+            << "logid = " << cntl->log_id()
+            << ", CheckSnapShotStatus request path is invalid, filename = "
+            << request->filename() << ", seqnum" << request->seq();
         return;
     }
 
@@ -1353,11 +1353,11 @@ void NameSpaceService::GetSnapShotFileSegment(
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-              << ", GetSnapShotFileSegment request path is invalid, filename = "
-              << request->filename()
-              << " offset = " << request->offset()
-              << ", seqnum = " << request->seqnum();
+        LOG(WARNING)
+            << "logid = " << cntl->log_id()
+            << ", GetSnapShotFileSegment request path is invalid, filename = "
+            << request->filename() << " offset = " << request->offset()
+            << ", seqnum = " << request->seqnum();
         return;
     }
 
@@ -1984,11 +1984,10 @@ void NameSpaceService::OpenFile(::google::protobuf::RpcController* controller,
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-                << ", OpenFile request path is invalid, filename = "
-                << request->filename()
-                << ", clientip = " << clientIP
-                << ", clientport = " << clientPort;
+        LOG(WARNING) << "logid = " << cntl->log_id()
+                     << ", OpenFile request path is invalid, filename = "
+                     << request->filename() << ", clientip = " << clientIP
+                     << ", clientport = " << clientPort;
         return;
     }
 
@@ -2089,12 +2088,12 @@ void NameSpaceService::CloseFile(::google::protobuf::RpcController* controller,
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-                << ", CloseFile request path is invalid, filename = "
-                << request->filename()
-                << ", sessionid = " << request->sessionid()
-                << ", clientip = " << clientIP
-                << ", clientport = " << clientPort;
+        LOG(WARNING) << "logid = " << cntl->log_id()
+                     << ", CloseFile request path is invalid, filename = "
+                     << request->filename()
+                     << ", sessionid = " << request->sessionid()
+                     << ", clientip = " << clientIP
+                     << ", clientport = " << clientPort;
         return;
     }
 
@@ -2188,14 +2187,14 @@ void NameSpaceService::RefreshSession(
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
         response->set_sessionid(request->sessionid());
-        LOG(ERROR) << "logid = " << cntl->log_id()
-                << ", RefreshSession request path is invalid, filename = "
-                << request->filename()
-                << ", sessionid = " << request->sessionid()
-                << ", date = " << request->date()
-                << ", signature = " << request->signature()
-                << ", clientip = " << clientIP
-                << ", clientport = " << clientPort;
+        LOG(WARNING) << "logid = " << cntl->log_id()
+                     << ", RefreshSession request path is invalid, filename = "
+                     << request->filename()
+                     << ", sessionid = " << request->sessionid()
+                     << ", date = " << request->date()
+                     << ", signature = " << request->signature()
+                     << ", clientip = " << clientIP
+                     << ", clientport = " << clientPort;
         return;
     }
 
@@ -2222,14 +2221,18 @@ void NameSpaceService::RefreshSession(
         response->set_sessionid(request->sessionid());
         if (google::ERROR != GetMdsLogLevel(retCode)) {
             LOG(WARNING) << "logid = " << cntl->log_id()
-                << ", CheckFileOwner fail, filename = " <<  request->filename()
-                << ", owner = " << request->owner()
-                << ", statusCode = " << retCode;
+                         << ", CheckFileOwner fail, filename = "
+                         << request->filename()
+                         << ", owner = " << request->owner()
+                         << ", statusCode = " << retCode
+                         << ", remote side = " << cntl->remote_side();
         } else {
             LOG(ERROR) << "logid = " << cntl->log_id()
-                << ", CheckFileOwner fail, filename = " <<  request->filename()
-                << ", owner = " << request->owner()
-                << ", statusCode = " << retCode;
+                       << ", CheckFileOwner fail, filename = "
+                       << request->filename()
+                       << ", owner = " << request->owner()
+                       << ", statusCode = " << retCode
+                       << ", remote side = " << cntl->remote_side();
         }
         return;
     }
@@ -2691,6 +2694,7 @@ uint32_t GetMdsLogLevel(StatusCode code) {
         case StatusCode::kDeleteFileBeingCloned:
         case StatusCode::kFileUnderDeleting:
         case StatusCode::kEpochTooOld:
+        case StatusCode::kOwnerAuthFail:
             return google::WARNING;
 
         default:

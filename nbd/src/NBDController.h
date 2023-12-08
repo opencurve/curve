@@ -51,7 +51,6 @@
 #include <string>
 #include <memory>
 
-#include "nbd/src/nbd-netlink.h"
 #include "nbd/src/define.h"
 #include "nbd/src/util.h"
 
@@ -106,6 +105,7 @@ class NBDController {
         if (nbdFd_ < 0) {
             return;
         }
+        ioctl(nbdFd_, NBD_CLEAR_SOCK);
         close(nbdFd_);
         nbdFd_ = -1;
         nbdIndex_ = -1;

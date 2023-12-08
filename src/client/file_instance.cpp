@@ -290,5 +290,26 @@ void FileInstance::StopLease() {
     }
 }
 
+FInfo FileInstance::GetCurrentFileInfo(bool force) {
+    FInfo info = finfo_;
+    if (!force) {
+        return info;
+    }
+
+    FileEpoch fEpoch;
+    int rc = mdsclient_->GetFileInfo(info.fullPathName, info.userinfo, &info,
+                                     &fEpoch);
+    (void)fEpoch;
+    if (rc != LIBCURVE_ERROR::OK) {
+        LOG(WARNING) << "Fail to get current file info from mds, return cached"
+                        "file info, filename: "
+                     << info.fullPathName;
+    } else {
+        finfo_ = info;
+    }
+
+    return info;
+}
+
 }   // namespace client
 }   // namespace curve

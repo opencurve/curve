@@ -435,8 +435,11 @@ int CurveSegment::append(const braft::LogEntry* entry) {
         data.copy_to(write_buf + kEntryHeaderSize, real_length);
         int ret = ::pwrite(_direct_fd, write_buf, to_write, _meta.bytes);
         free(write_buf);
-        if (ret != to_write) {
-            LOG(ERROR) << "Fail to write directly to fd=" << _direct_fd;
+        if (ret != static_cast<int>(to_write)) {
+            LOG(ERROR) << "Fail to write directly to fd=" << _direct_fd
+                       << ", buf=" << static_cast<void*>(write_buf)
+                       << ", size=" << to_write << ", offset=" << _meta.bytes
+                       << ", error=" << berror();
             return -1;
         }
     } else {

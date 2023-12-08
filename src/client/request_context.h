@@ -65,8 +65,8 @@ struct CURVE_CACHELINE_ALIGNMENT RequestContext {
     ~RequestContext() = default;
 
     bool Init() {
-         done_ = new (std::nothrow) RequestClosure(this);
-         return done_ != nullptr;
+        done_ = new (std::nothrow) RequestClosure(this);
+        return done_ != nullptr;
     }
 
     void UnInit() {
