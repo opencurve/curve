@@ -135,6 +135,7 @@ class FSManagerTest : public ::testing::Test {
         FsManagerOption fsManagerOption;
         fsManagerOption.backEndThreadRunInterSec = 1;
         fsManagerOption.clientTimeoutSec = 1;
+        fsManagerOption.mdsListenAddr = addr_;
         s3Adapter_ = std::make_shared<MockS3Adapter>();
         fsManager_ = std::make_shared<FsManager>(fsStorage_, spaceManager_,
                                                  metaserverClient_,
@@ -1030,6 +1031,90 @@ TEST_F(FSManagerTest, test_success_get_latest_txid_with_fsid) {
     fsManager_->GetLatestTxId(&request, &response);
     ASSERT_EQ(response.statuscode(), FSStatusCode::OK);
     ASSERT_EQ(response.txids_size(), 1);
+}
+
+TEST_F(FSManagerTest, test_GetClientMdsAddrsOverride) {
+    ASSERT_EQ(fsManager_->GetClientMdsAddrsOverride(), std::string());
+}
+
+TEST_F(FSManagerTest, test_SetClientMdsAddrsOverride) {
+    std::string addr("127.0.0.1:9999,127.0.0.1:10000");
+    fsManager_->SetClientMdsAddrsOverride(addr);
+    ASSERT_EQ(fsManager_->GetClientMdsAddrsOverride(), addr + "," + addr_);
+}
+
+TEST_F(FSManagerTest, test_refresh_session_with_mdsoverride) {
+    CreateS3Fs();
+    // set override
+    std::string mds_new("127.0.0.1:9999");
+    fsManager_->SetClientMdsAddrsOverride(mds_new);
+
+    PartitionTxId tmp;
+    tmp.set_partitionid(1);
+    tmp.set_txid(1);
+    std::string fsName = kFsName2;
+    Mountpoint mountpoint;
+    mountpoint.set_hostname("127.0.0.1");
+    mountpoint.set_port(9000);
+    mountpoint.set_path("/mnt");
+
+    RefreshSessionResponse response;
+    RefreshSessionRequest request;
+    request.set_fsname(fsName);
+    *request.mutable_mountpoint() = mountpoint;
+    request.set_mdsaddrs(addr_);
+    fsManager_->RefreshSession(&request, &response);
+    ASSERT_EQ(response.mdsaddrsoverride(), mds_new + "," + addr_);
+    fsManager_->SetClientMdsAddrsOverride(std::string());
+}
+
+TEST_F(FSManagerTest, test_refresh_session_with_same_mdsoverride) {
+    CreateS3Fs();
+    // set override
+    std::string mds_new("127.0.0.1:9999");
+    fsManager_->SetClientMdsAddrsOverride(mds_new);
+    PartitionTxId tmp;
+    tmp.set_partitionid(1);
+    tmp.set_txid(1);
+    std::string fsName = kFsName2;
+    Mountpoint mountpoint;
+    mountpoint.set_hostname("127.0.0.1");
+    mountpoint.set_port(9000);
+    mountpoint.set_path("/mnt");
+
+    RefreshSessionResponse response;
+    RefreshSessionRequest request;
+    request.set_fsname(fsName);
+    *request.mutable_mountpoint() = mountpoint;
+    request.set_mdsaddrs(mds_new + "," + addr_);
+    fsManager_->RefreshSession(&request, &response);
+    ASSERT_FALSE(response.has_mdsaddrsoverride());
+    fsManager_->SetClientMdsAddrsOverride(std::string());
+}
+
+TEST_F(FSManagerTest, test_refresh_session_with_old_client) {
+    CreateS3Fs();
+    // set override
+    auto mds_new = "127.0.0.1:9999";
+    fsManager_->SetClientMdsAddrsOverride(mds_new);
+
+    PartitionTxId tmp;
+    tmp.set_partitionid(1);
+    tmp.set_txid(1);
+    std::string fsName = kFsName2;
+    Mountpoint mountpoint;
+    mountpoint.set_hostname("127.0.0.1");
+    mountpoint.set_port(9000);
+    mountpoint.set_path("/mnt");
+
+    RefreshSessionResponse response;
+    RefreshSessionRequest request;
+    request.set_fsname(fsName);
+    *request.mutable_mountpoint() = mountpoint;
+    // old client do not have mdsaddr in request
+    fsManager_->RefreshSession(&request, &response);
+    ASSERT_FALSE(response.has_mdsaddrsoverride());
+    fsManager_->SetClientMdsAddrsOverride(std::string());
 }
 
 }  // namespace mds

@@ -211,6 +211,7 @@ class FsManager {
     bool GetClientAliveTime(const std::string& mountpoint,
         std::pair<std::string, uint64_t>* out);
 
+    std::string GetClientMdsAddrsOverride();
     void SetClientMdsAddrsOverride(const std::string& addrs);
 
  private:
