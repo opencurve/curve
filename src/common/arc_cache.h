@@ -31,13 +31,18 @@
 #include <unordered_map>
 #include <utility>
 
+#include "src/common/lru_cache.h"
+using curve::common::CacheMetrics;
+using curve::common::CacheTraits;
+using curve::common::LRUCacheInterface;
+
 template <typename K, typename V, typename KeyTraits = CacheTraits<K>,
           typename ValueTraits = CacheTraits<V>>
 class ARCCache : public LRUCacheInterface<K, V> {
  public:
     ARCCache(int64_t max_count,
              std::shared_ptr<CacheMetrics> cacheMetrics = nullptr)
-        : c_(max_count/2), p_(0), cacheMetrics_(cacheMetrics) {}
+        : c_(max_count), p_(0), cacheMetrics_(cacheMetrics) {}
 
     void Put(const K& key, const V& value);
     bool Put(const K& key, const V& value, V* eliminated);
