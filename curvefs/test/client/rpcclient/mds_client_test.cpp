@@ -1046,6 +1046,16 @@ TEST_F(MdsClientImplTest, test_AllocOrGetMemcacheCluster) {
               mdsclient_.AllocOrGetMemcacheCluster(1, &cluster2));
 }
 
+TEST_F(MdsClientImplTest, test_GetMdsAddrs) {
+    ASSERT_EQ(mdsclient_.GetMdsAddrs(), addr_);
+}
+
+TEST_F(MdsClientImplTest, test_SetMdsAddrs) {
+    auto addr_new = addr_ + ",127.0.0.1:5600";
+    mdsclient_.SetMdsAddrs(addr_new);
+    ASSERT_EQ(mdsclient_.GetMdsAddrs(), addr_new);
+}
+
 }  // namespace rpcclient
 }  // namespace client
 }  // namespace curvefs
