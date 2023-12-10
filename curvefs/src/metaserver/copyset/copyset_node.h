@@ -102,6 +102,8 @@ class CopysetNode : public braft::StateMachine {
 
     virtual PeerId GetLeaderId() const;
 
+    GroupId GetGroupId() const;
+
     MetaStore* GetMetaStore() const;
 
     virtual uint64_t GetConfEpoch() const;
@@ -342,6 +344,10 @@ inline const braft::PeerId& CopysetNode::GetPeerId() const { return peerId_; }
 
 inline bool CopysetNode::IsLoading() const {
     return isLoading_.load(std::memory_order_acquire);
+}
+
+inline GroupId CopysetNode::GetGroupId() const {
+    return groupId_;
 }
 
 }  // namespace copyset
