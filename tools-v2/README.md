@@ -24,6 +24,7 @@ A tool for CurveFS & CurveBs.
         - [list mountpoint](#list-mountpoint)
         - [list partition](#list-partition)
         - [list topology](#list-topology)
+        - [list space usage](#list-space-usage)
       - [query](#query)
         - [query copyset](#query-copyset)
         - [query fs](#query-fs)
@@ -540,6 +541,26 @@ Output:
 +----+            +--------------------+------------+-----------------------+
 | 1  |            | curvefs-metaserver |            |                       |
 +----+------------+--------------------+------------+-----------------------+
+```
+
+##### list space usage
+
+list the space usage of the curvefs
+
+Usage:
+
+```shell
+curve fs list space --fs test
+```
+
+Output:
+
+```shell
++--------+----------+---------+----------+
+| FSNAME | CAPACITY |  USED   | INODENUM |
++--------+----------+---------+----------+
+| test   | 10PB     | 6.71GiB | 7313     |
++--------+----------+---------+----------+
 ```
 
 #### query

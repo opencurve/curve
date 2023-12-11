@@ -29,6 +29,7 @@ import (
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list/fs"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list/mountpoint"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list/partition"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list/space"
 	topology "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/list/topology"
 	"github.com/spf13/cobra"
 )
@@ -47,6 +48,7 @@ func (listCmd *ListCommand) AddSubCommands() {
 		partition.NewPartitionCommand(),
 		copyset.NewCopysetCommand(),
 		cache.NewCacheCommand(),
+		space.NewSpaceCommand(),
 	)
 }
 

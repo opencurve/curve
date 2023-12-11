@@ -122,6 +122,7 @@ const (
 	ROW_TOTAL                = "total"
 	ROW_TYPE                 = "type"
 	ROW_USED                 = "used"
+	ROW_INODE_NUM            = "inodeNum"
 	ROW_USER                 = "user"
 	ROW_VERSION              = "version"
 	ROW_ZONE                 = "zone"
