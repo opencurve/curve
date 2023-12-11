@@ -45,6 +45,7 @@ const (
 	VIPER_CURVEFS_METASERVERID   = "curvefs.metaserverId"
 	CURVEFS_FSID                 = "fsid"
 	VIPER_CURVEFS_FSID           = "curvefs.fsId"
+	CURVEFS                      = "fs"
 	CURVEFS_FSNAME               = "fsname"
 	VIPER_CURVEFS_FSNAME         = "curvefs.fsName"
 	CURVEFS_MOUNTPOINT           = "mountpoint"
@@ -561,6 +562,12 @@ func AddFsNameRequiredFlag(cmd *cobra.Command) {
 	if err != nil {
 		cobra.CheckErr(err)
 	}
+}
+
+// fs
+func AddFsRequiredFlag(cmd *cobra.Command) {
+	cmd.Flags().String(CURVEFS, "", "fs"+color.Red.Sprint("[required]"))
+	cmd.MarkFlagRequired(CURVEFS)
 }
 
 // fs name
