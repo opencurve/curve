@@ -180,8 +180,7 @@ class BthreadRWLock : public RWLockBase {
     }
 
     int TryRDLock() override {
-        LOG(WARNING) << "TryRDLock not support yet";
-        return EINVAL;
+        return bthread_rwlock_tryrdlock(&rwlock_);
     }
 
     void Unlock() override {

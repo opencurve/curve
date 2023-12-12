@@ -25,7 +25,7 @@
 namespace curvefs {
 namespace metaserver {
 bool FsInfoManager::GetFsInfo(uint32_t fsId, FsInfo *fsInfo) {
-    std::lock_guard<std::mutex> lock(mtx_);
+    std::lock_guard<bthread::Mutex> lock(mtx_);
     auto iter = fsInfoMap_.find(fsId);
     if (iter == fsInfoMap_.end()) {
         auto ret = mdsClient_->GetFsInfo(fsId, fsInfo);
