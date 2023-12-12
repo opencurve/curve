@@ -377,7 +377,7 @@ class MetaStoreImpl : public MetaStore {
     bool ClearInternal();
 
  private:
-    RWLock rwLock_;  // protect partitionMap_
+    curve::common::BthreadRWLock rwLock_;  // protect partitionMap_
     std::shared_ptr<KVStorage> kvStorage_;
     std::map<uint32_t, std::shared_ptr<Partition>> partitionMap_;
     std::list<uint32_t> partitionIds_;

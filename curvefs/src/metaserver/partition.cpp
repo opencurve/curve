@@ -29,7 +29,6 @@
 #include <memory>
 #include <string>
 #include <utility>
-#include <future>
 
 #include "curvefs/proto/metaserver.pb.h"
 #include "curvefs/src/metaserver/copyset/copyset_node_manager.h"
@@ -83,12 +82,7 @@ Partition::Partition(PartitionInfo partition,
     }
 
     if (partitionInfo_.status() != PartitionStatus::DELETING) {
-        auto handle = std::async(std::launch::async, [&]() {
-            TrashManager::GetInstance().Add(
-                partitionInfo_.partitionid(), trash);
-        });
-        handle.wait();
-
+        TrashManager::GetInstance().Add(partitionInfo_.partitionid(), trash);
         if (startCompact) {
             StartS3Compact();
         }
@@ -569,17 +563,8 @@ MetaStatusCode Partition::GetAllBlockGroup(
 }
 
 void Partition::StartS3Compact() {
-    // register s3 compaction task in a separate thread, since the caller may
-    // holds a pthread wrlock when calling this function, and create `S3Compact`
-    // will acquire a bthread rwlock, may cause thread switching, thus causing a
-    // deadlock.
-    // FIXME(wuhanqing): handle it in a more elegant way
-    auto handle = std::async(std::launch::async, [this]() {
-        S3CompactManager::GetInstance().Register(
-            S3Compact{inodeManager_, partitionInfo_});
-    });
-
-    handle.wait();
+    S3CompactManager::GetInstance().Register(
+        S3Compact{inodeManager_, partitionInfo_});
 }
 
 void Partition::CancelS3Compact() {
@@ -587,50 +572,45 @@ void Partition::CancelS3Compact() {
 }
 
 void Partition::StartVolumeDeallocate() {
-    // FIXME(wuhanqing): same as `StartS3Compact`
-    auto handle = std::async(std::launch::async, [this]() {
-        FsInfo fsInfo;
-        bool ok = FsInfoManager::GetInstance().GetFsInfo(partitionInfo_.fsid(),
-                                                         &fsInfo);
-        if (!ok) {
-            LOG(ERROR) << "Partition start volume deallocate fail, get fsinfo "
-                          "fail. fsid="
-                       << partitionInfo_.fsid();
-            return;
-        }
+    FsInfo fsInfo;
+    bool ok =
+        FsInfoManager::GetInstance().GetFsInfo(partitionInfo_.fsid(), &fsInfo);
+    if (!ok) {
+        LOG(ERROR)
+            << "Partition start volume deallocate fail, get fsinfo fail. fsid="
+            << partitionInfo_.fsid();
+        return;
+    }
 
-        if (!fsInfo.detail().has_volume()) {
-            LOG(INFO) << "Partition not belong to volume, do not need start "
-                         "deallocate. partitionInfo="
-                      << partitionInfo_.DebugString();
-            return;
-        }
+    if (!fsInfo.detail().has_volume()) {
+        LOG(INFO) << "Partition not belong to volume, do not need start "
+                     "deallocate. partitionInfo="
+                  << partitionInfo_.DebugString();
+        return;
+    }
 
-        VolumeDeallocateCalOption calOpt;
-        calOpt.kvStorage = kvStorage_;
-        calOpt.inodeStorage = inodeStorage_;
-        calOpt.nameGen = nameGen_;
-        auto copysetNode =
-            copyset::CopysetNodeManager::GetInstance().GetSharedCopysetNode(
-                partitionInfo_.poolid(), partitionInfo_.copysetid());
-        if (copysetNode == nullptr) {
-            LOG(ERROR) << "Partition get copyset node failed. poolid="
-                       << partitionInfo_.poolid()
-                       << ", copysetid=" << partitionInfo_.copysetid();
-            return;
-        }
+    VolumeDeallocateCalOption calOpt;
+    calOpt.kvStorage = kvStorage_;
+    calOpt.inodeStorage = inodeStorage_;
+    calOpt.nameGen = nameGen_;
+    auto copysetNode =
+        copyset::CopysetNodeManager::GetInstance().GetSharedCopysetNode(
+            partitionInfo_.poolid(), partitionInfo_.copysetid());
+    if (copysetNode == nullptr) {
+        LOG(ERROR) << "Partition get copyset node failed. poolid="
+                   << partitionInfo_.poolid()
+                   << ", copysetid=" << partitionInfo_.copysetid();
+        return;
+    }
 
-        InodeVolumeSpaceDeallocate task(
-            partitionInfo_.fsid(), partitionInfo_.partitionid(), copysetNode);
-        task.Init(calOpt);
+    InodeVolumeSpaceDeallocate task(partitionInfo_.fsid(),
+                                    partitionInfo_.partitionid(), copysetNode);
+    task.Init(calOpt);
 
-        VolumeDeallocateManager::GetInstance().Register(std::move(task));
+    VolumeDeallocateManager::GetInstance().Register(std::move(task));
 
-        VLOG(3) << "Partition start volume deallocate success. partitionInfo="
-                << partitionInfo_.DebugString();
-    });
-
-    handle.wait();
+    VLOG(3) << "Partition start volume deallocate success. partitionInfo="
+            << partitionInfo_.DebugString();
 }
 
 void Partition::CancelVolumeDeallocate() {

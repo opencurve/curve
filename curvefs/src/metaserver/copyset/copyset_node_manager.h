@@ -29,9 +29,13 @@
 #include <unordered_map>
 #include <vector>
 
+#include "butil/containers/doubly_buffered_data.h"
+
 #include "curvefs/src/metaserver/common/types.h"
 #include "curvefs/src/metaserver/copyset/copyset_node.h"
 #include "curvefs/src/metaserver/copyset/types.h"
+
+#include "src/common/concurrent/generic_name_lock.h"
 
 namespace curvefs {
 namespace metaserver {
@@ -79,12 +83,7 @@ class CopysetNodeManager {
     virtual bool IsLoadFinished() const;
 
  public:
-    CopysetNodeManager()
-        : options_(),
-          running_(false),
-          loadFinished_(false),
-          lock_(),
-          copysets_() {}
+    CopysetNodeManager() = default;
 
  public:
     /**
@@ -93,27 +92,39 @@ class CopysetNodeManager {
     void AddService(brpc::Server* server, const butil::EndPoint& listenAddr);
 
  private:
-    bool DeleteCopysetNodeInternal(PoolId poolId, CopysetId copysetId,
-                                   bool removeData);
-
- private:
     using CopysetNodeMap =
         std::unordered_map<braft::GroupId, std::shared_ptr<CopysetNode>>;
 
+    bool DeleteCopysetNodeInternalLocked(PoolId poolId, CopysetId copysetId,
+                                         bool removeData);
+
+    // Add copyset node to copyset map.
+    // Return 1 if success, 0 otherwise
+    static size_t AddCopysetNode(
+        CopysetNodeMap& map,  // NOLINT(runtime/references)
+        const std::shared_ptr<CopysetNode>& copysetNode);
+
+    // Remove copyset node from copyset map.
+    // Return 1 if success, 0 otherwise
+    static size_t RemoveCopysetNode(
+        CopysetNodeMap& map,  // NOLINT(runtime/references)
+        const std::shared_ptr<CopysetNode>& copysetNode);
+
+ private:
     CopysetNodeOptions options_;
 
-    std::atomic<bool> running_;
+    std::atomic<bool> running_{false};
 
     // whether copyset is loaded finished, manager will reject create copyset
     // request if load unfinished
-    std::atomic<bool> loadFinished_;
-
-    // protected copysets_
-    mutable RWLock lock_;
-
-    CopysetNodeMap copysets_;
+    std::atomic<bool> loadFinished_{false};
 
     CopysetTrash trash_;
+
+    mutable butil::DoublyBufferedData<CopysetNodeMap> copysets_;
+
+    // copyset name lock
+    curve::common::GenericNameLock<Mutex> copysetLifetimeNameLock_;
 };
 
 }  // namespace copyset

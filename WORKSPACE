@@ -143,6 +143,7 @@ git_repository(
         "//:thirdparties/brpc/brpc.patch",
         "//:thirdparties/brpc/fix-gcc11.patch",
         "//:thirdparties/brpc/0001-bvar-warning-on-conflict-bvar-name.patch",
+        "//:thirdparties/brpc/0002-Add-bthread-rwlock-try-rdlock.patch",
     ],
     patch_args = ["-p1"],
 )

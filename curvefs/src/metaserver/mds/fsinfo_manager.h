@@ -26,6 +26,8 @@
 #include <map>
 #include <memory>
 #include <mutex>
+
+#include "bthread/mutex.h"
 #include "curvefs/src/client/rpcclient/mds_client.h"
 
 namespace curvefs {
@@ -50,7 +52,7 @@ class FsInfoManager {
     std::shared_ptr<MdsClient> mdsClient_;
     std::map<uint32_t, FsInfo> fsInfoMap_;
 
-    std::mutex mtx_;
+    bthread::Mutex mtx_;
 };
 }  // namespace metaserver
 }  // namespace curvefs
