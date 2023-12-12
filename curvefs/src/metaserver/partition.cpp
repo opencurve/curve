@@ -82,12 +82,7 @@ Partition::Partition(PartitionInfo partition,
     }
 
     if (partitionInfo_.status() != PartitionStatus::DELETING) {
-        auto handle = std::async(std::launch::async, [&]() {
-            TrashManager::GetInstance().Add(
-                partitionInfo_.partitionid(), trash);
-        });
-        handle.wait();
-
+        TrashManager::GetInstance().Add(partitionInfo_.partitionid(), trash);
         if (startCompact) {
             StartS3Compact();
         }
