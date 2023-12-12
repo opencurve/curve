@@ -1,0 +1,103 @@
+From 1e866ba4f2ea633a15e0bcaebe0f84f7b0fcc1c2 Mon Sep 17 00:00:00 2001
+From: wangweibing <wangweibing@baidu.com>
+Date: Wed, 2 Mar 2022 04:26:51 +0000
+Subject: [PATCH 4/5] Fix LatencyRecorder qps not accurate
+
+---
+ src/bvar/latency_recorder.cpp   | 15 +++++++++---
+ test/bvar_recorder_unittest.cpp | 42 +++++++++++++++++++++++++++++++++
+ 2 files changed, 54 insertions(+), 3 deletions(-)
+
+diff --git a/src/bvar/latency_recorder.cpp b/src/bvar/latency_recorder.cpp
+index 7a27e170..fe8c776e 100644
+--- a/src/bvar/latency_recorder.cpp
++++ b/src/bvar/latency_recorder.cpp
+@@ -87,14 +87,23 @@ int CDF::describe_series(
+     return 0;
+ }
+ 
++// Return random int value with expectation = `dval'
++static int64_t double_to_random_int(double dval) {
++    int64_t ival = static_cast<int64_t>(dval);
++    if (dval > ival + butil::fast_rand_double()) {
++        ival += 1;
++    }
++    return ival;
++}
++
+ static int64_t get_window_recorder_qps(void* arg) {
+     detail::Sample<Stat> s;
+-    static_cast<RecorderWindow*>(arg)->get_span(1, &s);
++    static_cast<RecorderWindow*>(arg)->get_span(&s);
+     // Use floating point to avoid overflow.
+     if (s.time_us <= 0) {
+         return 0;
+     }
+-    return static_cast<int64_t>(round(s.data.num * 1000000.0 / s.time_us));
++    return double_to_random_int(s.data.num * 1000000.0 / s.time_us);
+ }
+ 
+ static int64_t get_recorder_count(void* arg) {
+@@ -174,7 +183,7 @@ int64_t LatencyRecorder::qps(time_t window_size) const {
+     if (s.time_us <= 0) {
+         return 0;
+     }
+-    return static_cast<int64_t>(round(s.data.num * 1000000.0 / s.time_us));
++    return detail::double_to_random_int(s.data.num * 1000000.0 / s.time_us);
+ }
+ 
+ int LatencyRecorder::expose(const butil::StringPiece& prefix1,
+diff --git a/test/bvar_recorder_unittest.cpp b/test/bvar_recorder_unittest.cpp
+index 412ec36c..823e88b2 100644
+--- a/test/bvar_recorder_unittest.cpp
++++ b/test/bvar_recorder_unittest.cpp
+@@ -192,4 +192,46 @@ TEST(RecorderTest, perf) {
+               << "ns per sample with " << ARRAY_SIZE(threads) 
+               << " threads";
+ }
++
++TEST(RecorderTest, latency_recorder_qps_accuracy) {
++    bvar::LatencyRecorder lr1(2); // set windows size to 2s
++    bvar::LatencyRecorder lr2(2);
++    bvar::LatencyRecorder lr3(2);
++    bvar::LatencyRecorder lr4(2);
++    usleep(2000000); // wait sampler to sample 2 times
++
++    auto write = [](bvar::LatencyRecorder& lr, int times) {   
++        for (int i = 0; i < times; ++i) {
++            lr << 1;
++        }
++    };
++    write(lr1, 100);
++    write(lr2, 101);
++    write(lr3, 3);
++    write(lr4, 1);
++    usleep(1000000); // wait sampler to sample 1 time
++
++    auto read = [](bvar::LatencyRecorder& lr, double exp_qps, int window_size = 0) {
++        int64_t qps_sum = 0;
++        int64_t exp_qps_int = (int64_t)exp_qps;
++        for (int i = 0; i < 1000; ++i) {
++            int64_t qps = window_size ? lr.qps(window_size): lr.qps();
++            EXPECT_GE(qps, exp_qps_int - 1);
++            EXPECT_LE(qps, exp_qps_int + 1);
++            qps_sum += qps;
++        }
++        double err = fabs(qps_sum / 1000.0 - exp_qps);
++        return err;
++    };
++    ASSERT_GT(0.1, read(lr1, 100/2.0));
++    ASSERT_GT(0.1, read(lr2, 101/2.0));
++    ASSERT_GT(0.1, read(lr3, 3/2.0));
++    ASSERT_GT(0.1, read(lr4, 1/2.0));
++
++    ASSERT_GT(0.1, read(lr1, 100/3.0, 3));
++    ASSERT_GT(0.1, read(lr2, 101/3.0, 3));
++    ASSERT_GT(0.1, read(lr3, 3/3.0, 3));
++    ASSERT_GT(0.1, read(lr4, 1/3.0, 3));
++}
++
+ } // namespace
+-- 
+2.37.2
+

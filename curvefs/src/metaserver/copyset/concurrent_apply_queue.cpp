@@ -20,7 +20,6 @@
  * Author: Xinlong-Chen
  */
 
-
 #include "curvefs/src/metaserver/copyset/concurrent_apply_queue.h"
 
 #include <algorithm>
