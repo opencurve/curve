@@ -1,0 +1,37 @@
+From aa9987efe7ce1d13969f03194d8894060a6d58b2 Mon Sep 17 00:00:00 2001
+From: HU <uestc.hugo@gmail.com>
+Date: Mon, 1 Aug 2022 10:15:44 +0800
+Subject: [PATCH 5/5] fix #1973 (#1863)
+
+Co-authored-by: XiguoHu <huxiguo@baidu.com>
+---
+ src/bvar/detail/sampler.cpp | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/bvar/detail/sampler.cpp b/src/bvar/detail/sampler.cpp
+index 06d5cdbd..7baf20b7 100644
+--- a/src/bvar/detail/sampler.cpp
++++ b/src/bvar/detail/sampler.cpp
+@@ -15,6 +15,7 @@
+ // Author: Ge,Jun (gejun@baidu.com)
+ // Date: Tue Jul 28 18:14:40 CST 2015
+ 
++#include <gflags/gflags.h>
+ #include "butil/time.h"
+ #include "butil/memory/singleton_on_pthread_once.h"
+ #include "bvar/reducer.h"
+@@ -124,7 +125,11 @@ private:
+ PassiveStatus<double>* g_cumulated_time_bvar = NULL;
+ bvar::PerSecond<bvar::PassiveStatus<double> >* g_sampling_thread_usage_bvar = NULL;
+ 
++DEFINE_int32(bvar_sampler_thread_start_delay_us, 10000, "bvar sampler thread start delay us");
++
+ void SamplerCollector::run() {
++    ::usleep(FLAGS_bvar_sampler_thread_start_delay_us);
++    
+ #ifndef UNIT_TEST
+     // NOTE:
+     // * Following vars can't be created on thread's stack since this thread
+-- 
+2.37.2
+

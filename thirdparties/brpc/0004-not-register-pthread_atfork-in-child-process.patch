@@ -1,0 +1,39 @@
+From 7077d2c4d71bfa9699b738252fe06a468a4eca34 Mon Sep 17 00:00:00 2001
+From: jamesge <jge666@gmail.com>
+Date: Wed, 18 Mar 2020 17:34:09 +0800
+Subject: [PATCH 3/5] not register pthread_atfork in child process
+
+---
+ src/bvar/detail/sampler.cpp | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/bvar/detail/sampler.cpp b/src/bvar/detail/sampler.cpp
+index 23cfbd8b..06d5cdbd 100644
+--- a/src/bvar/detail/sampler.cpp
++++ b/src/bvar/detail/sampler.cpp
+@@ -41,6 +41,10 @@ struct CombineSampler {
+     }
+ };
+ 
++// True iff pthread_atfork was called. The callback to atfork works for child
++// of child as well, no need to register in the child again.
++static bool registered_atfork = false;
++
+ // Call take_sample() of all scheduled samplers.
+ // This can be done with regular timer thread, but it's way too slow(global
+ // contention + log(N) heap manipulations). We need it to be super fast so that
+@@ -86,7 +90,10 @@ private:
+             LOG(FATAL) << "Fail to create sampling_thread, " << berror(rc);
+         } else {
+             _created = true;
+-            pthread_atfork(NULL, NULL, child_callback_atfork);
++            if (!registered_atfork) {
++                registered_atfork = true;
++                pthread_atfork(NULL, NULL, child_callback_atfork);
++            }
+         }
+     }
+ 
+-- 
+2.37.2
+

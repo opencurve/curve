@@ -143,6 +143,11 @@ git_repository(
         "//:thirdparties/brpc/brpc.patch",
         "//:thirdparties/brpc/fix-gcc11.patch",
         "//:thirdparties/brpc/0001-bvar-warning-on-conflict-bvar-name.patch",
+        "//:thirdparties/brpc/0002-Support-fork-without-exec.patch",
+        "//:thirdparties/brpc/0003-Add-docs-on-fork-w-o-exec.patch",
+        "//:thirdparties/brpc/0004-not-register-pthread_atfork-in-child-process.patch",
+        "//:thirdparties/brpc/0005-Fix-LatencyRecorder-qps-not-accurate.patch",
+        "//:thirdparties/brpc/0006-fix-1973-1863.patch",
     ],
     patch_args = ["-p1"],
 )
