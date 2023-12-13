@@ -86,6 +86,8 @@ class Trash {
     virtual void StopScan() = 0;
 
     virtual bool IsStop() = 0;
+
+    virtual void RemoveDeleteNode() = 0;
 };
 
 class TrashImpl : public Trash {
@@ -116,6 +118,8 @@ class TrashImpl : public Trash {
     void SetCopysetNode(const std::shared_ptr<copyset::CopysetNode> &node) {
         copysetNode_ = node;
     }
+
+    void RemoveDeleteNode() override;
 
  private:
     bool NeedDelete(uint64_t dtime);
