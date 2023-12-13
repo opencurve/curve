@@ -227,6 +227,7 @@ TopoStatusCode TopologyImpl::RemoveServer(ServerIdType id) {
 }
 
 TopoStatusCode TopologyImpl::RemoveMetaServer(MetaServerIdType id) {
+    WriteLockGuard wlockPool(poolMutex_);
     WriteLockGuard wlockServer(serverMutex_);
     WriteLockGuard wlockMetaServer(metaServerMutex_);
     auto it = metaServerMap_.find(id);
@@ -243,7 +244,6 @@ TopoStatusCode TopologyImpl::RemoveMetaServer(MetaServerIdType id) {
         metaServerMap_.erase(it);
 
         // update pool
-        WriteLockGuard wlockPool(poolMutex_);
         PoolIdType poolId = ix->second.GetPoolId();
         auto it = poolMap_.find(poolId);
         if (it != poolMap_.end()) {
