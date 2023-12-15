@@ -77,10 +77,18 @@ func (sCmd *SpaceCommand) AddFlags() {
 	config.AddRpcTimeoutFlag(sCmd.Cmd)
 }
 
+func sum(array []uint64) uint64 {
+	var result uint64
+	for _, v := range array {
+		result += v
+	}
+	return result
+}
+
 func (sCmd *SpaceCommand) Init(cmd *cobra.Command, args []string) error {
-	logicalRes, totalCapacity, allocatedSize, recycleAllocSize, err := logicalpool.ListLogicalPoolInfoAndAllocSize(sCmd.Cmd)
-	sCmd.TotalCapacity = totalCapacity
-	sCmd.AllocatedSize = allocatedSize
+	logicalRes, capacity, allocated, recyclable, err := logicalpool.ListLogicalPoolInfoAndAllocSize(sCmd.Cmd)
+	sCmd.TotalCapacity = sum(capacity)
+	sCmd.AllocatedSize = sum(allocated)
 	if err.TypeCode() != cmderror.CODE_SUCCESS {
 		return err.ToError()
 	}
@@ -88,7 +96,7 @@ func (sCmd *SpaceCommand) Init(cmd *cobra.Command, args []string) error {
 	for _, info := range logicalRes {
 		logicalPoolInfos = append(logicalPoolInfos, info.GetLogicalPoolInfos()...)
 	}
-	sCmd.RecycleAllocSize = recycleAllocSize
+	sCmd.RecycleAllocSize = sum(recyclable)
 
 	sCmd.TotalChunkSize = 0
 	timeout := config.GetFlagDuration(sCmd.Cmd, config.HTTPTIMEOUT)
