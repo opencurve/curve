@@ -23,6 +23,7 @@
 package cobrautil
 
 const (
+	ROW_FREE                 = "free"
 	ROW_ROLE                 = "role"
 	ROW_ADDR                 = "addr"
 	ROW_ALLOC                = "alloc"
@@ -50,6 +51,7 @@ const (
 	ROW_FILE_SIZE            = "fileSize"
 	ROW_FILE_TYPE            = "fileType"
 	ROW_FILE_LENGTH          = "fileLength"
+	ROW_FILE_NUM             = "fileNum"
 	ROW_FS_ID                = "fsId"
 	ROW_FS_NAME              = "fsName"
 	ROW_FS_TYPE              = "fsType"
@@ -58,6 +60,7 @@ const (
 	ROW_ID                   = "id"
 	ROW_INODE_ID             = "inodeId"
 	ROW_INTERNAL_ADDR        = "internalAddr"
+	ROW_INODE_NUM            = "inodeNum"
 	ROW_IP                   = "ip"
 	ROW_KEY                  = "key"
 	ROW_LEADER               = "leader"
