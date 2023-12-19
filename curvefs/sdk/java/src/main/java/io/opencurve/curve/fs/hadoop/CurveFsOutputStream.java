@@ -25,7 +25,8 @@ package io.opencurve.curve.fs.hadoop;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import io.opencurve.curve.fs.libfs.CurveFSMount;
+import io.opencurve.curve.fs.libfs.CurveFsMount;
+import io.opencurve.curve.fs.libfs.CurveFsProto;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -41,13 +42,10 @@ import java.io.OutputStream;
  *  libcurvefs. Currently it might be useful to reduce JNI crossings, but not
  *  much more.
  */
-public class CurveFSOutputStream extends OutputStream {
+public class CurveFsOutputStream extends OutputStream {
     private boolean closed;
-
-    private CurveFSProto curve;
-
+    private CurveFsProto curvefs;
     private int fileHandle;
-
     private byte[] buffer;
     private int bufUsed = 0;
 
@@ -56,9 +54,11 @@ public class CurveFSOutputStream extends OutputStream {
      * @param conf The FileSystem configuration.
      * @param fh The Curve filehandle to connect to.
      */
-    public CurveFSOutputStream(Configuration conf, CurveFSProto curvefs,
-                               int fh, int bufferSize) {
-        curve = curvefs;
+    public CurveFsOutputStream(Configuration conf,
+                               CurveFsProto curve,
+                               int fh,
+                               int bufferSize) {
+        curvefs = curve;
         fileHandle = fh;
         closed = false;
         buffer = new byte[1<<21];
@@ -92,7 +92,7 @@ public class CurveFSOutputStream extends OutputStream {
      */
     public synchronized long getPos() throws IOException {
         checkOpen();
-        return curve.lseek(fileHandle, 0, CurveFSMount.SEEK_CUR);
+        return curvefs.lseek(fileHandle, 0, CurveFsMount.SEEK_CUR);
     }
 
     @Override
@@ -129,7 +129,7 @@ public class CurveFSOutputStream extends OutputStream {
         }
 
         while (bufUsed > 0) {
-            int ret = curve.write(fileHandle, buffer, bufUsed, -1);
+            int ret = curvefs.write(fileHandle, -1, buffer, bufUsed);
             if (ret < 0) {
                 throw new IOException("curve.write: ret=" + ret);
             }
@@ -161,14 +161,14 @@ public class CurveFSOutputStream extends OutputStream {
     public synchronized void flush() throws IOException {
         checkOpen();
         flushBuffer(); // buffer -> libcurvefs
-        curve.fsync(fileHandle); // libcurvefs -> cluster
+        curvefs.fsync(fileHandle); // libcurvefs -> cluster
     }
 
     @Override
     public synchronized void close() throws IOException {
         checkOpen();
         flush();
-        curve.close(fileHandle);
+        curvefs.close(fileHandle);
         closed = true;
     }
 }

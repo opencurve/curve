@@ -45,10 +45,14 @@ using Ino = uint64_t;
 
 const Ino ROOT_INO = ::curvefs::ROOTINODEID;
 
-struct DirStream {
-    Ino ino;
-    uint64_t fh;
-    uint64_t offset;
+struct File {
+    uint64_t fd;
+    uint64_t length;
+};
+
+struct Dirent {
+    char name[256];  // TODO(Wine93): smaller buffer
+    struct stat stat;  // sizeof(stat) = 144
 };
 
 struct Entry {

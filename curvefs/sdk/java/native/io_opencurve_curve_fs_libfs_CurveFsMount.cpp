@@ -22,40 +22,61 @@
 
 #include <vector>
 #include <utility>
+#include <memory>
+#include <iostream>
 
 #include "absl/cleanup/cleanup.h"
 #include "curvefs/sdk/libcurvefs/libcurvefs.h"
-#include "curvefs/sdk/java/native/io_opencurve_curve_fs_libfs_CurveFSMount.h"
+#include "curvefs/sdk/java/native/io_opencurve_curve_fs_libfs_CurveFsMount.h"
 
-/* Cached field IDs for io.opencurve.curve.fs.CurveStat */
-static jfieldID curvestat_mode_fid;
-static jfieldID curvestat_uid_fid;
-static jfieldID curvestat_gid_fid;
-static jfieldID curvestat_size_fid;
-static jfieldID curvestat_blksize_fid;
-static jfieldID curvestat_blocks_fid;
-static jfieldID curvestat_a_time_fid;
-static jfieldID curvestat_m_time_fid;
-static jfieldID curvestat_is_file_fid;
-static jfieldID curvestat_is_directory_fid;
-static jfieldID curvestat_is_symlink_fid;
+const char* statvfs_cls_name =
+    "io/opencurve/curve/fs/libfs/CurveFsMount$StatVfs";
+const char* stat_cls_name =
+    "io/opencurve/curve/fs/libfs/CurveFsMount$Stat";
+const char* file_cls_name =
+    "io/opencurve/curve/fs/libfs/CurveFsMount$File";
+const char* dirent_cls_name =
+    "io/opencurve/curve/fs/libfs/CurveFsMount$Dirent";
 
-/* Cached field IDs for io.opencurve.curve.fs.CurveStatVFS */
-static jfieldID curvestatvfs_bsize_fid;
-static jfieldID curvestatvfs_frsize_fid;
-static jfieldID curvestatvfs_blocks_fid;
-static jfieldID curvestatvfs_bavail_fid;
-static jfieldID curvestatvfs_files_fid;
-static jfieldID curvestatvfs_fsid_fid;
-static jfieldID curvestatvfs_namemax_fid;
+// Cached for class
+static jclass statvfs_cls;
+static jclass stat_cls;
+static jclass file_cls;
+static jclass dirent_cls;
 
-/*
- * Setup cached field IDs
- */
+// Cached field IDs for io.opencurve.curve.fs.CurveFsMount.StatVfs
+static jfieldID statvfs_bsize_fid;
+static jfieldID statvfs_frsize_fid;
+static jfieldID statvfs_blocks_fid;
+static jfieldID statvfs_bavail_fid;
+static jfieldID statvfs_files_fid;
+static jfieldID statvfs_fsid_fid;
+static jfieldID statvfs_namemax_fid;
+
+// Cached field IDs for io.opencurve.curve.fs.CurveFsMount.Stat
+static jfieldID stat_mode_fid;
+static jfieldID stat_uid_fid;
+static jfieldID stat_gid_fid;
+static jfieldID stat_size_fid;
+static jfieldID stat_blksize_fid;
+static jfieldID stat_blocks_fid;
+static jfieldID stat_atime_fid;
+static jfieldID stat_mtime_fid;
+static jfieldID stat_isFile_fid;
+static jfieldID stat_isDirectory_fid;
+static jfieldID stat_isSymlink_fid;
+
+// Cached field IDs for io.opencurve.curve.fs.CurveFsMount.File
+static jfieldID file_fd_fid;
+static jfieldID file_length_fid;
+
+// Cached field IDs for io.opencurve.curve.fs.CurveFsMount.Dirent
+static jfieldID dirent_name_fid;
+static jfieldID dirent_stat_fid;
+
+
+// Setup cached field IDs
 static void setup_field_ids(JNIEnv* env) {
-    jclass curvestat_cls;
-    jclass curvestatvfs_cls;
-
 /*
  * Get a fieldID from a class with a specific type
  *
@@ -75,94 +96,122 @@ static void setup_field_ids(JNIEnv* env) {
         return; \
     } while (0)
 
-    /* Cache CurveStat fields */
-
-    curvestat_cls = env->FindClass("io/opencurve/curve/fs/libfs/CurveFSStat");
-    if (!curvestat_cls) {
+    // Cache StatVfs fields
+    statvfs_cls = env->FindClass(statvfs_cls_name);
+    if (!statvfs_cls) {
         return;
     }
 
-    GETFID(curvestat, mode, I);
-    GETFID(curvestat, uid, I);
-    GETFID(curvestat, gid, I);
-    GETFID(curvestat, size, J);
-    GETFID(curvestat, blksize, J);
-    GETFID(curvestat, blocks, J);
-    GETFID(curvestat, a_time, J);
-    GETFID(curvestat, m_time, J);
-    GETFID(curvestat, is_file, Z);
-    GETFID(curvestat, is_directory, Z);
-    GETFID(curvestat, is_symlink, Z);
+    GETFID(statvfs, bsize, J);
+    GETFID(statvfs, frsize, J);
+    GETFID(statvfs, blocks, J);
+    GETFID(statvfs, bavail, J);
+    GETFID(statvfs, files, J);
+    GETFID(statvfs, fsid, J);
+    GETFID(statvfs, namemax, J);
 
-    /* Cache CurveStatVFS fields */
-
-    curvestatvfs_cls =
-        env->FindClass("io/opencurve/curve/fs/libfs/CurveFSStatVFS");
-    if (!curvestatvfs_cls) {
+    // Cache Stat fields
+    stat_cls = env->FindClass(stat_cls_name);
+    if (!stat_cls) {
         return;
     }
 
-    GETFID(curvestatvfs, bsize, J);
-    GETFID(curvestatvfs, frsize, J);
-    GETFID(curvestatvfs, blocks, J);
-    GETFID(curvestatvfs, bavail, J);
-    GETFID(curvestatvfs, files, J);
-    GETFID(curvestatvfs, fsid, J);
-    GETFID(curvestatvfs, namemax, J);
+    GETFID(stat, mode, I);
+    GETFID(stat, uid, I);
+    GETFID(stat, gid, I);
+    GETFID(stat, size, J);
+    GETFID(stat, blksize, J);
+    GETFID(stat, blocks, J);
+    GETFID(stat, atime, J);
+    GETFID(stat, mtime, J);
+    GETFID(stat, isFile, Z);
+    GETFID(stat, isDirectory, Z);
+    GETFID(stat, isSymlink, Z);
+
+    // Cache File fields
+    file_cls = env->FindClass(file_cls_name);
+    if (!file_cls) {
+        return;
+    }
+
+    GETFID(file, fd, I);
+    GETFID(file, length, J);
+
+    // Cache Dirent fields
+    dirent_cls = env->FindClass(dirent_cls_name);
+    if (!dirent_cls) {
+        return;
+    }
+
+    GETFID(dirent, name, Ljava/lang/String;);
+    GETFID(dirent, stat, Lio/opencurve/curve/fs/libfs/CurveFsMount$Stat;);
 
 #undef GETFID
 }
 
-static void fill_curvestat(JNIEnv* env,
-                           jobject j_curvestat,
-                           struct stat* stat) {
-    env->SetIntField(j_curvestat, curvestat_mode_fid, stat->st_mode);
-    env->SetIntField(j_curvestat, curvestat_uid_fid, stat->st_uid);
-    env->SetIntField(j_curvestat, curvestat_gid_fid, stat->st_gid);
-    env->SetLongField(j_curvestat, curvestat_size_fid, stat->st_size);
-    env->SetLongField(j_curvestat, curvestat_blksize_fid, stat->st_blksize);
-    env->SetLongField(j_curvestat, curvestat_blocks_fid, stat->st_blocks);
+static void fill_statvfs(JNIEnv* env, jobject j_statvfs, struct statvfs* st) {
+    env->SetLongField(j_statvfs, statvfs_bsize_fid, st->f_bsize);
+    env->SetLongField(j_statvfs, statvfs_frsize_fid, st->f_frsize);
+    env->SetLongField(j_statvfs, statvfs_blocks_fid, st->f_blocks);
+    env->SetLongField(j_statvfs, statvfs_bavail_fid, st->f_bavail);
+    env->SetLongField(j_statvfs, statvfs_files_fid, st->f_files);
+    env->SetLongField(j_statvfs, statvfs_fsid_fid, st->f_fsid);
+    env->SetLongField(j_statvfs, statvfs_namemax_fid, st->f_namemax);
+}
+
+static void fill_stat(JNIEnv* env, jobject j_stat, struct stat* stat) {
+    env->SetIntField(j_stat, stat_mode_fid, stat->st_mode);
+    env->SetIntField(j_stat, stat_uid_fid, stat->st_uid);
+    env->SetIntField(j_stat, stat_gid_fid, stat->st_gid);
+    env->SetLongField(j_stat, stat_size_fid, stat->st_size);
+    env->SetLongField(j_stat, stat_blksize_fid, stat->st_blksize);
+    env->SetLongField(j_stat, stat_blocks_fid, stat->st_blocks);
 
     // mtime
     uint64_t time = stat->st_mtim.tv_sec;
     time *= 1000;
     time += stat->st_mtim.tv_nsec / 1000000;
-    env->SetLongField(j_curvestat, curvestat_m_time_fid, time);
+    env->SetLongField(j_stat, stat_mtime_fid, time);
 
     // atime
     time = stat->st_atim.tv_sec;
     time *= 1000;
     time += stat->st_atim.tv_nsec / 1000000;
-    env->SetLongField(j_curvestat, curvestat_a_time_fid, time);
+    env->SetLongField(j_stat, stat_atime_fid, time);
 
-    env->SetBooleanField(j_curvestat, curvestat_is_file_fid,
+    env->SetBooleanField(j_stat, stat_isFile_fid,
         S_ISREG(stat->st_mode) ? JNI_TRUE : JNI_FALSE);
 
-    env->SetBooleanField(j_curvestat, curvestat_is_directory_fid,
+    env->SetBooleanField(j_stat, stat_isDirectory_fid,
         S_ISDIR(stat->st_mode) ? JNI_TRUE : JNI_FALSE);
 
-    env->SetBooleanField(j_curvestat, curvestat_is_symlink_fid,
+    env->SetBooleanField(j_stat, stat_isSymlink_fid,
         S_ISLNK(stat->st_mode) ? JNI_TRUE : JNI_FALSE);
 }
 
-static void fill_curvestatvfs(JNIEnv* env,
-                              jobject j_curvestatvfs,
-                              struct statvfs st) {
-    env->SetLongField(j_curvestatvfs, curvestatvfs_bsize_fid, st.f_bsize);
-    env->SetLongField(j_curvestatvfs, curvestatvfs_frsize_fid, st.f_frsize);
-    env->SetLongField(j_curvestatvfs, curvestatvfs_blocks_fid, st.f_blocks);
-    env->SetLongField(j_curvestatvfs, curvestatvfs_bavail_fid, st.f_bavail);
-    env->SetLongField(j_curvestatvfs, curvestatvfs_files_fid, st.f_files);
-    env->SetLongField(j_curvestatvfs, curvestatvfs_fsid_fid, st.f_fsid);
-    env->SetLongField(j_curvestatvfs, curvestatvfs_namemax_fid, st.f_namemax);
+static void fill_file(JNIEnv* env, jobject j_file, file_t* file) {
+    env->SetIntField(j_file, file_fd_fid, file->fd);
+    env->SetLongField(j_file, file_length_fid, file->length);
 }
 
-/* Map io_opencurve_curve_fs_libfs_CurveFSMount_O_* open flags to values in libc */
+static void fill_dirent(JNIEnv* env, jobject j_dirent, dirent_t* dirent) {
+    jstring j_name = env->NewStringUTF(dirent->name);
+    jobject j_stat = env->AllocObject(env->FindClass(stat_cls_name));
+    fill_stat(env, j_stat, &dirent->stat);
+
+    env->SetObjectField(j_dirent, dirent_name_fid, j_name);
+    env->SetObjectField(j_dirent, dirent_stat_fid, j_stat);
+
+    env->DeleteLocalRef(j_name);
+    env->DeleteLocalRef(j_stat);
+}
+
+// Map io_opencurve_curve_fs_libfs_CurveFsMount_O_* open flags to values in libc
 static inline uint32_t fixup_open_flags(jint jflags) {
     uint32_t flags = 0;
 
 #define FIXUP_OPEN_FLAG(name) \
-    if (jflags & io_opencurve_curve_fs_libfs_CurveFSMount_##name) \
+    if (jflags & io_opencurve_curve_fs_libfs_CurveFsMount_##name) \
         flags |= name;
 
     FIXUP_OPEN_FLAG(O_RDONLY)
@@ -189,12 +238,12 @@ static inline uint32_t fixup_open_flags(jint jflags) {
 #define CURVEFS_SETATTR_MTIME_NOW  (1 << 8)
 #define CURVEFS_SETATTR_CTIME      (1 << 10)
 
-/* Map JAVA_SETATTR_* to values in curve lib */
+// Map JAVA_SETATTR_* to values in curve lib
 static inline int fixup_attr_mask(jint jmask) {
     int mask = 0;
 
 #define FIXUP_ATTR_MASK(name) \
-    if (jmask & io_opencurve_curve_fs_libfs_CurveFSMount_##name) \
+    if (jmask & io_opencurve_curve_fs_libfs_CurveFsMount_##name) \
         mask |= CURVEFS_##name;
 
     FIXUP_ATTR_MASK(SETATTR_MODE)
@@ -207,17 +256,15 @@ static inline int fixup_attr_mask(jint jmask) {
     return mask;
 }
 
-/*
- * Exception throwing helper. Adapted from Apache Hadoop header
- * org_apache_hadoop.h by adding the do {} while (0) construct.
- */
+// Exception throwing helper. Adapted from Apache Hadoop header
+// org_apache_hadoop.h by adding the do {} while (0) construct.
 #define THROW(env, exception_name, message) \
     do { \
         jclass ecls = env->FindClass(exception_name); \
         if (ecls) { \
             int ret = env->ThrowNew(ecls, message); \
             if (ret < 0) { \
-                printf("(CurveFS) Fatal Error\n"); \
+                printf("(CurveFs) Fatal Error\n"); \
             } \
             env->DeleteLocalRef(ecls); \
         } \
@@ -232,7 +279,7 @@ static void handle_error(JNIEnv* env, int rc) {
             THROW(env, "org/apache/hadoop/fs/FileAlreadyExistsException", "");
             return;
         case ENOTDIR:
-            THROW(env, "org/apache/hadoop/fs/ParentNotDirectoryException", "");
+            THROW(env, "io/opencurve/curve/fs/libfs/CurveFsException$NotADirectoryException", "");  // NOLINT
             return;
         default:
             break;
@@ -241,26 +288,26 @@ static void handle_error(JNIEnv* env, int rc) {
     THROW(env, "java/io/IOException", strerror(rc));
 }
 
-// nativeCurveFSCreate: curvefs_create
+// nativeCurveFsCreate: curvefs_new
 JNIEXPORT jlong
-JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSCreate
-    (JNIEnv* env, jobject) {
+JNICALL Java_io_opencurve_curve_fs_libfs_CurveFsMount_nativeCurveFsNew
+  (JNIEnv* env, jobject) {
     setup_field_ids(env);
-    uintptr_t instance = curvefs_create();
+    uintptr_t instance = curvefs_new();
     return reinterpret_cast<uint64_t>(instance);
 }
 
-// nativeCurveFSRelease: curvefs_release
+// nativeCurveFsRelease: curvefs_delete
 JNIEXPORT void
-JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSRelease
+JNICALL Java_io_opencurve_curve_fs_libfs_CurveFsMount_nativeCurveFsDelete
     (JNIEnv* env, jobject, jlong j_instance) {
     uintptr_t instance = static_cast<uintptr_t>(j_instance);
-    return curvefs_release(instance);
+    return curvefs_delete(instance);
 }
 
-// nativeCurveFSConfSet: curvefs_conf_set
+// nativeCurveFsConfSet: curvefs_conf_set
 JNIEXPORT void
-JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSConfSet
+JNICALL Java_io_opencurve_curve_fs_libfs_CurveFsMount_nativeCurveFsConfSet
     (JNIEnv* env, jclass, jlong j_instance, jstring j_key, jstring j_value) {
     uintptr_t instance = static_cast<uintptr_t>(j_instance);
     const char* key = env->GetStringUTFChars(j_key, NULL);
@@ -273,9 +320,9 @@ JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSConfSet
     return curvefs_conf_set(instance, key, value);
 }
 
-// nativeCurveFSMount: curvefs_mount
+// nativeCurveFsMount: curvefs_mount
 JNIEXPORT jint
-JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSMount
+JNICALL Java_io_opencurve_curve_fs_libfs_CurveFsMount_nativeCurveFsMount
     (JNIEnv* env, jclass, jlong j_instance,
      jstring j_fsname, jstring j_mountpoint) {
     uintptr_t instance = static_cast<uintptr_t>(j_instance);
@@ -293,9 +340,9 @@ JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSMount
     return rc;
 }
 
-// nativeCurveFSUmount: curvefs_umount
+// nativeCurveFsUmount: curvefs_umount
 JNIEXPORT jint
-JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSUmount
+JNICALL Java_io_opencurve_curve_fs_libfs_CurveFsMount_nativeCurveFsUmount
     (JNIEnv* env, jclass, jlong j_instance,
      jstring j_fsname, jstring j_mountpoint) {
     uintptr_t instance = static_cast<uintptr_t>(j_instance);
@@ -313,9 +360,9 @@ JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSUmount
     return rc;
 }
 
-// nativeCurveFSMkDirs: curvefs_mkdirs
+// nativeCurveFsMkDirs: curvefs_mkdirs
 JNIEXPORT jint
-JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSMkDirs
+JNICALL Java_io_opencurve_curve_fs_libfs_CurveFsMount_nativeCurveFsMkDirs
   (JNIEnv* env, jclass, jlong j_instance, jstring j_path, jint j_mode) {
     uintptr_t instance = static_cast<uintptr_t>(j_instance);
     const char* path = env->GetStringUTFChars(j_path, NULL);
@@ -333,9 +380,9 @@ JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSMkDirs
     return rc;
 }
 
-// nativeCurveFSRmDir: curvefs_rmdir
+// nativeCurveFsRmDir: curvefs_rmdir
 JNIEXPORT jint
-JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSRmDir
+JNICALL Java_io_opencurve_curve_fs_libfs_CurveFsMount_nativeCurveFsRmDir
     (JNIEnv* env, jclass, jlong j_instance, jstring j_path) {
     uintptr_t instance = static_cast<uintptr_t>(j_instance);
     const char* path = env->GetStringUTFChars(j_path, NULL);
@@ -350,9 +397,9 @@ JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSRmDir
     return rc;
 }
 
-// nativeCurveFSListDir: curvefs_opendir/curvefs_readdir/curvefs_closedir
+// nativeCurveFsListDir: curvefs_opendir/curvefs_readdir/curvefs_closedir
 JNIEXPORT jobjectArray
-JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSListDir
+JNICALL Java_io_opencurve_curve_fs_libfs_CurveFsMount_nativeCurveFsListDir
     (JNIEnv* env, jclass, jlong j_instance, jstring j_path) {
     uintptr_t instance = static_cast<uintptr_t>(j_instance);
     const char* path = env->GetStringUTFChars(j_path, NULL);
@@ -361,8 +408,8 @@ JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSListDir
     });
 
     // curvefs_opendir
-    dir_stream_t dir_stream;
-    auto rc = curvefs_opendir(instance, path, &dir_stream);
+    uint64_t fd;
+    auto rc = curvefs_opendir(instance, path, &fd);
     if (rc != 0) {
         handle_error(env, rc);
         return NULL;
@@ -370,60 +417,89 @@ JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSListDir
 
     // curvefs_readdir
     std::vector<dirent_t> dirents;
-    dirent_t dirent;
-    for ( ;; ) {
-        ssize_t n = curvefs_readdir(instance, &dir_stream, &dirent);
+    std::vector<dirent_t> buffer(8192);
+    for ( ; ; ) {
+        ssize_t n = curvefs_readdir(instance, fd, buffer.data(), 8192);
         if (n < 0) {
             handle_error(env, rc);
             return NULL;
         } else if (n == 0) {
             break;
         }
-        dirents.push_back(dirent);
+
+        // TODO(Wine93): less memory copy
+        dirents.insert(dirents.end(), buffer.begin(), buffer.begin() + n);
     }
 
     // closedir
-    rc = curvefs_closedir(instance, &dir_stream);
+    rc = curvefs_closedir(instance, fd);
     if (rc != 0) {
         handle_error(env, rc);
         return NULL;
     }
 
-    // extract entry name
-    jobjectArray j_names = env->NewObjectArray(
-        dirents.size(), env->FindClass("java/lang/String"), NULL);
+    jobjectArray j_dirents = env->NewObjectArray(dirents.size(),
+                                                 env->FindClass(dirent_cls_name),
+                                                 NULL);
 
     for (int i = 0; i < dirents.size(); i++) {
-        jstring j_name = env->NewStringUTF(dirents[i].name);
-        env->SetObjectArrayElement(j_names, i, j_name);
-        env->DeleteLocalRef(j_name);
+        // NOTE!!!: don't use static class
+        jobject j_dirent = env->AllocObject(env->FindClass(dirent_cls_name));
+        fill_dirent(env, j_dirent, &dirents[i]);
+        env->SetObjectArrayElement(j_dirents, i, j_dirent);
+        env->DeleteLocalRef(j_dirent);
     }
-    return j_names;
+
+    return j_dirents;
 }
 
-// nativeCurveFSOpen: curvefs_open
+// nativeCurveFsOpen: curvefs_create
 JNIEXPORT jint
-JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSOpen
+JNICALL Java_io_opencurve_curve_fs_libfs_CurveFsMount_nativeCurveFsCreate
     (JNIEnv* env, jclass,
-     jlong j_instance, jstring j_path, jint j_flags, jint j_mode) {
+     jlong j_instance, jstring j_path, jint j_mode, jobject j_file) {
     uintptr_t instance = static_cast<uintptr_t>(j_instance);
     const char* path = env->GetStringUTFChars(j_path, NULL);
-    uint32_t flags = fixup_open_flags(j_flags);
     uint16_t mode = static_cast<uint16_t>(j_mode);
     auto defer = absl::MakeCleanup([&]() {
         env->ReleaseStringUTFChars(j_path, path);
     });
 
-    int fd = curvefs_open(instance, path, flags, mode);
-    if (fd < 0) {
-        handle_error(env, fd);
+    file_t file;
+    int rc = curvefs_create(instance, path, mode, &file);
+    if (rc < 0) {
+        handle_error(env, rc);
     }
-    return fd;
+
+    fill_file(env, j_file, &file);
+    return rc;
 }
 
-// nativeCurveFSLSeek: curvefs_lseek
+// nativeCurveFsOpen: curvefs_open
+JNIEXPORT jint
+JNICALL Java_io_opencurve_curve_fs_libfs_CurveFsMount_nativeCurveFsOpen
+    (JNIEnv* env, jclass,
+     jlong j_instance, jstring j_path, jint j_flags, jobject j_file) {
+    uintptr_t instance = static_cast<uintptr_t>(j_instance);
+    const char* path = env->GetStringUTFChars(j_path, NULL);
+    uint32_t flags = fixup_open_flags(j_flags);
+    auto defer = absl::MakeCleanup([&]() {
+        env->ReleaseStringUTFChars(j_path, path);
+    });
+
+    file_t file;
+    int rc = curvefs_open(instance, path, flags, &file);
+    if (rc < 0) {
+        handle_error(env, rc);
+    }
+
+    fill_file(env, j_file, &file);
+    return rc;
+}
+
+// nativeCurveFsLSeek: curvefs_lseek
 JNIEXPORT jlong
-JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSLSeek
+JNICALL Java_io_opencurve_curve_fs_libfs_CurveFsMount_nativeCurveFsLSeek
     (JNIEnv* env, jclass,
      jlong j_instance, jint j_fd, jlong j_offset, jint j_whence) {
     uintptr_t instance = static_cast<uintptr_t>(j_instance);
@@ -432,13 +508,13 @@ JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSLSeek
 
     int whence;
     switch (j_whence) {
-    case io_opencurve_curve_fs_libfs_CurveFSMount_SEEK_SET:
+    case io_opencurve_curve_fs_libfs_CurveFsMount_SEEK_SET:
         whence = SEEK_SET;
         break;
-    case io_opencurve_curve_fs_libfs_CurveFSMount_SEEK_CUR:
+    case io_opencurve_curve_fs_libfs_CurveFsMount_SEEK_CUR:
         whence = SEEK_CUR;
         break;
-    case io_opencurve_curve_fs_libfs_CurveFSMount_SEEK_END:
+    case io_opencurve_curve_fs_libfs_CurveFsMount_SEEK_END:
         whence = SEEK_END;
         break;
     default:
@@ -452,11 +528,11 @@ JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSLSeek
     return rc;
 }
 
-// nativieCurveFSRead: curvefs_read
-JNIEXPORT jlong
-JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativieCurveFSRead
+// nativieCurveFsRead: curvefs_read
+JNIEXPORT jint
+JNICALL Java_io_opencurve_curve_fs_libfs_CurveFsMount_nativieCurveFsRead
     (JNIEnv* env, jclass, jlong j_instance, jint j_fd,
-     jbyteArray j_buffer, jlong j_size, jlong j_offset) {
+     jlong offset, jbyteArray j_buffer, jlong j_size) {
     uintptr_t instance = static_cast<uintptr_t>(j_instance);
     int fd = static_cast<int>(j_fd);
     jbyte* c_buffer = env->GetByteArrayElements(j_buffer, NULL);
@@ -470,14 +546,14 @@ JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativieCurveFSRead
     if (n < 0) {
         handle_error(env, n);
     }
-    return static_cast<jlong>(n);
+    return static_cast<jint>(n);
 }
 
-// nativieCurveFSWrite: curvefs_write
-JNIEXPORT jlong
-JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativieCurveFSWrite
+// nativieCurveFsWrite: curvefs_write
+JNIEXPORT jint
+JNICALL Java_io_opencurve_curve_fs_libfs_CurveFsMount_nativieCurveFsWrite
     (JNIEnv* env, jclass, jlong j_instance, jint j_fd,
-     jbyteArray j_buffer, jlong j_size, jlong j_offset) {
+     jlong offset, jbyteArray j_buffer, jlong j_size) {
     uintptr_t instance = static_cast<uintptr_t>(j_instance);
     int fd = static_cast<int>(j_fd);
     jbyte* c_buffer = env->GetByteArrayElements(j_buffer, NULL);
@@ -491,12 +567,12 @@ JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativieCurveFSWrite
     if (n < 0) {
         handle_error(env, n);
     }
-    return static_cast<jlong>(n);
+    return static_cast<jint>(n);
 }
 
-// nativeCurveFSFSync: curvefs_fsync
+// nativeCurveFsFSync: curvefs_fsync
 JNIEXPORT jint
-JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSFSync
+JNICALL Java_io_opencurve_curve_fs_libfs_CurveFsMount_nativeCurveFsFSync
     (JNIEnv* env, jclass, jlong j_instance, jint j_fd) {
     uintptr_t instance = static_cast<uintptr_t>(j_instance);
     int fd = static_cast<int>(j_fd);
@@ -508,9 +584,9 @@ JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSFSync
     return rc;
 }
 
-// nativeCurveFSClose: curvefs_close
+// nativeCurveFsClose: curvefs_close
 JNIEXPORT jint
-JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSClose
+JNICALL Java_io_opencurve_curve_fs_libfs_CurveFsMount_nativeCurveFsClose
     (JNIEnv* env, jclass, jlong j_instance, jint j_fd) {
     uintptr_t instance = static_cast<uintptr_t>(j_instance);
     int fd = static_cast<int>(j_fd);
@@ -522,9 +598,9 @@ JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSClose
     return rc;
 }
 
-// nativeCurveFSUnlink: curvefs_unlink
+// nativeCurveFsUnlink: curvefs_unlink
 JNIEXPORT jint
-JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSUnlink
+JNICALL Java_io_opencurve_curve_fs_libfs_CurveFsMount_nativeCurveFsUnlink
     (JNIEnv* env, jclass, jlong j_instance, jstring j_path) {
     uintptr_t instance = static_cast<uintptr_t>(j_instance);
     const char* path = env->GetStringUTFChars(j_path, NULL);
@@ -539,11 +615,11 @@ JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSUnlink
     return rc;
 }
 
-// nativeCurveFSStatFs: curvefs_statfs
+// nativeCurveFsStatFs: curvefs_statfs
 JNIEXPORT jint
-JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSStatFs
+JNICALL Java_io_opencurve_curve_fs_libfs_CurveFsMount_nativeCurveFsStatFs
     (JNIEnv* env, jclass,
-     jlong j_instance, jobject j_curvestatvfs) {
+     jlong j_instance, jobject j_statvfs) {
     uintptr_t instance = static_cast<uintptr_t>(j_instance);
 
     struct statvfs statvfs;
@@ -553,15 +629,15 @@ JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSStatFs
         return rc;
     }
 
-    fill_curvestatvfs(env, j_curvestatvfs, statvfs);
+    fill_statvfs(env, j_statvfs, &statvfs);
     return rc;
 }
 
-// nativeCurveFSLstat: curvefs_lstat
+// nativeCurveFsLstat: curvefs_lstat
 JNIEXPORT jint
-JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSLstat
+JNICALL Java_io_opencurve_curve_fs_libfs_CurveFsMount_nativeCurveFsLStat
     (JNIEnv* env, jclass,
-     jlong j_instance, jstring j_path, jobject j_curvestat) {
+     jlong j_instance, jstring j_path, jobject j_stat) {
     uintptr_t instance = static_cast<uintptr_t>(j_instance);
     const char* path = env->GetStringUTFChars(j_path, NULL);
     auto defer = absl::MakeCleanup([&]() {
@@ -576,14 +652,14 @@ JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSLstat
         return rc;
     }
 
-    fill_curvestat(env, j_curvestat, &stat);
+    fill_stat(env, j_stat, &stat);
     return rc;
 }
 
-// nativeCurveFSFStat: curvefs_fstat
+// nativeCurveFsFStat: curvefs_fstat
 JNIEXPORT jint
-JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSFStat
-    (JNIEnv* env, jclass, jlong j_instance, jint j_fd, jobject j_curvestat) {
+JNICALL Java_io_opencurve_curve_fs_libfs_CurveFsMount_nativeCurveFsFStat
+    (JNIEnv* env, jclass, jlong j_instance, jint j_fd, jobject j_stat) {
     uintptr_t instance = static_cast<uintptr_t>(j_instance);
     int fd = static_cast<int>(j_fd);
 
@@ -595,15 +671,15 @@ JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSFStat
         return rc;
     }
 
-    fill_curvestat(env, j_curvestat, &stat);
+    fill_stat(env, j_stat, &stat);
     return rc;
 }
 
-// nativeCurveFSSetAttr: curvefs_setattr
+// nativeCurveFsSetAttr: curvefs_setattr
 JNIEXPORT jint
-JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSSetAttr
+JNICALL Java_io_opencurve_curve_fs_libfs_CurveFsMount_nativeCurveFsSetAttr
     (JNIEnv* env, jclass,
-     jlong j_instance, jstring j_path, jobject j_curvestat, jint j_mask) {
+     jlong j_instance, jstring j_path, jobject j_stat, jint j_mask) {
     uintptr_t instance = static_cast<uintptr_t>(j_instance);
     const char* path = env->GetStringUTFChars(j_path, NULL);
     int to_set = fixup_attr_mask(j_mask);
@@ -613,11 +689,11 @@ JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSSetAttr
 
     struct stat stat;
     memset(&stat, 0, sizeof(stat));
-    stat.st_mode = env->GetIntField(j_curvestat, curvestat_mode_fid);
-    stat.st_uid = env->GetIntField(j_curvestat, curvestat_uid_fid);
-    stat.st_gid = env->GetIntField(j_curvestat, curvestat_gid_fid);
-    uint64_t mtime_msec = env->GetLongField(j_curvestat, curvestat_m_time_fid);
-    uint64_t atime_msec = env->GetLongField(j_curvestat, curvestat_a_time_fid);
+    stat.st_mode = env->GetIntField(j_stat, stat_mode_fid);
+    stat.st_uid = env->GetIntField(j_stat, stat_uid_fid);
+    stat.st_gid = env->GetIntField(j_stat, stat_gid_fid);
+    uint64_t mtime_msec = env->GetLongField(j_stat, stat_mtime_fid);
+    uint64_t atime_msec = env->GetLongField(j_stat, stat_atime_fid);
     stat.st_mtim.tv_sec = mtime_msec / 1000;
     stat.st_mtim.tv_nsec = (mtime_msec % 1000) * 1000000;
     stat.st_atim.tv_sec = atime_msec / 1000;
@@ -630,9 +706,9 @@ JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSSetAttr
     return rc;
 }
 
-// nativeCurveFSChmod: curvefs_chmod
+// nativeCurveFsChmod: curvefs_chmod
 JNIEXPORT jint
-JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSChmod
+JNICALL Java_io_opencurve_curve_fs_libfs_CurveFsMount_nativeCurveFsChmod
     (JNIEnv* env, jclass, jlong j_instance, jstring j_path, jint j_mode) {
     uintptr_t instance = static_cast<uintptr_t>(j_instance);
     uint16_t mode = static_cast<uint16_t>(j_mode);
@@ -648,9 +724,9 @@ JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSChmod
     return rc;
 }
 
-// nativeCurveFSChown: curvefs_chown
+// nativeCurveFsChown: curvefs_chown
 JNIEXPORT jint
-JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSChown
+JNICALL Java_io_opencurve_curve_fs_libfs_CurveFsMount_nativeCurveFsChown
   (JNIEnv* env, jclass,
    jlong j_instance, jstring j_path, jint j_uid, jint j_gid) {
     uintptr_t instance = static_cast<uintptr_t>(j_instance);
@@ -668,9 +744,9 @@ JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSChown
     return rc;
 }
 
-// nativeCurveFSRename: curvefs_rename
+// nativeCurveFsRename: curvefs_rename
 JNIEXPORT jint
-JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSRename
+JNICALL Java_io_opencurve_curve_fs_libfs_CurveFsMount_nativeCurveFsRename
     (JNIEnv* env, jclass, jlong j_instance, jstring j_src, jstring j_dst) {
     uintptr_t instance = static_cast<uintptr_t>(j_instance);
     const char* src = env->GetStringUTFChars(j_src, NULL);
@@ -681,6 +757,40 @@ JNICALL Java_io_opencurve_curve_fs_libfs_CurveFSMount_nativeCurveFSRename
     });
 
     int rc = curvefs_rename(instance, src, dst);
+    if (rc != 0) {
+        handle_error(env, rc);
+    }
+    return rc;
+}
+
+// nativeCurveFsRemove: curvefs_remove
+JNIEXPORT jint
+JNICALL Java_io_opencurve_curve_fs_libfs_CurveFsMount_nativeCurveFsRemove
+    (JNIEnv* env, jclass, jlong j_instance, jstring j_path) {
+    uintptr_t instance = static_cast<uintptr_t>(j_instance);
+    const char* path = env->GetStringUTFChars(j_path, NULL);
+    auto defer = absl::MakeCleanup([&]() {
+        env->ReleaseStringUTFChars(j_path, path);
+    });
+
+    int rc = curvefs_remove(instance, path);
+    if (rc != 0) {
+        handle_error(env, rc);
+    }
+    return rc;
+}
+
+// nativeCurveFsRemoveAll: curvefs_removeall
+JNIEXPORT jint
+JNICALL Java_io_opencurve_curve_fs_libfs_CurveFsMount_nativeCurveFsRemoveAll
+    (JNIEnv* env, jclass, jlong j_instance, jstring j_path) {
+    uintptr_t instance = static_cast<uintptr_t>(j_instance);
+    const char* path = env->GetStringUTFChars(j_path, NULL);
+    auto defer = absl::MakeCleanup([&]() {
+        env->ReleaseStringUTFChars(j_path, path);
+    });
+
+    int rc = curvefs_removeall(instance, path);
     if (rc != 0) {
         handle_error(env, rc);
     }

@@ -26,7 +26,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSInputStream;
-import io.opencurve.curve.fs.libfs.CurveFSMount;
+import io.opencurve.curve.fs.libfs.CurveFsMount;
+import io.opencurve.curve.fs.libfs.CurveFsProto;
 
 import java.io.IOException;
 
@@ -35,15 +36,15 @@ import java.io.IOException;
  * An {@link FSInputStream} for a CurveFileSystem and corresponding
  * Curve instance.
  */
-public class CurveFSInputStream extends FSInputStream {
-    private static final Log LOG = LogFactory.getLog(CurveFSInputStream.class);
+public class CurveFsInputStream extends FSInputStream {
+    private static final Log LOG = LogFactory.getLog(CurveFsInputStream.class);
     private boolean closed;
 
     private int fileHandle;
 
     private long fileLength;
 
-    private CurveFSProto curve;
+    private CurveFsProto curvefs;
 
     private byte[] buffer;
     private int bufPos = 0;
@@ -57,12 +58,12 @@ public class CurveFSInputStream extends FSInputStream {
      * @param flength The current length of the file. If the length changes
      * you will need to close and re-open it to access the new data.
      */
-    public CurveFSInputStream(Configuration conf, CurveFSProto curvefs,
+    public CurveFsInputStream(Configuration conf, CurveFsProto curve,
                               int fh, long flength, int bufferSize) {
       fileLength = flength;
       fileHandle = fh;
       closed = false;
-      curve = curvefs;
+      curvefs = curve;
       buffer = new byte[1<<21];
       LOG.debug("CurveInputStream constructor: initializing stream with fh "
                 + fh + " and file length " + flength);
@@ -83,14 +84,14 @@ public class CurveFSInputStream extends FSInputStream {
     }
 
     private synchronized boolean fillBuffer() throws IOException {
-        bufValid = curve.read(fileHandle, buffer, buffer.length, -1);
+        bufValid = curvefs.read(fileHandle, -1, buffer, buffer.length);
         bufPos = 0;
         if (bufValid < 0) {
             int err = bufValid;
 
             bufValid = 0;
 
-            curve.lseek(fileHandle, curvePos, CurveFSMount.SEEK_SET);
+            curvefs.lseek(fileHandle, curvePos, CurveFsMount.SEEK_SET);
             throw new IOException("Failed to fill read buffer! Error code:" + err);
         }
         curvePos += bufValid;
@@ -127,7 +128,7 @@ public class CurveFSInputStream extends FSInputStream {
         }
         long oldPos = curvePos;
 
-        curvePos = curve.lseek(fileHandle, targetPos, CurveFSMount.SEEK_SET);
+        curvePos = curvefs.lseek(fileHandle, targetPos, CurveFsMount.SEEK_SET);
         bufValid = 0;
         bufPos = 0;
         if (curvePos < 0) {
@@ -244,7 +245,7 @@ public class CurveFSInputStream extends FSInputStream {
     public void close() throws IOException {
         LOG.trace("CurveOutputStream.close:enter");
         if (!closed) {
-            curve.close(fileHandle);
+            curvefs.close(fileHandle);
             closed = true;
             LOG.trace("CurveOutputStream.close:exit");
         }

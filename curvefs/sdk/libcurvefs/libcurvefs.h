@@ -46,25 +46,23 @@ typedef struct {
 
 #endif  // __cplusplus
 
-// Must be synchronized with DirStream if changed
 typedef struct {
-    uint64_t ino;
-    uint64_t fh;
-    uint64_t offset;
-} dir_stream_t;
+    uint64_t fd;
+    uint64_t length;
+} file_t;
 
 typedef struct {
-    struct stat stat;
-    char name[256];
+    char name[256];  // TODO(Wine93): smaller buffer
+    struct stat stat;  // sizeof(stat) = 144
 } dirent_t;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-uintptr_t curvefs_create();
+uintptr_t curvefs_new();
 
-void curvefs_release(uintptr_t instance_ptr);
+void curvefs_delete(uintptr_t instance_ptr);
 
 // NOTE: instance_ptr is the pointer of curvefs_mount_t instance.
 void curvefs_conf_set(uintptr_t instance_ptr,
@@ -88,19 +86,25 @@ int curvefs_rmdir(uintptr_t instance_ptr, const char* path);
 
 int curvefs_opendir(uintptr_t instance_ptr,
                     const char* path,
-                    dir_stream_t* dir_stream);
+                    uint64_t* fd);
 
 ssize_t curvefs_readdir(uintptr_t instance_ptr,
-                        dir_stream_t* dir_stream,
-                        dirent_t* dirent);
+                        uint64_t fd,
+                        dirent_t dirents[],
+                        size_t count);
 
-int curvefs_closedir(uintptr_t instance_ptr, dir_stream_t* dir_stream);
+int curvefs_closedir(uintptr_t instance_ptr, uint64_t fd);
 
 // file
+int curvefs_create(uintptr_t instance_ptr,
+                   const char* path,
+                   uint16_t mode,
+                   file_t* file);
+
 int curvefs_open(uintptr_t instance_ptr,
                  const char* path,
                  uint32_t flags,
-                 uint16_t mode);
+                 file_t* file);
 
 int curvefs_lseek(uintptr_t instance_ptr,
                   int fd,
@@ -141,6 +145,10 @@ int curvefs_chown(uintptr_t instance_ptr,
                   const char* path,
                   uint32_t uid,
                   uint32_t gid);
+
+int curvefs_remove(uintptr_t instance_ptr, const char* path);
+
+int curvefs_removeall(uintptr_t instance_ptr, const char* path);
 
 int curvefs_rename(uintptr_t instance_ptr,
                    const char* oldpath,

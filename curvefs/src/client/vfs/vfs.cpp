@@ -37,6 +37,7 @@
 #include "curvefs/src/client/vfs/config.h"
 #include "curvefs/src/client/vfs/meta.h"
 #include "curvefs/src/client/vfs/utils.h"
+#include "curvefs/src/client/vfs/handlers.h"
 #include "curvefs/src/client/vfs/vfs.h"
 
 namespace curvefs {
@@ -92,7 +93,7 @@ CURVEFS_ERROR VFS::Umount(const std::string& fsname,
                           const std::string& mountpoint) {
     CURVEFS_ERROR rc;
     AccessLogGuard log([&]() {
-        return StrFormat("umount: %s", StrErr(rc));
+        return StrFormat("umount (%s,%s): %s", fsname, mountpoint, StrErr(rc));
     });
 
     rc = op_->Umount(fsname, mountpoint);
@@ -185,17 +186,19 @@ CURVEFS_ERROR VFS::RmDir(const std::string& path) {
     return rc;
 }
 
-CURVEFS_ERROR VFS::OpenDir(const std::string& path, DirStream* stream) {
+CURVEFS_ERROR VFS::OpenDir(const std::string& path, uint64_t* fd) {
     Entry entry;
     CURVEFS_ERROR rc;
     AccessLogGuard log([&](){
         return StrFormat("opendir (%s): %s [fh:%d]",
-                         path, StrErr(rc), stream->fh);
+                         path, StrErr(rc), *fd);
     });
 
     rc = Lookup(path, true, &entry);
     if (rc != CURVEFS_ERROR::OK) {
         return rc;
+    } else if (!IsDir(entry.attr)) {
+        return CURVEFS_ERROR::NOT_A_DIRECTORY;
     }
 
     rc = permission_->Check(entry.attr, Permission::WANT_READ);
@@ -203,57 +206,96 @@ CURVEFS_ERROR VFS::OpenDir(const std::string& path, DirStream* stream) {
         return rc;
     }
 
-    stream->ino = entry.ino;
-    stream->offset = 0;
-    rc = op_->OpenDir(entry.ino, &stream->fh);
+    FileHandler fh(HandlerType::DIR, entry.ino);
+    rc = op_->OpenDir(entry.ino, &fh.fh);
+    if (rc == CURVEFS_ERROR::OK) {
+        *fd = handlers_->NextHandler(fh);
+    }
     return rc;
 }
 
-CURVEFS_ERROR VFS::ReadDir(DirStream* stream, DirEntry* dirEntry) {
-    uint64_t nread = 0;
+CURVEFS_ERROR VFS::ReadDir(uint64_t fd,
+                           Dirent dirents[],
+                           size_t count,
+                           uint64_t* nread) {
+    uint64_t offset = 0;
     CURVEFS_ERROR rc;
     AccessLogGuard log([&](){
-        return StrFormat("readdir (%d,%d): %s (%d)",
-                         stream->fh, stream->offset, StrErr(rc), nread);
+        return StrFormat("readdir (%d,%d,%d): %s (%d)",
+                         fd, count, offset, StrErr(rc), *nread);
     });
 
-    auto entries = std::make_shared<DirEntryList>();
-    rc = op_->ReadDir(stream->ino, stream->fh, &entries);
-    if (rc != CURVEFS_ERROR::OK) {
+    std::shared_ptr<FileHandler> fh;
+    bool yes = handlers_->GetHandler(fd, &fh);
+    if (!yes) {
+        rc = CURVEFS_ERROR::BAD_FD;
         return rc;
     }
 
-    if (stream->offset >= entries->Size()) {
+    if (nullptr == fh->entries) {
+        fh->entries = std::make_shared<DirEntryList>();
+        rc = op_->ReadDir(fh->ino, fh->fh, &fh->entries);
+        if (rc != CURVEFS_ERROR::OK) {
+            return rc;
+        }
+
+        fh->entries->Iterate([&](DirEntry* dirEntry) {
+            // TODO(Wine93): add entry&attr cache
+        });
+    }
+
+    offset = fh->offset;
+    size_t size = fh->entries->Size();
+    if (offset >= size) {
         rc = CURVEFS_ERROR::END_OF_FILE;
         return rc;
     }
 
-    rc = CURVEFS_ERROR::OK;
-    entries->At(stream->offset, dirEntry);
-    stream->offset++;
-    nread = 1;
-    return rc;
-}
-
-CURVEFS_ERROR VFS::CloseDir(DirStream* stream) {
-    CURVEFS_ERROR rc;
-    AccessLogGuard log([&](){
-        return StrFormat("closedir (%d): %s",
-                         stream->fh, StrErr(rc));
+    uint64_t i = 0;
+    fh->entries->IterateRange(offset, count, [&](DirEntry* dirEntry) {
+        const std::string& name = dirEntry->name;
+        name.copy(dirents[i].name, name.size());
+        dirents[i].name[name.size()] = '\0';
+        op_->Attr2Stat(&dirEntry->attr, &dirents[i].stat);
+        i++;
     });
 
-    rc = op_->CloseDir(stream->ino);
+    *nread = i;
+    fh->offset = fh->offset + *nread;
+    rc = CURVEFS_ERROR::OK;
     return rc;
 }
 
-CURVEFS_ERROR VFS::Create(const std::string& path, uint16_t mode) {
+CURVEFS_ERROR VFS::CloseDir(uint64_t fd) {
+    CURVEFS_ERROR rc;
+    AccessLogGuard log([&](){
+        return StrFormat("closedir (%d): %s", fd, StrErr(rc));
+    });
+
+    std::shared_ptr<FileHandler> fh;
+    bool yes = handlers_->GetHandler(fd, &fh);
+    if (!yes) {
+        rc = CURVEFS_ERROR::BAD_FD;
+        return rc;
+    }
+
+    rc = op_->CloseDir(fh->ino);
+    if (rc == CURVEFS_ERROR::OK) {
+        handlers_->FreeHandler(fd);
+    }
+    return rc;
+}
+
+CURVEFS_ERROR VFS::Create(const std::string& path,
+                          uint16_t mode,
+                          File* file) {
     Entry parent;
     EntryOut entryOut;
     CURVEFS_ERROR rc;
     AccessLogGuard log([&](){
-        return StrFormat("create (%s,%s:0%04o): %s%s",
+        return StrFormat("create (%s,%s:0%04o): %s%s [fh:%d]",
                          path, StrMode(mode), mode,
-                         StrErr(rc), StrEntry(entryOut));
+                         StrErr(rc), StrEntry(entryOut), file->fd);
     });
 
     rc = Lookup(filepath::ParentDir(path), true, &parent);
@@ -268,20 +310,25 @@ CURVEFS_ERROR VFS::Create(const std::string& path, uint16_t mode) {
 
     mode = permission_->GetFileMode(S_IFREG, mode);
     rc = op_->Create(parent.ino, filepath::Filename(path), mode, &entryOut);
-    if (rc == CURVEFS_ERROR::OK) {
-        PurgeEntryCache(parent.ino, filepath::Filename(path));
+    if (rc != CURVEFS_ERROR::OK) {
+        return rc;
     }
+
+    PurgeEntryCache(parent.ino, filepath::Filename(path));
+    FileHandler fh =
+        FileHandler(HandlerType::FILE, entryOut.attr.inodeid(), 0, 0, O_WRONLY);
+    file->fd = handlers_->NextHandler(fh);
+    file->length = 0;
     return rc;
 }
 
 CURVEFS_ERROR VFS::Open(const std::string& path,
                         uint32_t flags,
-                        uint16_t mode,
-                        uint64_t* fd) {
+                        File* file) {
     Entry entry;
     CURVEFS_ERROR rc;
     AccessLogGuard log([&](){
-        return StrFormat("open (%s): %s [fh:%d]", path, StrErr(rc), *fd);
+        return StrFormat("open (%s): %s [fh:%d]", path, StrErr(rc), file->fd);
     });
 
     rc = Lookup(path, true, &entry);
@@ -295,16 +342,29 @@ CURVEFS_ERROR VFS::Open(const std::string& path,
         return rc;
     }
 
-    rc = op_->Open(entry.ino, flags);
-    if (rc != CURVEFS_ERROR::OK) {
-        return rc;
+    FileOut fileOut;
+    for (int retries = 0; retries < 2; retries++) {
+        rc = op_->Open(entry.ino, flags, &fileOut);
+        if (rc == CURVEFS_ERROR::OK) {
+            break;
+        } else if (rc == CURVEFS_ERROR::STALE) {
+            PurgeAttrCache(entry.ino);
+            continue;
+        } else {  // Encourage error
+            return rc;
+        }
     }
 
     uint64_t offset = 0;
+    uint64_t length = fileOut.attr.length();
     if (flags & O_APPEND) {
-        offset = entry.attr.length();
+        offset = length;
     }
-    *fd = handlers_->NextHandler(entry.ino, offset);
+
+    auto fh = FileHandler(HandlerType::FILE, entry.ino,
+                          offset, length, flags);
+    file->fd = handlers_->NextHandler(fh);
+    file->length = length;
     return CURVEFS_ERROR::OK;
 }
 
@@ -323,11 +383,6 @@ CURVEFS_ERROR VFS::LSeek(uint64_t fd, uint64_t offset, int whence) {
         return rc;
     }
 
-    rc = op_->GetAttr(fh->ino, &attrOut);
-    if (rc != CURVEFS_ERROR::OK) {
-        return rc;
-    }
-
     switch (whence) {
     case SEEK_SET:
         fh->offset = offset;
@@ -338,11 +393,7 @@ CURVEFS_ERROR VFS::LSeek(uint64_t fd, uint64_t offset, int whence) {
         break;
 
     case SEEK_END:
-        rc = op_->GetAttr(fh->ino, &attrOut);
-        if (rc != CURVEFS_ERROR::OK) {
-            return rc;
-        }
-        fh->offset = attrOut.attr.length() + offset;
+        fh->offset = fh->length + offset;
         break;
 
     default:
@@ -358,9 +409,8 @@ CURVEFS_ERROR VFS::Read(uint64_t fd,
                         char* buffer,
                         size_t count,
                         size_t* nread) {
-    AttrOut attrOut;
-    std::shared_ptr<FileHandler> fh;
     CURVEFS_ERROR rc;
+    std::shared_ptr<FileHandler> fh;
     uint64_t offset = 0;
     AccessLogGuard log([&](){
         return StrFormat("read (%d,%d,%d): %s (%d)",
@@ -373,15 +423,10 @@ CURVEFS_ERROR VFS::Read(uint64_t fd,
         return rc;
     }
 
-    rc = op_->GetAttr(fh->ino, &attrOut);
-    if (rc != CURVEFS_ERROR::OK) {
-        return rc;
-    }
-
     offset = fh->offset;
     rc = op_->Read(fh->ino, fh->offset, buffer, count, nread);
     if (rc == CURVEFS_ERROR::OK) {
-        fh->offset += *nread;
+        fh->offset += *nread;  // FIXME(Wine93): need lock here?
     }
     return rc;
 }
@@ -390,9 +435,8 @@ CURVEFS_ERROR VFS::Write(uint64_t fd,
                          const char* buffer,
                          size_t count,
                          size_t* nwritten) {
-    std::shared_ptr<FileHandler> fh;
-    AttrOut attrOut;
     CURVEFS_ERROR rc;
+    std::shared_ptr<FileHandler> fh;
     uint64_t offset = 0;
     AccessLogGuard log([&](){
         return StrFormat("write (%d,%d,%d): %s (%d)",
@@ -405,24 +449,21 @@ CURVEFS_ERROR VFS::Write(uint64_t fd,
         return rc;
     }
 
-    rc = op_->GetAttr(fh->ino, &attrOut);
-    if (rc != CURVEFS_ERROR::OK) {
-        return rc;
-    }
-
+    FileOut fileOut;
     offset = fh->offset;
-    rc = op_->Write(fh->ino, fh->offset, buffer, count, nwritten);
+    rc = op_->Write(fh->ino, fh->offset, buffer, count, &fileOut);
     if (rc == CURVEFS_ERROR::OK) {
-        fh->offset += *nwritten;
+        *nwritten = fileOut.nwritten;
+        fh->offset += *nwritten;  // FIXME(Wine93): need lock here?
+        fh->length = fileOut.attr.length();
         PurgeAttrCache(fh->ino);
     }
     return rc;
 }
 
 CURVEFS_ERROR VFS::FSync(uint64_t fd) {
-    std::shared_ptr<FileHandler> fh;
-    AttrOut attrOut;
     CURVEFS_ERROR rc;
+    std::shared_ptr<FileHandler> fh;
     AccessLogGuard log([&](){
         return StrFormat("fsync (%d): %s", fd, StrErr(rc));
     });
@@ -433,18 +474,13 @@ CURVEFS_ERROR VFS::FSync(uint64_t fd) {
         return rc;
     }
 
-    rc = op_->GetAttr(fh->ino, &attrOut);
-    if (rc != CURVEFS_ERROR::OK) {
-        return rc;
-    }
-
     rc = op_->Flush(fh->ino);
     return rc;
 }
 
 CURVEFS_ERROR VFS::Close(uint64_t fd) {
-    std::shared_ptr<FileHandler> fh;
     CURVEFS_ERROR rc;
+    std::shared_ptr<FileHandler> fh;
     AccessLogGuard log([&](){
         return StrFormat("close (%d): %s", fd, StrErr(rc));
     });
@@ -455,9 +491,12 @@ CURVEFS_ERROR VFS::Close(uint64_t fd) {
         return rc;
     }
 
-    rc = op_->Flush(fh->ino);
-    if (rc != CURVEFS_ERROR::OK) {
-        return rc;
+    uint32_t flags = fh->flags;
+    if (flags & O_WRONLY || flags & O_RDWR) {
+        rc = op_->Flush(fh->ino);
+        if (rc != CURVEFS_ERROR::OK) {
+            return rc;
+        }
     }
 
     rc = op_->Close(fh->ino);
@@ -638,6 +677,51 @@ CURVEFS_ERROR VFS::Chown(const std::string &path, uint32_t uid, uint32_t gid) {
     if (rc == CURVEFS_ERROR::OK) {
         PurgeAttrCache(entry.ino);
     }
+    return rc;
+}
+
+CURVEFS_ERROR VFS::Remove(const std::string& path) {
+    CURVEFS_ERROR rc;
+    AccessLogGuard log([&](){
+        return StrFormat("remove (%s): %s", path, StrErr(rc));
+    });
+
+    Entry parent;
+    rc = Lookup(filepath::ParentDir(path), true, &parent);
+    if (rc != CURVEFS_ERROR::OK) {
+        return rc;
+    }
+
+    rc = permission_->Check(parent.attr, Permission::WANT_WRITE);
+    if (rc != CURVEFS_ERROR::OK) {
+        return rc;
+    }
+
+    Entry entry;
+    rc = Lookup(path, true, &entry);
+    if (rc != CURVEFS_ERROR::OK) {
+        return rc;
+    }
+
+    if (IsDir(entry.attr)) {
+        rc = op_->RmDir(parent.ino, filepath::Filename(path));
+    } else {
+        rc = op_->Unlink(parent.ino, filepath::Filename(path));
+    }
+
+    if (rc == CURVEFS_ERROR::OK) {
+        PurgeEntryCache(parent.ino, filepath::Filename(path));
+    }
+    return rc;
+}
+
+CURVEFS_ERROR VFS::RemoveAll(const std::string& path) {
+    CURVEFS_ERROR rc;
+    AccessLogGuard log([&](){
+        return StrFormat("removeall (%s): %s", path, StrErr(rc));
+    });
+
+    rc = CURVEFS_ERROR::NOT_SUPPORT;
     return rc;
 }
 
