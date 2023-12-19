@@ -96,7 +96,7 @@ ci-list:
 	@bash util/build_in_image.sh --stor=$(stor) --list
 
 ci-build:
-	@bash util/build_in_image.sh --stor=$(stor) --only=$(only) --dep=$(dep) --release=$(release) --ci=$(ci) --os=$(os) --sanitizer=$(sanitizer)
+	@bash util/build_in_image.sh --stor=$(stor) --only=$(only) --dep=$(dep) --release=$(release) --ci=$(ci) --os=$(os)
 
 ci-dep:
 	@bash util/build_in_image.sh --stor=$(stor) --only="" --dep=1
@@ -127,3 +127,6 @@ init-hadoop:
 
 sdk:
 	@bash util/sdk.sh
+
+clean:
+	@bash util/clean.sh

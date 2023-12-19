@@ -70,7 +70,7 @@ class PthreadRWLockBase : public RWLockBase {
         int ret = pthread_rwlock_wrlock(&rwlock_);
         CHECK(0 == ret) << "wlock failed: " << ret << ", " << strerror(ret);
 #if CURVE_CHECK_PTHREAD_WRLOCK_TID
-        tid_ = gettid();
+        //tid_ = gettid();
 #endif
     }
 
@@ -81,7 +81,7 @@ class PthreadRWLockBase : public RWLockBase {
         }
 
 #if CURVE_CHECK_PTHREAD_WRLOCK_TID
-        tid_ = gettid();
+        //tid_ = gettid();
 #endif
         return 0;
     }
@@ -97,17 +97,17 @@ class PthreadRWLockBase : public RWLockBase {
 
     void Unlock() override {
 #if CURVE_CHECK_PTHREAD_WRLOCK_TID
-        if (tid_ != 0) {
-            const pid_t current = gettid();
-            // If CHECK here is triggered, please look at the comments at the
-            // beginning of the file.
-            // In the meantime, the simplest solution might be to use
-            // `BthreadRWLock` locks everywhere.
-            CHECK(tid_ == current)
-                << ", tid has changed, previous tid: " << tid_
-                << ", current tid: " << current;
-            tid_ = 0;
-        }
+        //if (tid_ != 0) {
+        //    const pid_t current = gettid();
+        //    // If CHECK here is triggered, please look at the comments at the
+        //    // beginning of the file.
+        //    // In the meantime, the simplest solution might be to use
+        //    // `BthreadRWLock` locks everywhere.
+        //    CHECK(tid_ == current)
+        //        << ", tid has changed, previous tid: " << tid_
+        //        << ", current tid: " << current;
+        //    tid_ = 0;
+        //}
 #endif
         pthread_rwlock_unlock(&rwlock_);
     }

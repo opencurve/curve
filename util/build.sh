@@ -26,7 +26,7 @@ source "$(dirname "${BASH_SOURCE}")/docker_opts.sh"
 
 main() {
     source "util/basic.sh"
-    source "util/build_functions.sh"
+source "util/build_functions.sh"
 
     get_options "$@"
     get_version

@@ -116,7 +116,7 @@ class S3ClientAdaptorImpl : public S3ClientAdaptor {
  public:
     S3ClientAdaptorImpl() {}
     virtual ~S3ClientAdaptorImpl() {
-        LOG(INFO) << "delete S3ClientAdaptorImpl";
+        VLOG(3) << "delete S3ClientAdaptorImpl";
     }
     /**
      * @brief Initailize s3 client

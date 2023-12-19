@@ -21,7 +21,7 @@ g_build_opts=(
     "--copt -DUSE_BTHREAD_MUTEX"
     "--copt -DCLIENT_CONF_PATH=\"${g_root}/curvefs/conf/client.conf\""
 )
-# allow user to specify extra build options 
+# allow user to specify extra build options
 # using environment variable BUILD_OPTS , if any.
 # custom build options will be appended to g_build_opts
 if [ -n "$BUILD_OPTS" ]; then
@@ -49,6 +49,7 @@ main() {
     else
         if [ "$g_depend" -eq 1 ]; then
             build_requirements
+            (cd curvefs/sdk/java && mvn package)
         fi
         if [ -n "$g_target" ]; then
             build_target

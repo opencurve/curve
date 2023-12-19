@@ -69,6 +69,10 @@ class CurveFSTalker extends CurveFSProto {
 
     @Override
     void initialize(URI uri, Configuration conf) throws IOException {
+        if (inited) {
+            return;
+        }
+
         mount = new CurveFSMount();
         loadCfg(conf);
         if (null == fsname || fsname.isEmpty()) {
@@ -83,6 +87,7 @@ class CurveFSTalker extends CurveFSProto {
     void shutdown() throws IOException {
         if (inited) {
             mount.umount(fsname, mountpoint);
+            mount.release();
             mount = null;
             inited = false;
         }

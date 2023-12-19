@@ -92,7 +92,7 @@ CURVEFS_ERROR VFS::Umount(const std::string& fsname,
                           const std::string& mountpoint) {
     CURVEFS_ERROR rc;
     AccessLogGuard log([&]() {
-        return StrFormat("umount: %s", StrErr(rc));
+        return StrFormat("umount (%s,%s): %s", fsname, mountpoint, StrErr(rc));
     });
 
     rc = op_->Umount(fsname, mountpoint);
@@ -295,16 +295,25 @@ CURVEFS_ERROR VFS::Open(const std::string& path,
         return rc;
     }
 
-    rc = op_->Open(entry.ino, flags);
-    if (rc != CURVEFS_ERROR::OK) {
-        return rc;
+    FileOut fileOut;
+    for (int retries = 0; retries < 2; retries++) {
+        rc = op_->Open(entry.ino, flags, &fileOut);
+        if (rc == CURVEFS_ERROR::OK) {
+            break;
+        } else if (rc == CURVEFS_ERROR::STALE) {
+            PurgeAttrCache(entry.ino);
+            continue;
+        } else {  // Encourage error
+            return rc;
+        }
     }
 
     uint64_t offset = 0;
+    uint64_t length = fileOut.attr.length();
     if (flags & O_APPEND) {
-        offset = entry.attr.length();
+        offset = length;
     }
-    *fd = handlers_->NextHandler(entry.ino, offset);
+    *fd = handlers_->NextHandler(entry.ino, offset, length, flags);
     return CURVEFS_ERROR::OK;
 }
 
@@ -323,11 +332,6 @@ CURVEFS_ERROR VFS::LSeek(uint64_t fd, uint64_t offset, int whence) {
         return rc;
     }
 
-    rc = op_->GetAttr(fh->ino, &attrOut);
-    if (rc != CURVEFS_ERROR::OK) {
-        return rc;
-    }
-
     switch (whence) {
     case SEEK_SET:
         fh->offset = offset;
@@ -338,11 +342,7 @@ CURVEFS_ERROR VFS::LSeek(uint64_t fd, uint64_t offset, int whence) {
         break;
 
     case SEEK_END:
-        rc = op_->GetAttr(fh->ino, &attrOut);
-        if (rc != CURVEFS_ERROR::OK) {
-            return rc;
-        }
-        fh->offset = attrOut.attr.length() + offset;
+        fh->offset = fh->length + offset;
         break;
 
     default:
@@ -358,9 +358,8 @@ CURVEFS_ERROR VFS::Read(uint64_t fd,
                         char* buffer,
                         size_t count,
                         size_t* nread) {
-    AttrOut attrOut;
-    std::shared_ptr<FileHandler> fh;
     CURVEFS_ERROR rc;
+    std::shared_ptr<FileHandler> fh;
     uint64_t offset = 0;
     AccessLogGuard log([&](){
         return StrFormat("read (%d,%d,%d): %s (%d)",
@@ -373,15 +372,10 @@ CURVEFS_ERROR VFS::Read(uint64_t fd,
         return rc;
     }
 
-    rc = op_->GetAttr(fh->ino, &attrOut);
-    if (rc != CURVEFS_ERROR::OK) {
-        return rc;
-    }
-
     offset = fh->offset;
     rc = op_->Read(fh->ino, fh->offset, buffer, count, nread);
     if (rc == CURVEFS_ERROR::OK) {
-        fh->offset += *nread;
+        fh->offset += *nread;  // FIXME(Wine93): need lock here?
     }
     return rc;
 }
@@ -390,9 +384,8 @@ CURVEFS_ERROR VFS::Write(uint64_t fd,
                          const char* buffer,
                          size_t count,
                          size_t* nwritten) {
-    std::shared_ptr<FileHandler> fh;
-    AttrOut attrOut;
     CURVEFS_ERROR rc;
+    std::shared_ptr<FileHandler> fh;
     uint64_t offset = 0;
     AccessLogGuard log([&](){
         return StrFormat("write (%d,%d,%d): %s (%d)",
@@ -405,24 +398,21 @@ CURVEFS_ERROR VFS::Write(uint64_t fd,
         return rc;
     }
 
-    rc = op_->GetAttr(fh->ino, &attrOut);
-    if (rc != CURVEFS_ERROR::OK) {
-        return rc;
-    }
-
+    FileOut fileOut;
     offset = fh->offset;
-    rc = op_->Write(fh->ino, fh->offset, buffer, count, nwritten);
+    rc = op_->Write(fh->ino, fh->offset, buffer, count, &fileOut);
     if (rc == CURVEFS_ERROR::OK) {
-        fh->offset += *nwritten;
+        *nwritten = fileOut.nwritten;
+        fh->offset += *nwritten;  // FIXME(Wine93): need lock here?
+        fh->length = fileOut.attr.length();
         PurgeAttrCache(fh->ino);
     }
     return rc;
 }
 
 CURVEFS_ERROR VFS::FSync(uint64_t fd) {
-    std::shared_ptr<FileHandler> fh;
-    AttrOut attrOut;
     CURVEFS_ERROR rc;
+    std::shared_ptr<FileHandler> fh;
     AccessLogGuard log([&](){
         return StrFormat("fsync (%d): %s", fd, StrErr(rc));
     });
@@ -433,18 +423,13 @@ CURVEFS_ERROR VFS::FSync(uint64_t fd) {
         return rc;
     }
 
-    rc = op_->GetAttr(fh->ino, &attrOut);
-    if (rc != CURVEFS_ERROR::OK) {
-        return rc;
-    }
-
     rc = op_->Flush(fh->ino);
     return rc;
 }
 
 CURVEFS_ERROR VFS::Close(uint64_t fd) {
-    std::shared_ptr<FileHandler> fh;
     CURVEFS_ERROR rc;
+    std::shared_ptr<FileHandler> fh;
     AccessLogGuard log([&](){
         return StrFormat("close (%d): %s", fd, StrErr(rc));
     });
@@ -455,9 +440,12 @@ CURVEFS_ERROR VFS::Close(uint64_t fd) {
         return rc;
     }
 
-    rc = op_->Flush(fh->ino);
-    if (rc != CURVEFS_ERROR::OK) {
-        return rc;
+    uint32_t flags = fh->flags;
+    if (flags & O_WRONLY || flags & O_RDWR) {
+        rc = op_->Flush(fh->ino);
+        if (rc != CURVEFS_ERROR::OK) {
+            return rc;
+        }
     }
 
     rc = op_->Close(fh->ino);

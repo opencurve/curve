@@ -177,3 +177,4 @@ curvefs/sdk/libcurvefs/examples/bin
 curvefs/sdk/output/
 hadoop-test/
 nnbench-test/
+dependency-reduced-pom.xml

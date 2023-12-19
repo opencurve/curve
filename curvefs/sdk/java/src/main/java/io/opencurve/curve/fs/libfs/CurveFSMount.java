@@ -117,6 +117,10 @@ public class CurveFSMount {
         instancePtr = nativeCurveFSCreate();
     }
 
+    public void release() throws IOException {
+        nativeCurveFSRelease(instancePtr);
+    }
+
     public void confSet(String key, String value) {
         accessLog("confSet", key, value);
         nativeCurveFSConfSet(instancePtr, key, value);

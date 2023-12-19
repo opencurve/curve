@@ -138,7 +138,7 @@ int curvefs_open(uintptr_t instance_ptr,
     auto mount = get_instance(instance_ptr);
     if (flags & O_CREAT) {
         rc = mount->vfs->Create(path, mode);
-        if (rc != CURVEFS_ERROR::OK) {
+        if (rc != CURVEFS_ERROR::OK && rc != CURVEFS_ERROR::EXISTS) {
             return SysErr(rc);
         }
     }

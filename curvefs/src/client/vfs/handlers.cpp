@@ -30,9 +30,13 @@ FileHandlers::FileHandlers()
     : nextHandler_(0),
       handlers_() {}
 
-uint64_t FileHandlers::NextHandler(Ino ino, uint64_t offset) {
+uint64_t FileHandlers::NextHandler(Ino ino,
+                                   uint64_t offset,
+                                   uint64_t length,
+                                   uint32_t flags) {
     LockGuard lk(mutex_);
-    handlers_[nextHandler_] = std::make_shared<FileHandler>(ino, offset);
+    handlers_[nextHandler_] =
+        std::make_shared<FileHandler>(ino, offset, length, flags);
     return nextHandler_++;
 }
 

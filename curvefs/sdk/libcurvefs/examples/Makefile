@@ -16,7 +16,7 @@ libcurvefs:
         --copt -g \
         --copt -DUNINSTALL_SIGSEGV=1 \
         --copt -DCLIENT_CONF_PATH="\"$(root)/curvefs/conf/client.conf\"" \
-        //curvefs/sdk/java/native:curvefs_jni
+        //curvefs/sdk/libcurvefs:curvefs
 
 $(targets): libcurvefs
 	gcc ${flags} $@.c -o bin/$@ -lcurvefs
