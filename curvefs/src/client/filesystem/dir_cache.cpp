@@ -57,15 +57,6 @@ bool DirEntryList::Get(Ino ino, DirEntry* dirEntry) {
     return true;
 }
 
-bool DirEntryList::At(uint32_t index, DirEntry* dirEntry) {
-    ReadLockGuard lk(rwlock_);
-    if (index >= entries_.size()) {
-        return false;
-    }
-    *dirEntry = entries_[index];
-    return true;
-}
-
 bool DirEntryList::UpdateAttr(Ino ino, const InodeAttr& attr) {
     WriteLockGuard lk(rwlock_);
     auto iter = index_.find(ino);
@@ -101,6 +92,17 @@ void DirEntryList::Iterate(IterateHandler handler) {
     ReadLockGuard lk(rwlock_);
     for (auto iter = entries_.begin(); iter != entries_.end(); iter++) {
         handler(&(*iter));
+    }
+}
+
+void DirEntryList::IterateRange(uint64_t offset,
+                                uint64_t count,
+                                IterateHandler handler) {
+    ReadLockGuard lk(rwlock_);
+    auto iter = entries_.begin() + offset;
+    while (count > 0 && iter != entries_.end()) {
+        handler(&(*iter++));
+        count--;
     }
 }
 
