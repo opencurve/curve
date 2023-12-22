@@ -67,6 +67,10 @@ const (
 )
 
 func NewClusterCommand() *cobra.Command {
+	return NewStatusClusterCommand().Cmd
+}
+
+func NewStatusClusterCommand() *ClusterCommand {
 	cCmd := &ClusterCommand{
 		FinalCurveCmd: basecmd.FinalCurveCmd{
 			Use:     "cluster",
@@ -75,7 +79,7 @@ func NewClusterCommand() *cobra.Command {
 		},
 	}
 	basecmd.NewFinalCurveCli(&cCmd.FinalCurveCmd, cCmd)
-	return cCmd.Cmd
+	return cCmd
 }
 
 func (cCmd *ClusterCommand) AddFlags() {
@@ -244,4 +248,14 @@ func (cCmd *ClusterCommand) buildTableCopyset(results []map[string]string) {
 	row = append(row, results[0][cobrautil.ROW_UNHEALTHY])
 	row = append(row, results[0][cobrautil.ROW_UNHEALTHY_RATIO])
 	cCmd.tableCopyset.Append(row)
+}
+
+func GetClusterStatus() (interface{}, error){
+	clusterCommand := NewStatusClusterCommand()
+	// cluster command no output
+	clusterCommand.Cmd.SetArgs([]string{
+		fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,})
+	clusterCommand.Cmd.SilenceErrors = true
+	err := clusterCommand.Cmd.Execute()
+	return clusterCommand.Result, err
 }

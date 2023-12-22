@@ -503,6 +503,13 @@ var (
 	ErrBsRecoverFile = func() *CmdError {
 		return NewInternalCmdError(81, "recover file fail, err: %s")
 	}
+	ErrTargetCluster = func() *CmdError {
+		return NewInternalCmdError(82, "get cluster target error: %s")
+	}
+	ErrTargetClient = func() *CmdError {
+		return NewInternalCmdError(83, "get client target error: %s")
+	}
+
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
 		return NewHttpResultCmdError(1, "http response is unreadable, the uri is: %s, the error is: %s")

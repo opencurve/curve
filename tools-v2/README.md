@@ -102,6 +102,8 @@ A tool for CurveFS & CurveBs.
         - [stop snapshot](#stop-snapshot)
       - [recover](#recover)
         - [recover volume](#recover-volume)
+      - [export](#export)
+        - [export target](#export-target)
   - [Comparison of old and new commands](#comparison-of-old-and-new-commands)
     - [curve fs](#curve-fs)
     - [curve bs](#curve-bs)
@@ -2060,6 +2062,72 @@ Output:
 +--------------------------------------+--------------+---------+--------+
 | 2a94fb51-e985-4e98-a34c-f02aef8e97b5 | testsnap2    | success | null   |
 +--------------------------------------+--------------+---------+--------+
+```
+#### export 
+
+##### export target 
+
+export services and clients in the bs cluster
+
+Usage:
+
+```shell
+curve bs export target 
+```
+
+Output:
+
+```shell
+[
+  {
+    "label": {
+      "job": "etcd"
+    },
+    "targets": [
+      "172.21.0.13:23790",
+      "172.21.0.13:23791",
+      "172.21.0.13:23792"
+    ]
+  },
+  {
+    "label": {
+      "job": "mds"
+    },
+    "targets": [
+      "172.21.0.13:6700",
+      "172.21.0.13:6701",
+      "172.21.0.13:6702"
+    ]
+  },
+  {
+    "label": {
+      "job": "chunkserver"
+    },
+    "targets": [
+      "172.21.0.13:8200",
+      "172.21.0.13:8202",
+      "172.21.0.13:8201"
+    ]
+  },
+  {
+    "label": {
+      "job": "snapshotcloneserver"
+    },
+    "targets": [
+      "172.21.0.13:5550",
+      "172.21.0.13:5551",
+      "172.21.0.13:5552"
+    ]
+  },
+  {
+    "label": {
+      "job": "client"
+    },
+    "targets": [
+      "172.21.0.13:9000"
+    ]
+  }
+]
 ```
 
 #### recover
