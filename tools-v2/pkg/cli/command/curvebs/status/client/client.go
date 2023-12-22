@@ -25,6 +25,7 @@ package client
 import (
 	"strconv"
 	"strings"
+	"fmt"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
@@ -237,4 +238,14 @@ func NewStatusClientCommand() *ClientCommand {
 	}
 	basecmd.NewFinalCurveCli(&clientCmd.FinalCurveCmd, clientCmd)
 	return clientCmd
+}
+
+func GetClientStatus() (interface{}, error){
+	clientCommand := NewStatusClientCommand()
+	clientCommand.Cmd.SetArgs([]string{
+	fmt.Sprintf("--%s", config.FORMAT), config.FORMAT_NOOUT,})
+	clientCommand.Cmd.SilenceErrors = true
+	err := clientCommand.Cmd.Execute()
+	
+	return clientCommand.Result, err
 }
