@@ -44,7 +44,8 @@ CSDataStore::CSDataStore(std::shared_ptr<LocalFileSystem> lfs,
       baseDir_(options.baseDir),
       chunkFilePool_(chunkFilePool),
       lfs_(lfs),
-      enableOdsyncWhenOpenChunkFile_(options.enableOdsyncWhenOpenChunkFile) {
+      enableOdsyncWhenOpenChunkFile_(options.enableOdsyncWhenOpenChunkFile),
+      waitForDiskFreedIntervalMs_(options.waitForDiskFreedIntervalMs) {
     CHECK(!baseDir_.empty()) << "Create datastore failed";
     CHECK(lfs_ != nullptr) << "Create datastore failed";
     CHECK(chunkFilePool_ != nullptr) << "Create datastore failed";
@@ -426,6 +427,10 @@ CSErrorCode CSDataStore::loadChunkFile(ChunkID id) {
 
 ChunkMap CSDataStore::GetChunkMap() {
     return metaCache_.GetMap();
+}
+
+bool CSDataStore::EnoughChunk() {
+    return chunkFilePool_->EnoughChunk();
 }
 
 }  // namespace chunkserver

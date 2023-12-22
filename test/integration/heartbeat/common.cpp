@@ -92,6 +92,17 @@ void HeartbeatIntegrationCommon::UpdateCopysetTopo(
     ASSERT_EQ(0, topology_->UpdateCopySetTopo(copysetInfo));
 }
 
+void HeartbeatIntegrationCommon::CheckCopysetAvail(ChunkServerIdType id,
+    bool avail) {
+    std::vector<CopySetKey> keys = topology_->GetCopySetsInChunkServer(id);
+    for (auto key : keys) {
+        CopySetInfo info;
+        if (topology_->GetCopySet(key, &info)) {
+            ASSERT_EQ(avail, info.IsAvailable());
+        }
+    }
+}
+
 void HeartbeatIntegrationCommon::SendHeartbeat(
     const ChunkServerHeartbeatRequest &request, bool expectFailed,
     ChunkServerHeartbeatResponse *response) {
@@ -119,7 +130,7 @@ void HeartbeatIntegrationCommon::BuildBasicChunkServerRequest(
     req->set_ip(out.GetHostIp());
     req->set_port(out.GetPort());
     auto diskState = new ::curve::mds::heartbeat::DiskState();
-    diskState->set_errtype(0);
+    diskState->set_errtype(curve::mds::heartbeat::NORMAL);
     diskState->set_errmsg("disk ok");
     req->set_allocated_diskstate(diskState);
     req->set_diskcapacity(100);

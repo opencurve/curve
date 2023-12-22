@@ -138,6 +138,8 @@ struct ChunkServerUnstableOption {
  * copyset 标记为unstable，促使其下次发送rpc前，先去getleader。
  * @chunkserverMinRetryTimesForceTimeoutBackoff:
  * 当一个请求重试次数超过阈值时，还在重试 使其超时时间进行指数退避
+ * @chunkserverWaitDiskFreeRetryIntervalMS:
+ * 当请求返回readonly或者nospace错误，hang住io等待一段时间后重试。
  */
 struct FailureRequestOption {
     uint32_t chunkserverOPMaxRetry = 3;
@@ -146,6 +148,7 @@ struct FailureRequestOption {
     uint64_t chunkserverMaxRPCTimeoutMS = 64000;
     uint64_t chunkserverMaxRetrySleepIntervalUS = 64ull * 1000 * 1000;
     uint64_t chunkserverMinRetryTimesForceTimeoutBackoff = 5;
+    uint64_t chunkserverWaitDiskFreeRetryIntervalMS = 60 * 1000;
 
     // When a request remains outstanding beyond this threshold, it is marked as
     // a slow request.

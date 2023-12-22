@@ -73,6 +73,8 @@ enum CSErrorCode {
     // The page has not been written, it will appear when the page that has not
     // been written is read when the clone chunk is read
     PageNerverWrittenError = 13,
+    // ENOSPC error
+    NoSpaceError = 14,
 };
 
 // Chunk details

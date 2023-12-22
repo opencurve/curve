@@ -19,6 +19,7 @@
  * File Created: Thursday, 6th September 2018 10:49:53 am
  * Author: yangyaokai
  */
+#include <errno.h>
 #include <fcntl.h>
 #include <algorithm>
 #include <memory>
@@ -207,7 +208,8 @@ CSErrorCode CSChunkFile::Open(bool createFile) {
         if (rc != 0  && rc != -EEXIST) {
             LOG(ERROR) << "Error occured when create file."
                        << " filepath = " << chunkFilePath;
-            return CSErrorCode::InternalError;
+            return rc == -ENOSPC ? CSErrorCode::NoSpaceError :
+             CSErrorCode::InternalError;
         }
     }
     int rc = -1;
@@ -400,7 +402,8 @@ CSErrorCode CSChunkFile::Write(SequenceNum sn,
                    << "ChunkID: " << chunkId_
                    << ",request sn: " << sn
                    << ",chunk sn: " << metaPage_.sn;
-        return CSErrorCode::InternalError;
+        return rc == -ENOSPC ? CSErrorCode::NoSpaceError :
+         CSErrorCode::InternalError;
     }
     // If it is a clone chunk, the bitmap will be updated
     CSErrorCode errorCode = flush();
@@ -478,7 +481,8 @@ CSErrorCode CSChunkFile::Paste(const char * buf, off_t offset, size_t length) {
                        << "ChunkID: " << chunkId_
                        << ", offset: " << offset
                        << ", length: " << length;
-            return CSErrorCode::InternalError;
+            return rc == -ENOSPC ? CSErrorCode::NoSpaceError :
+             CSErrorCode::InternalError;
         }
     }
 

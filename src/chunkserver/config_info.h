@@ -140,6 +140,8 @@ struct CopysetNodeOptions {
     uint64_t syncThreshold = 64 * 1024;
     // check syncing interval
     uint32_t checkSyncingIntervalMs = 500u;
+    // wait for retry time when disk space is insufficient
+    uint32_t waitForDiskFreedIntervalMs = 60000;
 
     CopysetNodeOptions();
 };

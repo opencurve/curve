@@ -298,12 +298,12 @@ bool FilePool::CheckValid() {
     return true;
 }
 
-bool FilePool::CleanChunk(uint64_t chunkid, bool onlyMarked) {
+int FilePool::CleanChunk(uint64_t chunkid, bool onlyMarked) {
     std::string chunkpath = currentdir_ + "/" + std::to_string(chunkid);
     int ret = fsptr_->Open(chunkpath, O_RDWR);
     if (ret < 0) {
         LOG(ERROR) << "Open file failed: " << chunkpath;
-        return false;
+        return ret;
     }
 
     int fd = ret;
@@ -315,7 +315,7 @@ bool FilePool::CleanChunk(uint64_t chunkid, bool onlyMarked) {
         ret = fsptr_->Fallocate(fd, FALLOC_FL_ZERO_RANGE, 0, chunklen);
         if (ret < 0) {
             LOG(ERROR) << "Fallocate file failed: " << chunkpath;
-            return false;
+            return ret;
         }
     } else {
         int nbytes;
@@ -330,10 +330,10 @@ bool FilePool::CleanChunk(uint64_t chunkid, bool onlyMarked) {
                 std::min(ntotal - nwrite, (uint64_t)bytesPerWrite));
             if (nbytes < 0) {
                 LOG(ERROR) << "Write file failed: " << chunkpath;
-                return false;
+                return nbytes;
             } else if (fsptr_->Fsync(fd) < 0) {
                 LOG(ERROR) << "Fsync file failed: " << chunkpath;
-                return false;
+                return nbytes;
             }
 
             cleanThrottle_.Add(false, bytesPerWrite);
@@ -345,10 +345,10 @@ bool FilePool::CleanChunk(uint64_t chunkid, bool onlyMarked) {
     ret = fsptr_->Rename(chunkpath, targetpath);
     if (ret < 0) {
         LOG(ERROR) << "Rename file failed: " << chunkpath;
-        return false;
+        return ret;
     }
 
-    return true;
+    return ret;
 }
 
 bool FilePool::CleaningChunk() {
@@ -380,7 +380,8 @@ bool FilePool::CleaningChunk() {
     }
 
     // Fill zero to specify chunk
-    if (!CleanChunk(chunkid, false)) {
+    int ret = CleanChunk(chunkid, false);
+    if (ret < 0) {
         pushBack(&dirtyChunks_, chunkid, &currentState_.dirtyChunksLeft);
         return false;
     }
@@ -544,7 +545,7 @@ bool FilePool::StopCleaning() {
     return true;
 }
 
-bool FilePool::GetChunk(bool needClean, uint64_t *chunkid, bool *isCleaned) {
+int FilePool::GetChunk(bool needClean, uint64_t *chunkid, bool *isCleaned) {
     auto pop = [&](std::vector<uint64_t>* chunks, uint64_t* chunksLeft,
                    bool isCleanChunks) -> bool {
         if (chunks->empty()) {
@@ -572,8 +573,9 @@ bool FilePool::GetChunk(bool needClean, uint64_t *chunkid, bool *isCleaned) {
             cond_.wait(lk, wake_up);
         }
         if (!needClean) {
-            return pop(&dirtyChunks_, &currentState_.dirtyChunksLeft, false) ||
+            ret =  pop(&dirtyChunks_, &currentState_.dirtyChunksLeft, false) ||
                    pop(&cleanChunks_, &currentState_.cleanChunksLeft, true);
+            return ret ? 0 : -1;
         }
 
         // Need clean chunk
@@ -581,11 +583,17 @@ bool FilePool::GetChunk(bool needClean, uint64_t *chunkid, bool *isCleaned) {
         ret = pop(&cleanChunks_, &currentState_.cleanChunksLeft, true) ||
               pop(&dirtyChunks_, &currentState_.dirtyChunksLeft, false);
     }
-    if (true == ret && false == *isCleaned && CleanChunk(*chunkid, true)) {
-        *isCleaned = true;
+    int cleanRet = -1;
+    if (true == ret && false == *isCleaned) {
+        cleanRet = CleanChunk(*chunkid, true);
+        if (cleanRet < 0) {
+            *isCleaned = false;
+        } else {
+            *isCleaned = true;
+        }
     }
 
-    return *isCleaned;
+    return *isCleaned ? 0 : cleanRet;
 }
 
 int FilePool::GetFile(const std::string &targetpath, const char *metapage,
@@ -598,7 +606,8 @@ int FilePool::GetFile(const std::string &targetpath, const char *metapage,
         std::string srcpath;
         if (poolOpt_.getFileFromPool) {
             bool isCleaned = false;
-            if (!GetChunk(needClean, &chunkID, &isCleaned)) {
+            ret = GetChunk(needClean, &chunkID, &isCleaned);
+            if (ret < 0) {
                 LOG(ERROR) << "No avaliable chunk!";
                 break;
             }
@@ -609,16 +618,16 @@ int FilePool::GetFile(const std::string &targetpath, const char *metapage,
         } else {
             srcpath = currentdir_ + "/" +
                       std::to_string(currentmaxfilenum_.fetch_add(1));
-            int r = AllocateChunk(srcpath);
-            if (r < 0) {
+            ret = AllocateChunk(srcpath);
+            if (ret < 0) {
                 LOG(ERROR) << "file allocate failed, " << srcpath.c_str();
                 retry++;
                 continue;
             }
         }
 
-        bool rc = WriteMetaPage(srcpath, metapage);
-        if (rc) {
+        ret = WriteMetaPage(srcpath, metapage);
+        if (ret >= 0) {
             // Here, the RENAME_NOREPLACE mode is used to rename the file.
             // When the target file exists, it is not allowed to be overwritten.
             // That is to say, creating a file through FilePool needs to ensure
@@ -664,7 +673,7 @@ int FilePool::AllocateChunk(const std::string &chunkpath) {
     if (ret < 0) {
         fsptr_->Close(fd);
         LOG(ERROR) << "Fallocate failed, " << chunkpath.c_str();
-        return -1;
+        return ret;
     }
 
     char *data = new (std::nothrow) char[chunklen];
@@ -675,7 +684,7 @@ int FilePool::AllocateChunk(const std::string &chunkpath) {
         fsptr_->Close(fd);
         delete[] data;
         LOG(ERROR) << "write failed, " << chunkpath.c_str();
-        return -1;
+        return ret;
     }
     delete[] data;
 
@@ -683,7 +692,7 @@ int FilePool::AllocateChunk(const std::string &chunkpath) {
     if (ret < 0) {
         fsptr_->Close(fd);
         LOG(ERROR) << "fsync failed, " << chunkpath.c_str();
-        return -1;
+        return ret;
     }
 
     ret = fsptr_->Close(fd);
@@ -693,14 +702,14 @@ int FilePool::AllocateChunk(const std::string &chunkpath) {
     return ret;
 }
 
-bool FilePool::WriteMetaPage(const std::string &sourcepath, const char *page) {
+int FilePool::WriteMetaPage(const std::string &sourcepath, const char *page) {
     int fd = -1;
     int ret = -1;
 
     ret = fsptr_->Open(sourcepath.c_str(), O_RDWR);
     if (ret < 0) {
         LOG(ERROR) << "file open failed, " << sourcepath.c_str();
-        return false;
+        return ret;
     }
 
     fd = ret;
@@ -709,22 +718,22 @@ bool FilePool::WriteMetaPage(const std::string &sourcepath, const char *page) {
     if (ret != static_cast<int>(poolOpt_.metaPageSize)) {
         fsptr_->Close(fd);
         LOG(ERROR) << "write metapage failed, " << sourcepath.c_str();
-        return false;
+        return ret;
     }
 
     ret = fsptr_->Fsync(fd);
     if (ret != 0) {
         fsptr_->Close(fd);
         LOG(ERROR) << "fsync metapage failed, " << sourcepath.c_str();
-        return false;
+        return ret;
     }
 
     ret = fsptr_->Close(fd);
     if (ret != 0) {
         LOG(ERROR) << "close failed, " << sourcepath.c_str();
-        return false;
+        return ret;
     }
-    return true;
+    return ret;
 }
 
 int FilePool::RecycleFile(const std::string &chunkpath) {
@@ -917,6 +926,10 @@ uint64_t FilePool::CountAllocatedNum(const std::string& path) {
 size_t FilePool::Size() {
     std::unique_lock<std::mutex> lk(mtx_);
     return currentState_.preallocatedChunksLeft;
+}
+
+bool FilePool::EnoughChunk() {
+    return Size() >= poolOpt_.chunkReserved;
 }
 
 FilePoolState FilePool::GetState() const {

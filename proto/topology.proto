@@ -48,6 +48,7 @@ enum ChunkServerStatus {
 enum DiskState {
     DISKNORMAL = 0;
     DISKERROR = 1;
+    DISKFULL = 2;
 }
 
 enum OnlineState {
