@@ -112,6 +112,7 @@ message CopysetInfo {
 }
 
 enum StorageClass {
+    NOT_SET = 0;
     STANDARD = 1;
     REDUCED_REDUNDANCY = 2;
     STANDARD_IA = 3;

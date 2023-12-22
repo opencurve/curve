@@ -223,3 +223,13 @@ func ParseThrottleType(typeStr string) (nameserver2.ThrottleType, *cmderror.CmdE
 	}
 	return nameserver2.ThrottleType(throttleType), retErr
 }
+
+func TranslateStorageClass(storageclass string) (common.StorageClass, *cmderror.CmdError) {
+	value, found := common.StorageClass_value[storageclass]
+	var retErr cmderror.CmdError
+	if !found {
+		retErr = *cmderror.ErrUnknownStorageClass()
+		retErr.Format(storageclass)
+	}
+	return common.StorageClass(value), &retErr
+}
