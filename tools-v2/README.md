@@ -2,6 +2,8 @@
 
 A tool for CurveFS & CurveBs.
 
+test for cicheck
+
 - [curve tool usage](#curve-tool-usage)
   - [How to use curve tool](#how-to-use-curve-tool)
     - [Install](#install)
