@@ -354,7 +354,10 @@ int CompactInodeJob::WriteFullChunk(
     }
     const auto& s3Info = fsInfo.detail().s3info();
     curve::common::PutObjectOptions putObjectOption;
-    putObjectOption.storageClass = s3Info.has_storageclass() ? Aws::S3::Model::StorageClass(s3Info.storageclass()) : Aws::S3::Model::StorageClass::NOT_SET;
+    putObjectOption.storageClass =
+        s3Info.has_storageclass()
+            ? Aws::S3::Model::StorageClass(s3Info.storageclass())
+            : Aws::S3::Model::StorageClass::NOT_SET;
     uint64_t offRoundDown = newOff / chunkSize * chunkSize;
     uint64_t startIndex = (newOff - newOff / chunkSize * chunkSize) / blockSize;
     for (uint64_t index = startIndex;

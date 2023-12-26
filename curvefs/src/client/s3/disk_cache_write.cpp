@@ -427,7 +427,8 @@ int DiskCacheWrite::UploadAllCacheWriteFile() {
         auto context = std::make_shared<PutObjectAsyncContext>(
             curvefs::common::s3util::GenPathByObjName(*iter, objectPrefix_),
             buffer, fileSize, cb, curve::common::ContextType::S3);
-        context->putObjectOptions = curve::common::PutObjectOptions{storageClass_};
+        context->putObjectOptions =
+            curve::common::PutObjectOptions{storageClass_};
         client_->UploadAsync(context);
     }
     if (pendingReq.load(std::memory_order_seq_cst)) {
