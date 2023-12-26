@@ -99,6 +99,8 @@ A tool for CurveFS & CurveBs.
         - [snapshot copyset](#snapshot-copyset)
       - [stop](#stop)
         - [stop snapshot](#stop-snapshot)
+      - [recover](#recover)
+        - [recover volume](#recover-volume)
   - [Comparison of old and new commands](#comparison-of-old-and-new-commands)
     - [curve fs](#curve-fs)
     - [curve bs](#curve-bs)
@@ -2036,6 +2038,27 @@ Output:
 | 0171a33b-17b7-4215-9f00-6d8de2686f77 | testsnap1    | success |
 +--------------------------------------+--------------+---------+
 ```
+
+#### recover
+
+##### recover volume
+
+recover volume from recycleBin
+
+Usage:
+```shell
+curve bs recover volume --path /test/path --user root 
+```
+
+Output:
+```
++-----------+---------+
+| FILENAME  | RESULT  | 
++-----------+---------+
+| test/path | success |
++-----------+---------+
+```
+
 
 ## Comparison of old and new commands
 
