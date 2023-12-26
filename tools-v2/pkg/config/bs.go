@@ -156,6 +156,8 @@ const (
 	VIPER_CURVEBS_FILENAME            = "curvebs.filename"
 	CURVEBS_SNAPSHOTNAME              = "snapshotname"
 	VIPER_CURVEBS_SNAPSHOTNAME        = "curvebs.snapshotname"
+	CURVEBS_FILE_ID                   = "fileId"
+	VIPER_CURVEBS_FILE_ID             = "curvebs.fileId"
 )
 
 var (
@@ -557,6 +559,10 @@ func AddBsPathRequiredFlag(cmd *cobra.Command) {
 	AddBsStringRequiredFlag(cmd, CURVEBS_PATH, "file path")
 }
 
+func AddBsUserRequireFlag(cmd *cobra.Command) {
+	AddBsStringRequiredFlag(cmd, CURVEBS_USER, "user name")
+}
+
 func AddBsLogicalPoolIdRequiredFlag(cmd *cobra.Command) {
 	AddBsUint32RequiredFlag(cmd, CURVEBS_LOGIC_POOL_ID, "logical pool id")
 }
@@ -691,6 +697,10 @@ func AddBsFileNameRequiredFlag(cmd *cobra.Command) {
 
 func AddBsSnapshotNameRequiredFlag(cmd *cobra.Command) {
 	AddBsStringRequiredFlag(cmd, CURVEBS_SNAPSHOTNAME, "snapshot name")
+}
+
+func AddBsFileIdOptionFlag(cmd *cobra.Command) {
+	AddBsUint64OptionFlag(cmd, CURVEBS_FILE_ID, "recover fileId")
 }
 
 // get stingslice flag
@@ -875,4 +885,8 @@ func GetBsChunkServerId(cmd *cobra.Command) []uint32 {
 		chunkserveridSlice = append(chunkserveridSlice, uint32(idUint))
 	}
 	return chunkserveridSlice
+}
+
+func GetBsFileId(cmd *cobra.Command) uint64 {
+	return GetBsFlagUint64(cmd, CURVEBS_FILE_ID)
 }

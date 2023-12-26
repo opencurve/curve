@@ -500,7 +500,9 @@ var (
 	ErrInvalidMetaServerAddr = func() *CmdError {
 		return NewInternalCmdError(80, "invalid metaserver external addr: %s")
 	}
-
+	ErrBsRecoverFile = func() *CmdError {
+		return NewInternalCmdError(81, "recover file fail, err: %s")
+	}
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
 		return NewHttpResultCmdError(1, "http response is unreadable, the uri is: %s, the error is: %s")
