@@ -280,7 +280,8 @@ bool S3Adapter::BucketExist() {
 }
 
 int S3Adapter::PutObject(const Aws::String &key, const char *buffer,
-                         const size_t bufferSize, const PutObjectOptions &options) {
+                         const size_t bufferSize,
+                         const PutObjectOptions &options) {
     Aws::S3::Model::PutObjectRequest request;
     request.SetBucket(bucketName_);
     request.SetKey(key);
@@ -305,7 +306,8 @@ int S3Adapter::PutObject(const Aws::String &key, const char *buffer,
     }
 }
 
-int S3Adapter::PutObject(const Aws::String &key, const std::string &data, const PutObjectOptions &options) {
+int S3Adapter::PutObject(const Aws::String &key, const std::string &data,
+                         const PutObjectOptions &options) {
     return PutObject(key, data.data(), data.size(), options);
 }
 /*
