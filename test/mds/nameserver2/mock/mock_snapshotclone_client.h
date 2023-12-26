@@ -34,7 +34,7 @@ namespace snapshotcloneclient {
 class MockSnapshotCloneClient: public SnapshotCloneClient {
  public:
     ~MockSnapshotCloneClient() {}
-    MOCK_METHOD1(Init, void(const SnapshotCloneClientOption &option));
+    MOCK_METHOD1(Init, bool(const SnapshotCloneClientOption &option));
 
     MOCK_METHOD4(GetCloneRefStatus, StatusCode(std::string, std::string,
       CloneRefStatus *, std::vector<DestFileInfo> *));

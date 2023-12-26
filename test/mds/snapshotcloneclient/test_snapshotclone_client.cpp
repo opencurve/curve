@@ -51,6 +51,8 @@ namespace curve {
 namespace mds {
 namespace snapshotcloneclient {
 
+const std::string kInvalidAddress = "127.0.0.1:65536";  // NOLINT
+
 class TestSnapshotCloneClient : public ::testing::Test {
  protected:
     TestSnapshotCloneClient() {}
@@ -89,6 +91,19 @@ TEST_F(TestSnapshotCloneClient, TestInitSuccess) {
     ASSERT_TRUE(client_->GetInitStatus());
 }
 
+TEST_F(TestSnapshotCloneClient, TestInitWithMultiAddressesSuccess) {
+    uint32_t port = listenAddr_.port;
+    const std::string addr1 = "127.0.0.1:" + std::to_string(port);
+    const std::string addr2 = "127.0.0.1:" + std::to_string(port + 1);
+    option.snapshotCloneAddr = addr1 + "," + addr2;
+    client_->Init(option);
+    ASSERT_TRUE(client_->GetInitStatus());
+    ASSERT_EQ(2, client_->addrs_.size());
+
+    std::vector<std::string> addresses{addr1, addr2};
+    ASSERT_EQ(addresses, client_->addrs_);
+}
+
 TEST_F(TestSnapshotCloneClient, TestInitFalse) {
     uint32_t port = listenAddr_.port;
     option.snapshotCloneAddr = "";
@@ -121,6 +136,21 @@ TEST_F(TestSnapshotCloneClient, TestGetCloneRefStatusFalseConnectFail) {
     ASSERT_EQ(ret, StatusCode::kSnapshotCloneConnectFail);
 }
 
+TEST_F(TestSnapshotCloneClient, TestGetCloneRefStatusFromAllAddressesFail) {
+    uint32_t port = listenAddr_.port;
+    option.snapshotCloneAddr = "127.0.0.1:65536,127.0.0.1:65537";
+    client_->Init(option);
+    ASSERT_TRUE(client_->GetInitStatus());
+
+    std::string filename = "/file";
+    std::string user = "test";
+    CloneRefStatus status;
+    std::vector<DestFileInfo> fileCheckList;
+    auto ret = client_->GetCloneRefStatus(filename, user,
+                                &status, &fileCheckList);
+    ASSERT_EQ(ret, StatusCode::kSnapshotCloneConnectFail);
+}
+
 TEST_F(TestSnapshotCloneClient, TestGetCloneRefStatusFalseCallFail) {
     uint32_t port = listenAddr_.port;
     option.snapshotCloneAddr = "127.0.0.1:" + std::to_string(0);
@@ -138,7 +168,8 @@ TEST_F(TestSnapshotCloneClient, TestGetCloneRefStatusFalseCallFail) {
 
 TEST_F(TestSnapshotCloneClient, TestGetCloneRefStatusFalseParseFail) {
     uint32_t port = listenAddr_.port;
-    option.snapshotCloneAddr = "127.0.0.1:" + std::to_string(port);
+    option.snapshotCloneAddr =
+        kInvalidAddress + "," + "127.0.0.1:" + std::to_string(port);
     client_->Init(option);
     ASSERT_TRUE(client_->GetInitStatus());
 
@@ -163,7 +194,8 @@ TEST_F(TestSnapshotCloneClient, TestGetCloneRefStatusFalseParseFail) {
 
 TEST_F(TestSnapshotCloneClient, TestGetCloneRefStatusFalseRetNot0) {
     uint32_t port = listenAddr_.port;
-    option.snapshotCloneAddr = "127.0.0.1:" + std::to_string(port);
+    option.snapshotCloneAddr =
+        kInvalidAddress + "," + "127.0.0.1:" + std::to_string(port);
     client_->Init(option);
     ASSERT_TRUE(client_->GetInitStatus());
 
@@ -198,7 +230,8 @@ TEST_F(TestSnapshotCloneClient, TestGetCloneRefStatusFalseRetNot0) {
 
 TEST_F(TestSnapshotCloneClient, TestGetCloneRefStatusFalseInvalidStatus) {
     uint32_t port = listenAddr_.port;
-    option.snapshotCloneAddr = "127.0.0.1:" + std::to_string(port);
+    option.snapshotCloneAddr =
+        kInvalidAddress + "," + "127.0.0.1:" + std::to_string(port);
     client_->Init(option);
     ASSERT_TRUE(client_->GetInitStatus());
 
@@ -234,7 +267,8 @@ TEST_F(TestSnapshotCloneClient, TestGetCloneRefStatusFalseInvalidStatus) {
 
 TEST_F(TestSnapshotCloneClient, TestGetCloneRefStatusSuccessNoRef) {
     uint32_t port = listenAddr_.port;
-    option.snapshotCloneAddr = "127.0.0.1:" + std::to_string(port);
+    option.snapshotCloneAddr =
+        kInvalidAddress + "," + "127.0.0.1:" + std::to_string(port);
     client_->Init(option);
     ASSERT_TRUE(client_->GetInitStatus());
 
@@ -272,7 +306,8 @@ TEST_F(TestSnapshotCloneClient, TestGetCloneRefStatusSuccessNoRef) {
 
 TEST_F(TestSnapshotCloneClient, TestGetCloneRefStatusSuccessHasRef) {
     uint32_t port = listenAddr_.port;
-    option.snapshotCloneAddr = "127.0.0.1:" + std::to_string(port);
+    option.snapshotCloneAddr =
+        kInvalidAddress + "," + "127.0.0.1:" + std::to_string(port);
     client_->Init(option);
     ASSERT_TRUE(client_->GetInitStatus());
     CloneRefStatus refStatus = CloneRefStatus::kHasRef;
@@ -309,7 +344,8 @@ TEST_F(TestSnapshotCloneClient, TestGetCloneRefStatusSuccessHasRef) {
 
 TEST_F(TestSnapshotCloneClient, TestGetCloneRefStatusSuccessNeedCheck) {
     uint32_t port = listenAddr_.port;
-    option.snapshotCloneAddr = "127.0.0.1:" + std::to_string(port);
+    option.snapshotCloneAddr =
+        kInvalidAddress + "," + "127.0.0.1:" + std::to_string(port);
     client_->Init(option);
     ASSERT_TRUE(client_->GetInitStatus());
     CloneRefStatus refStatus = CloneRefStatus::kNeedCheck;

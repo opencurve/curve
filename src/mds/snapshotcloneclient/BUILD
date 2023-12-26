@@ -34,5 +34,7 @@ cc_library(
         "//external:json",
         "//src/common/snapshotclone:curve_snapshotclone",
         "//proto:nameserver2_cc_proto",
+        "//src/common:curve_common",
+        "@com_google_googletest//:gtest_prod",
     ],
 )

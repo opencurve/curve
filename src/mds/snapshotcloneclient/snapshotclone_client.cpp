@@ -23,6 +23,8 @@
 #include "src/mds/snapshotcloneclient/snapshotclone_client.h"
 #include <brpc/channel.h>
 #include <json/json.h>
+#include <utility>
+#include "src/common/string_util.h"
 
 using curve::snapshotcloneserver::kServiceName;
 using curve::snapshotcloneserver::kActionStr;
@@ -53,39 +55,26 @@ StatusCode SnapshotCloneClient::GetCloneRefStatus(std::string filename,
         return StatusCode::kSnapshotCloneServerNotInit;
     }
 
-    brpc::Channel channel;
-    brpc::ChannelOptions option;
-    option.protocol = "http";
+    std::string data;
+    size_t index = 0;
+    StatusCode st = StatusCode::KInternalError;
+    while (index < addrs_.size()) {
+        st = GetCloneRefStatus(addrs_[index], filename, user, &data);
+        if (st == StatusCode::kOK) {
+            break;
+        }
 
-    std::string url = addr_
-                    + "/" + kServiceName + "?"
-                    + kActionStr+ "=" + kGetCloneRefStatusAction + "&"
-                    + kVersionStr + "=1&"
-                    + kUserStr + "=" + user + "&"
-                    + kSourceStr + "=" + filename;
-
-    if (channel.Init(url.c_str(), "", &option) != 0) {
-        LOG(ERROR) << "GetCloneRefStatus, Fail to init channel, url is " << url
-                   << ", filename = " << filename
-                   << ", user = " << user;
-        return StatusCode::kSnapshotCloneConnectFail;
+        LOG(WARNING) << "GetCloneRefStatus, Fail to get status from "
+                     << addrs_[index];
+        ++index;
     }
 
-    brpc::Controller cntl;
-    cntl.http_request().uri() = url.c_str();
-
-    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
-    if (cntl.Failed()) {
-        LOG(ERROR) << "GetCloneRefStatus, CallMethod faile, errMsg :"
-                   << cntl.ErrorText()
-                   << ", filename = " << filename
-                   << ", user = " << user;
-        return StatusCode::KInternalError;
+    if (index >= addrs_.size()) {
+        LOG(ERROR)
+            << "GetCloneRefStatus, Fail to get status from all addresses";
+        return st;
     }
 
-    std::stringstream ss;
-    ss << cntl.response_attachment();
-    std::string data = ss.str();
     Json::Reader jsonReader;
     Json::Value jsonObj;
     if (!jsonReader.parse(data, jsonObj)) {
@@ -131,16 +120,66 @@ StatusCode SnapshotCloneClient::GetCloneRefStatus(std::string filename,
     return StatusCode::kOK;
 }
 
-void SnapshotCloneClient::Init(const SnapshotCloneClientOption &option) {
-    if (!option.snapshotCloneAddr.empty()) {
-        addr_ = option.snapshotCloneAddr;
-        inited_ = true;
+bool SnapshotCloneClient::Init(const SnapshotCloneClientOption &option) {
+    if (option.snapshotCloneAddr.empty()) {
+        LOG(WARNING) << "Fail to init snapshot clone client, addr is empty";
+        return false;
     }
+
+    std::vector<std::string> addresses;
+    curve::common::SplitString(option.snapshotCloneAddr, ",", &addresses);
+    if (addresses.empty()) {
+        LOG(WARNING) << "Fail to split address";
+        return false;
+    }
+
+    addrs_ = std::move(addresses);
+    inited_ = true;
+
+    return true;
 }
 
 bool SnapshotCloneClient::GetInitStatus() {
     return inited_;
 }
+
+StatusCode SnapshotCloneClient::GetCloneRefStatus(const std::string& addr,
+                                                  const std::string& filename,
+                                                  const std::string& user,
+                                                  std::string* response) {
+    brpc::Channel channel;
+    brpc::ChannelOptions option;
+    option.protocol = "http";
+
+    std::string url = addr
+                    + "/" + kServiceName + "?"
+                    + kActionStr+ "=" + kGetCloneRefStatusAction + "&"
+                    + kVersionStr + "=1&"
+                    + kUserStr + "=" + user + "&"
+                    + kSourceStr + "=" + filename;
+
+    if (channel.Init(url.c_str(), "", &option) != 0) {
+        LOG(WARNING) << "GetCloneRefStatus, Fail to init channel, url is "
+                     << url << ", filename = " << filename
+                     << ", user = " << user;
+        return StatusCode::kSnapshotCloneConnectFail;
+    }
+
+    brpc::Controller cntl;
+    cntl.http_request().uri() = url.c_str();
+
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    if (cntl.Failed()) {
+        LOG(WARNING) << "GetCloneRefStatus, CallMethod failed, errMsg :"
+                     << cntl.ErrorText() << ", filename = " << filename
+                     << ", user = " << user;
+        return StatusCode::KInternalError;
+    }
+
+    *response = cntl.response_attachment().to_string();
+    return StatusCode::kOK;
+}
+
 }  // namespace snapshotcloneclient
 }  // namespace mds
 }  // namespace curve

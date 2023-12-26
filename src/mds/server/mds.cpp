@@ -420,16 +420,17 @@ void MDS::InitNameServerStorage(int mdsCacheCount) {
 
 void MDS::InitSnapshotCloneClientOption(SnapshotCloneClientOption *option) {
     if (!conf_->GetValue("mds.snapshotcloneclient.addr",
-        &option->snapshotCloneAddr)) {
-            option->snapshotCloneAddr = "";
-        }
+                         &option->snapshotCloneAddr)) {
+        option->snapshotCloneAddr = "";
+    }
 }
 
 void MDS::InitSnapshotCloneClient() {
     snapshotCloneClient_ = std::make_shared<SnapshotCloneClient>();
     SnapshotCloneClientOption snapshotCloneClientOption;
     InitSnapshotCloneClientOption(&snapshotCloneClientOption);
-    snapshotCloneClient_->Init(snapshotCloneClientOption);
+    bool succ = snapshotCloneClient_->Init(snapshotCloneClientOption);
+    LOG_IF(FATAL, !succ) << "Fail to init snapshotclone client";
 }
 
 void MDS::InitCurveFS(const CurveFSOption& curveFSOptions) {

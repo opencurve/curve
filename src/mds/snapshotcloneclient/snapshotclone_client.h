@@ -23,6 +23,7 @@
 #ifndef SRC_MDS_SNAPSHOTCLONECLIENT_SNAPSHOTCLONE_CLIENT_H_
 #define SRC_MDS_SNAPSHOTCLONECLIENT_SNAPSHOTCLONE_CLIENT_H_
 
+#include <gtest/gtest_prod.h>
 #include <string>
 #include <vector>
 #include "src/common/snapshotclone/snapshotclone_define.h"
@@ -47,11 +48,11 @@ struct DestFileInfo {
 class SnapshotCloneClient {
  public:
     SnapshotCloneClient()
-        : addr_(""), inited_(false) {}
+        : inited_(false) {}
 
     virtual ~SnapshotCloneClient() {}
 
-    virtual void Init(const SnapshotCloneClientOption &option);
+    virtual bool Init(const SnapshotCloneClientOption &option);
 
     /**
      * @brief get the clone ref status of a file. As a clone src file,
@@ -73,7 +74,14 @@ class SnapshotCloneClient {
     virtual bool GetInitStatus();
 
  private:
-    std::string addr_;
+    FRIEND_TEST(TestSnapshotCloneClient, TestInitWithMultiAddressesSuccess);
+
+    static StatusCode GetCloneRefStatus(const std::string& addr,
+                                        const std::string& filename,
+                                        const std::string& user,
+                                        std::string* response);
+
+    std::vector<std::string> addrs_;
     bool inited_;
 };
 
