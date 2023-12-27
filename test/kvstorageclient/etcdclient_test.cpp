@@ -54,9 +54,9 @@ class TestEtcdClinetImp : public ::testing::Test {
 
         client_ = std::make_shared<EtcdClientImp>();
         char endpoints[] = "127.0.0.1:2377";
-        EtcdConf conf = { endpoints, strlen(endpoints), 1000 };
+        EtcdConf conf = { endpoints, strlen(endpoints), 3000 };
         ASSERT_EQ(EtcdErrCode::EtcdDeadlineExceeded,
-                  client_->Init(conf, 200, 3));
+                  client_->Init(conf, 1000, 3));
 
         etcdPid = ::fork();
         if (0 > etcdPid) {

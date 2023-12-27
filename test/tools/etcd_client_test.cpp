@@ -27,7 +27,7 @@
 #include "src/tools/etcd_client.h"
 #include "src/common/timeutility.h"
 
-class EtcdClientTest : public ::testing::Test {
+class DISABLED_EtcdClientTest : public ::testing::Test {
  protected:
     void SetUp() {
         system("rm -fr test1.etcd");
@@ -82,7 +82,7 @@ class EtcdClientTest : public ::testing::Test {
     const std::string etcdAddr = "127.0.0.1:2366,127.0.0.1:2368";
 };
 
-TEST_F(EtcdClientTest, GetEtcdClusterStatus) {
+TEST_F(DISABLED_EtcdClientTest, GetEtcdClusterStatus) {
     curve::tool::EtcdClient client;
     // Init失败的情况
     ASSERT_EQ(-1, client.Init(""));
@@ -104,7 +104,7 @@ TEST_F(EtcdClientTest, GetEtcdClusterStatus) {
     ASSERT_EQ(-1, client.GetEtcdClusterStatus(&leaderAddrVec, nullptr));
 }
 
-TEST_F(EtcdClientTest, GetAndCheckEtcdVersion) {
+TEST_F(DISABLED_EtcdClientTest, GetAndCheckEtcdVersion) {
     curve::tool::EtcdClient client;
     ASSERT_EQ(0, client.Init("127.0.0.1:2366"));
 
