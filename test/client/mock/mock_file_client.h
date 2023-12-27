@@ -56,6 +56,7 @@ class MockFileClient : public FileClient {
     MOCK_METHOD4(ReOpen, int(const std::string&, const std::string&,
                              const UserInfo&, std::string*));
     MOCK_METHOD3(Extend, int(const std::string&, const UserInfo&, uint64_t));
+    MOCK_METHOD1(IncreaseEpoch, int(const std::string &));
 };
 
 }   // namespace client

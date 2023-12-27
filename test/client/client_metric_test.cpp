@@ -383,5 +383,10 @@ TEST(MetricTest, MetricHelperTest) {
     ASSERT_NO_THROW(MetricHelper::IncremSlowRequestNum(nullptr));
 }
 
+TEST(MetricTest, CollectMetricsTest) {
+    InterfaceMetric interface("curve_client", "test");
+    ASSERT_NO_THROW(CollectMetrics(&interface, 1, 1));
+}
+
 }   //  namespace client
 }   //  namespace curve
