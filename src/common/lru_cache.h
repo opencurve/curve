@@ -204,7 +204,7 @@ class LRUCache : public LRUCacheInterface<K, V> {
     void Remove(const K &key) override;
 
     /*
-    * @brief Get the first key that $value = value
+    * @brief Get the first key that $value = value from lru tail to head
     *
     * @param[in] value
     * @param[out] key
@@ -429,10 +429,7 @@ void LRUCache<K, V, KeyTraits, ValueTraits>::RemoveLocked(const K &key) {
 template <typename K,  typename V, typename KeyTraits, typename ValueTraits>
 void LRUCache<K, V, KeyTraits, ValueTraits>::MoveToFront(
     const typename std::list<Item>::iterator &elem) {
-    Item duplica{elem->key, elem->value};
-    ll_.erase(elem);
-    ll_.push_front(duplica);
-    cache_[*(duplica.key)] = ll_.begin();
+    ll_.splice(ll_.begin(), ll_, elem);
 }
 
 template <typename K,  typename V, typename KeyTraits, typename ValueTraits>
@@ -699,16 +696,8 @@ bool SglLRUCache<K, KeyTraits>::MoveBack(const K &key) {
     if (iter == cache_.end()) {
         return false;
     }
-    // delete the old value
-    RemoveElement(iter->second);
-    // put new value at tail
-    ll_.push_back(key);
-    cache_[key] = --ll_.end();
-    size_++;
-    if (cacheMetrics_ != nullptr) {
-        cacheMetrics_->UpdateAddToCacheCount();
-        cacheMetrics_->UpdateAddToCacheBytes(KeyTraits::CountBytes(key));
-    }
+    // move key to list tail
+    ll_.splice(ll_.end(), ll_, iter->second);
     return true;
 }
 
@@ -806,10 +795,7 @@ void SglLRUCache<K, KeyTraits>::RemoveLocked(const K &key) {
 template <typename K, typename KeyTraits>
 void SglLRUCache<K, KeyTraits>::MoveToFront(
     const typename std::list<K>::iterator &elem) {
-    K tmp = *elem;
-    ll_.erase(elem);
-    ll_.emplace_front(tmp);
-    cache_[tmp] = ll_.begin();
+    ll_.splice(ll_.begin(), ll_, elem);
 }
 
 template <typename K, typename KeyTraits>
