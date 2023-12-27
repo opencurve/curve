@@ -210,6 +210,15 @@ TEST_F(CurveClientTest, TestAioWrite) {
     }
 }
 
+TEST_F(CurveClientTest, TestIncreaseEpoch) {
+    {
+        EXPECT_CALL(*mockFileClient_, IncreaseEpoch(_)).Times(0);
+
+        ASSERT_EQ(-LIBCURVE_ERROR::FAILED,
+                  client_.IncreaseEpoch(kWrongFileName));
+    }
+}
+
 }  // namespace client
 }  // namespace curve
 

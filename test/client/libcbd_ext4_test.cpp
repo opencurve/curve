@@ -166,6 +166,9 @@ TEST(TestLibcbdExt4, AioReadWriteTest) {
 
     ret = cbd_lib_fini();
     ASSERT_EQ(ret, 0);
+
+    ret = cbd_lib_filesize("no_exist_file");
+    ASSERT_EQ(ret, -1);
 }
 
 TEST(TestLibcbdExt4, IncreaseEpochTest) {
