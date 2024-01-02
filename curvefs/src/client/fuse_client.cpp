@@ -49,6 +49,7 @@
 #include "src/client/client_common.h"
 #include "src/common/dummyserver.h"
 #include "src/common/net_common.h"
+#include "curvefs/proto/metaserver.pb.h"
 
 #define PORT_LIMIT 65535
 
@@ -438,6 +439,7 @@ CURVEFS_ERROR FuseClient::MakeNode(
     param.rdev = rdev;
     param.parent = parent;
 
+    /*
     CURVEFS_ERROR ret = inodeManager_->CreateInode(param, inodeWrapper);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "inodeManager CreateInode fail, ret = " << ret
@@ -450,17 +452,20 @@ CURVEFS_ERROR FuseClient::MakeNode(
             << ", parent = " << parent << ", name = " << name
             << ", mode = " << mode
             << ", inode id = " << inodeWrapper->GetInodeId();
+    */
 
     Dentry dentry;
     dentry.set_fsid(fsInfo_->fsid());
-    dentry.set_inodeid(inodeWrapper->GetInodeId());
+    dentry.set_inodeid(0);
     dentry.set_parentinodeid(parent);
     dentry.set_name(name);
-    dentry.set_type(inodeWrapper->GetType());
+    dentry.set_type(type);
     if (type == FsFileType::TYPE_FILE || type == FsFileType::TYPE_S3) {
         dentry.set_flag(DentryFlag::TYPE_FILE_FLAG);
     }
-    ret = dentryManager_->CreateDentry(dentry);
+
+    Inode inode;
+    CURVEFS_ERROR ret = dentryManager_->CreateDentry(dentry, param, &inode);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "dentryManager_ CreateDentry fail, ret = " << ret
                    << ", parent = " << parent << ", name = " << name
@@ -475,10 +480,14 @@ CURVEFS_ERROR FuseClient::MakeNode(
         return ret;
     }
 
+    inodeManager_->ConvertInode(inode, inodeWrapper);
+
+
     VLOG(6) << "dentryManager_ CreateDentry success"
             << ", parent = " << parent << ", name = " << name
             << ", mode = " << mode;
 
+    /*
     if (enableSumInDir_.load()) {
         // update parent summary info
         XAttr xattr;
@@ -497,6 +506,7 @@ CURVEFS_ERROR FuseClient::MakeNode(
                        << ", xattr = " << xattr.DebugString();
         }
     }
+    */
 
     return ret;
 }
@@ -513,8 +523,11 @@ CURVEFS_ERROR FuseClient::FuseOpMkDir(fuse_req_t req,
     CURVEFS_ERROR rc = MakeNode(req, parent, name, S_IFDIR | mode,
                                 FsFileType::TYPE_DIRECTORY, 0, internal, inode);
     if (rc != CURVEFS_ERROR::OK) {
+        LOG(ERROR) << "<<<< " << rc;
         return rc;
     }
+
+    LOG(ERROR) << "<<<< CURVEFS_ERROR::OK";
 
     inode->GetInodeAttr(&entryOut->attr);
     return CURVEFS_ERROR::OK;
@@ -558,6 +571,7 @@ CURVEFS_ERROR FuseClient::DeleteNode(uint64_t ino, fuse_ino_t parent,
                    << ", parent = " << parent << ", name = " << name;
     }
 
+    /*
     if (enableSumInDir_.load()) {
         // update parent summary info
         XAttr xattr;
@@ -576,6 +590,7 @@ CURVEFS_ERROR FuseClient::DeleteNode(uint64_t ino, fuse_ino_t parent,
                          << ", xattr = " << xattr.DebugString();
         }
     }
+    */
     return ret;
 }
 
@@ -630,7 +645,8 @@ CURVEFS_ERROR FuseClient::CreateManageNode(fuse_req_t req,
     if (type == FsFileType::TYPE_FILE || type == FsFileType::TYPE_S3) {
         dentry.set_flag(DentryFlag::TYPE_FILE_FLAG);
     }
-    ret = dentryManager_->CreateDentry(dentry);
+    Inode inode;
+    ret = dentryManager_->CreateDentry(dentry, param, &inode);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "dentryManager_ CreateDentry fail, ret = " << ret
                    << ", parent = " << parent << ", name = " << name
@@ -1226,7 +1242,8 @@ CURVEFS_ERROR FuseClient::FuseOpSymlink(fuse_req_t req,
     dentry.set_parentinodeid(parent);
     dentry.set_name(name);
     dentry.set_type(inodeWrapper->GetType());
-    ret = dentryManager_->CreateDentry(dentry);
+    Inode inode;
+    ret = dentryManager_->CreateDentry(dentry, param, &inode);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "dentryManager_ CreateDentry fail, ret = " << ret
                    << ", parent = " << parent << ", name = " << name
@@ -1289,7 +1306,8 @@ CURVEFS_ERROR FuseClient::FuseOpLink(fuse_req_t req,
     dentry.set_parentinodeid(newparent);
     dentry.set_name(newname);
     dentry.set_type(inodeWrapper->GetType());
-    ret = dentryManager_->CreateDentry(dentry);
+    Inode inode;
+    ret = dentryManager_->CreateDentry(dentry, InodeParam(), &inode);
     if (ret != CURVEFS_ERROR::OK) {
         LOG(ERROR) << "dentryManager_ CreateDentry fail, ret = " << ret
                    << ", parent = " << newparent << ", name = " << newname;

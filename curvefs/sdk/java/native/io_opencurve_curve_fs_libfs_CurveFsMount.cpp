@@ -438,8 +438,6 @@ JNICALL Java_io_opencurve_curve_fs_libfs_CurveFsMount_nativeCurveFsListDir
         return NULL;
     }
 
-    std::cout << "<<< size = " << dirents.size() << std::endl;
-
     jobjectArray j_dirents = env->NewObjectArray(dirents.size(),
                                                  env->FindClass(dirent_cls_name),
                                                  NULL);

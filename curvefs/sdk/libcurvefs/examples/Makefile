@@ -12,6 +12,7 @@ targets= ls
 libcurvefs:
 	mkdir -p bin
 	bazel build \
+        --config=gcc7-later \
         --compilation_mode=opt \
         --copt -g \
         --copt -DUNINSTALL_SIGSEGV=1 \

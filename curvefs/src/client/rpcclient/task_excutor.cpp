@@ -72,11 +72,13 @@ int TaskExecutor::DoRPCTaskInner(TaskExecutorDone *done) {
             break;
         }
 
+        /*
         if (task_->refreshTxId && !metaCache_->RefreshTxId()) {
             LOG(ERROR) << "Refresh partition txid failed.";
             bthread_usleep(opt_.retryIntervalUS);
             continue;
         }
+        */
 
         if (!HasValidTarget() && !GetTarget()) {
             LOG(WARNING) << "get target fail for " << task_->TaskContextStr()

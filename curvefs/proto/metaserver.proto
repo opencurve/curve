@@ -115,11 +115,13 @@ message CreateDentryRequest {
     required uint32 partitionId = 3;
     required Dentry dentry = 4;
     optional Time create = 5;
+    optional CreateInodeRequest createInodeRequest = 6;
 }
 
 message CreateDentryResponse {
     required MetaStatusCode statusCode = 1;
     optional uint64 appliedIndex = 2;
+    optional Inode inode = 3;
 }
 
 message DeleteDentryRequest {
@@ -213,7 +215,7 @@ message UpdateDeallocatableBlockGroupRequest {
 }
 
 message UpdateDeallocatableBlockGroupResponse {
-    required MetaStatusCode statusCode = 1; 
+    required MetaStatusCode statusCode = 1;
     optional uint64 appliedIndex = 2;
 }
 
