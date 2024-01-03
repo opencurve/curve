@@ -43,11 +43,13 @@ void DiskCacheWrite::Init(std::shared_ptr<S3Client> client,
                           uint32_t objectPrefix,
                           uint64_t asyncLoadPeriodMs,
                           std::shared_ptr<SglLRUCache<
-                            std::string>> cachedObjName) {
+                            std::string>> cachedObjName,
+                            Aws::S3::Model::StorageClass storageClass) {
     client_ = client;
     posixWrapper_ = posixWrapper;
     asyncLoadPeriodMs_ = asyncLoadPeriodMs;
     cachedObjName_ = cachedObjName;
+    storageClass_ = storageClass;
     DiskCacheBase::Init(posixWrapper, cacheDir, objectPrefix);
 }
 
@@ -168,6 +170,7 @@ int DiskCacheWrite::UploadFile(const std::string &name,
         };
     auto context = std::make_shared<PutObjectAsyncContext>(
         name, buffer, fileSize, cb, curve::common::ContextType::S3);
+    context->putObjectOptions = curve::common::PutObjectOptions{storageClass_};
     client_->UploadAsync(context);
     VLOG(9) << "async upload end, file = " << name;
     return 0;
@@ -424,6 +427,8 @@ int DiskCacheWrite::UploadAllCacheWriteFile() {
         auto context = std::make_shared<PutObjectAsyncContext>(
             curvefs::common::s3util::GenPathByObjName(*iter, objectPrefix_),
             buffer, fileSize, cb, curve::common::ContextType::S3);
+        context->putObjectOptions =
+            curve::common::PutObjectOptions{storageClass_};
         client_->UploadAsync(context);
     }
     if (pendingReq.load(std::memory_order_seq_cst)) {

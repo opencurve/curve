@@ -103,6 +103,11 @@ struct S3InfoOption {
     uint64_t blockSize;
     uint64_t chunkSize;
     uint32_t objectPrefix;
+    Aws::S3::Model::StorageClass storageClass;
+};
+
+struct PutObjectOptions {
+    Aws::S3::Model::StorageClass storageClass;
 };
 
 void InitS3AdaptorOptionExceptS3InfoOption(Configuration *conf,
@@ -158,6 +163,7 @@ struct PutObjectAsyncContext : public Aws::Client::AsyncCallerContext {
     std::string key;
     const char* buffer;
     size_t bufferSize;
+    PutObjectOptions putObjectOptions;
     PutObjectAsyncCallBack cb;
     butil::Timer timer;
     int retCode;  // >= 0 success, < 0 fail
@@ -251,7 +257,8 @@ class S3Adapter {
      * @return:0 上传成功/ -1 上传失败
      */
     virtual int PutObject(const Aws::String &key, const char *buffer,
-                          const size_t bufferSize);
+                          const size_t bufferSize,
+                          const PutObjectOptions &options = PutObjectOptions{});
     // Get object to buffer[bufferSize]
     // int GetObject(const Aws::String &key, void *buffer,
     //        const int bufferSize);
@@ -261,7 +268,8 @@ class S3Adapter {
      * @param 数据内容
      * @return:0 上传成功/ -1 上传失败
      */
-    virtual int PutObject(const Aws::String &key, const std::string &data);
+    virtual int PutObject(const Aws::String &key, const std::string &data,
+                          const PutObjectOptions &options = PutObjectOptions{});
     virtual void PutObjectAsync(std::shared_ptr<PutObjectAsyncContext> context);
     /**
      * Get object from s3,
@@ -398,16 +406,20 @@ class FakeS3Adapter : public S3Adapter {
     bool BucketExist() override { return true; }
 
     int PutObject(const Aws::String &key, const char *buffer,
-                  const size_t bufferSize) override {
+                  const size_t bufferSize,
+                  const curve::common::PutObjectOptions &options) override {
         (void)key;
         (void)buffer;
         (void)bufferSize;
+        (void)options;
         return 0;
     }
 
-    int PutObject(const Aws::String &key, const std::string &data) override {
+    int PutObject(const Aws::String &key, const std::string &data,
+                  const curve::common::PutObjectOptions &options) override {
         (void)key;
         (void)data;
+        (void)options;
         return 0;
     }
 

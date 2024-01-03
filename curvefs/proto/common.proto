@@ -64,6 +64,7 @@ message S3Info {
     required uint64 blockSize = 5;
     required uint64 chunkSize = 6;
     optional uint32 objectPrefix = 7;
+    optional StorageClass storageClass = 8;
 }
 
 enum PartitionStatus {
@@ -108,4 +109,15 @@ message Peer {
 message CopysetInfo {
     required uint32 poolId = 1;
     required uint32 copysetId = 2;
+}
+
+enum StorageClass {
+    NOT_SET = 0;
+    STANDARD = 1;
+    REDUCED_REDUNDANCY = 2;
+    STANDARD_IA = 3;
+    ONEZONE_IA = 4;
+    INTELLIGENT_TIERING = 5;
+    GLACIER = 6;
+    DEEP_ARCHIVE = 7;
 }

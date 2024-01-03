@@ -280,11 +280,14 @@ bool S3Adapter::BucketExist() {
 }
 
 int S3Adapter::PutObject(const Aws::String &key, const char *buffer,
-                         const size_t bufferSize) {
+                         const size_t bufferSize,
+                         const PutObjectOptions &options) {
     Aws::S3::Model::PutObjectRequest request;
     request.SetBucket(bucketName_);
     request.SetKey(key);
-
+    if (options.storageClass != Aws::S3::Model::StorageClass::NOT_SET) {
+        request.SetStorageClass(options.storageClass);
+    }
     request.SetBody(Aws::MakeShared<PreallocatedIOStream>(AWS_ALLOCATE_TAG,
                                                           buffer, bufferSize));
 
@@ -303,8 +306,9 @@ int S3Adapter::PutObject(const Aws::String &key, const char *buffer,
     }
 }
 
-int S3Adapter::PutObject(const Aws::String &key, const std::string &data) {
-    return PutObject(key, data.data(), data.size());
+int S3Adapter::PutObject(const Aws::String &key, const std::string &data,
+                         const PutObjectOptions &options) {
+    return PutObject(key, data.data(), data.size(), options);
 }
 /*
     int S3Adapter::GetObject(const Aws::String &key,
@@ -337,7 +341,10 @@ void S3Adapter::PutObjectAsync(std::shared_ptr<PutObjectAsyncContext> context) {
     Aws::S3::Model::PutObjectRequest request;
     request.SetBucket(bucketName_);
     request.SetKey(Aws::String{context->key.c_str(), context->key.size()});
-
+    PutObjectOptions options = context->putObjectOptions;
+    if (options.storageClass != Aws::S3::Model::StorageClass::NOT_SET) {
+        request.SetStorageClass(options.storageClass);
+    }
     request.SetBody(Aws::MakeShared<PreallocatedIOStream>(
         AWS_ALLOCATE_TAG, context->buffer, context->bufferSize));
 

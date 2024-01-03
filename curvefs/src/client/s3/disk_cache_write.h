@@ -85,7 +85,9 @@ class DiskCacheWrite : public DiskCacheBase {
               std::shared_ptr<PosixWrapper> posixWrapper,
               const std::string cacheDir, uint32_t objectPrefix,
               uint64_t asyncLoadPeriodMs,
-              std::shared_ptr<SglLRUCache<std::string>> cachedObjName);
+              std::shared_ptr<SglLRUCache<std::string>> cachedObjName,
+              Aws::S3::Model::StorageClass storageClass =
+                  Aws::S3::Model::StorageClass::NOT_SET);
     /**
      * @brief write obj to write cache disk
      * @param[in] client S3Client
@@ -166,6 +168,7 @@ class DiskCacheWrite : public DiskCacheBase {
     std::shared_ptr<S3Metric> s3Metric_;
 
     std::shared_ptr<SglLRUCache<std::string>> cachedObjName_;
+    Aws::S3::Model::StorageClass storageClass_;
 };
 
 }  // namespace client

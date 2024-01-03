@@ -500,7 +500,9 @@ var (
 	ErrInvalidMetaServerAddr = func() *CmdError {
 		return NewInternalCmdError(80, "invalid metaserver external addr: %s")
 	}
-
+	ErrUnknownStorageClass = func() *CmdError {
+		return NewInternalCmdError(81, "unknown storage class: %s")
+	}
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {
 		return NewHttpResultCmdError(1, "http response is unreadable, the uri is: %s, the error is: %s")

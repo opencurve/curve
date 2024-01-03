@@ -91,6 +91,7 @@ S3ClientAdaptorImpl::Init(
     maxReadRetryIntervalMs_ = option.maxReadRetryIntervalMs;
     readRetryIntervalMs_ = option.readRetryIntervalMs;
     objectPrefix_ = option.objectPrefix;
+    storageClass_ = option.storageClass;
     client_ = client;
     inodeManager_ = inodeManager;
     mdsClient_ = mdsClient;

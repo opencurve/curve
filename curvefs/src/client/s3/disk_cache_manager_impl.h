@@ -128,6 +128,7 @@ class DiskCacheManagerImpl {
     std::shared_ptr<DiskCacheManager> diskCacheManager_;
 
     bool forceFlush_;
+    Aws::S3::Model::StorageClass storageClass_;
     std::shared_ptr<S3Client> client_;
 
     int WriteClosure(std::shared_ptr<PutObjectAsyncContext> context);

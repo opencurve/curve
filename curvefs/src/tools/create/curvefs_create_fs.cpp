@@ -58,6 +58,7 @@ DECLARE_string(s3_bucket_name);
 DECLARE_uint64(s3_blocksize);
 DECLARE_uint64(s3_chunksize);
 DECLARE_uint32(s3_objectPrefix);
+DECLARE_string(s3_storageClass);
 DECLARE_uint32(rpcTimeoutMs);
 DECLARE_uint32(rpcRetryTimes);
 DECLARE_bool(enableSumInDir);
@@ -76,44 +77,48 @@ using ::curvefs::common::BitmapLocation_Parse;
 void CreateFsTool::PrintHelp() {
     CurvefsToolRpc::PrintHelp();
     std::cout << " -fsName=" << FLAGS_fsName << " [-user=" << FLAGS_user
-              << "] [-capacity=" << FLAGS_capacity
-              << "] [-blockSize=" << FLAGS_blockSize
-              << "] [-enableSumInDir=" << FLAGS_enableSumInDir
-              << "] [-mdsAddr=" << FLAGS_mdsAddr
-              << "] [-rpcTimeoutMs=" << FLAGS_rpcTimeoutMs
-              << " -rpcRetryTimes=" << FLAGS_rpcRetryTimes << "]"
-              << "] [recycleTimeHour=" << FLAGS_recycleTimeHour
-              << "] \n[-fsType=volume -volumeBlockGroupSize="
-              << FLAGS_volumeBlockGroupSize
-              << " -volumeBlockSize=" << FLAGS_volumeBlockSize
-              << " -volumeName=" << FLAGS_volumeName
-              << " -volumeUser=" << FLAGS_volumeUser
-              << " -volumePassword=" << FLAGS_volumePassword
-              << " -volumeBitmapLocation=AtStart|AtEnd"
-              << " -volumeAutoExtend=false|true"
-              << " -volumeExtendFactor=" << FLAGS_volumeExtendFactor
-              << " -volumeCluster=" << FLAGS_volumeCluster
-              << "]\n[-fsType=s3 -s3_ak=" << FLAGS_s3_ak
-              << " -s3_sk=" << FLAGS_s3_sk
-              << " -s3_endpoint=" << FLAGS_s3_endpoint
-              << " -s3_bucket_name=" << FLAGS_s3_bucket_name
-              << " -s3_blocksize=" << FLAGS_s3_blocksize
-              << " -s3_chunksize=" << FLAGS_s3_chunksize
-              << " -s3_objectPrefix=" << FLAGS_s3_objectPrefix
-              << "]\n[-fsType=hybrid -volumeBlockGroupSize="
-              << FLAGS_volumeBlockGroupSize
-              << " -volumeBlockSize=" << FLAGS_volumeBlockSize
-              << " -volumeName=" << FLAGS_volumeName
-              << " -volumeUser=" << FLAGS_volumeUser
-              << " -volumePassword=" << FLAGS_volumePassword
-              << " -volumeBitmapLocation=AtStart|AtEnd"
-              << " -s3_ak=" << FLAGS_s3_ak << " -s3_sk=" << FLAGS_s3_sk
-              << " -s3_endpoint=" << FLAGS_s3_endpoint
-              << " -s3_bucket_name=" << FLAGS_s3_bucket_name
-              << " -s3_blocksize=" << FLAGS_s3_blocksize
-              << " -s3_chunksize=" << FLAGS_s3_chunksize
-              << " -s3_objectPrefix=" << FLAGS_s3_objectPrefix
-              << "]" << std::endl;
+        << "] [-capacity=" << FLAGS_capacity
+        << "] [-blockSize=" << FLAGS_blockSize
+        << "] [-enableSumInDir=" << FLAGS_enableSumInDir
+        << "] [-mdsAddr=" << FLAGS_mdsAddr
+        << "] [-rpcTimeoutMs=" << FLAGS_rpcTimeoutMs
+        << " -rpcRetryTimes=" << FLAGS_rpcRetryTimes << "]"
+        << "] [recycleTimeHour=" << FLAGS_recycleTimeHour
+        << "] \n[-fsType=volume -volumeBlockGroupSize="
+        << FLAGS_volumeBlockGroupSize
+        << " -volumeBlockSize=" << FLAGS_volumeBlockSize
+        << " -volumeName=" << FLAGS_volumeName
+        << " -volumeUser=" << FLAGS_volumeUser
+        << " -volumePassword=" << FLAGS_volumePassword
+        << " -volumeBitmapLocation=AtStart|AtEnd"
+        << " -volumeAutoExtend=false|true"
+        << " -volumeExtendFactor=" << FLAGS_volumeExtendFactor
+        << " -volumeCluster=" << FLAGS_volumeCluster
+        << "]\n[-fsType=s3 -s3_ak=" << FLAGS_s3_ak
+        << " -s3_sk=" << FLAGS_s3_sk
+        << " -s3_endpoint=" << FLAGS_s3_endpoint
+        << " -s3_bucket_name=" << FLAGS_s3_bucket_name
+        << " -s3_blocksize=" << FLAGS_s3_blocksize
+        << " -s3_chunksize=" << FLAGS_s3_chunksize
+        << " -s3_objectPrefix=" << FLAGS_s3_objectPrefix
+        << " -s3_storageClass=NOT_SET|STANDARD|REDUCED_REDUNDANCY|STANDARD_IA|"
+           "ONEZONE_IA|INTELLIGENT_TIERING|GLACIER|DEEP_ARCHIVE"
+        << "]\n[-fsType=hybrid -volumeBlockGroupSize="
+        << FLAGS_volumeBlockGroupSize
+        << " -volumeBlockSize=" << FLAGS_volumeBlockSize
+        << " -volumeName=" << FLAGS_volumeName
+        << " -volumeUser=" << FLAGS_volumeUser
+        << " -volumePassword=" << FLAGS_volumePassword
+        << " -volumeBitmapLocation=AtStart|AtEnd"
+        << " -s3_ak=" << FLAGS_s3_ak << " -s3_sk=" << FLAGS_s3_sk
+        << " -s3_endpoint=" << FLAGS_s3_endpoint
+        << " -s3_bucket_name=" << FLAGS_s3_bucket_name
+        << " -s3_blocksize=" << FLAGS_s3_blocksize
+        << " -s3_chunksize=" << FLAGS_s3_chunksize
+        << " -s3_objectPrefix=" << FLAGS_s3_objectPrefix
+        << " -s3_storageClass=NOT_SET|STANDARD|REDUCED_REDUNDANCY|STANDARD_IA|"
+           "ONEZONE_IA|INTELLIGENT_TIERING|GLACIER|DEEP_ARCHIVE"
+        << "]" << std::endl;
 }
 
 void CreateFsTool::AddUpdateFlags() {
@@ -134,6 +139,7 @@ void CreateFsTool::AddUpdateFlags() {
     AddUpdateFlagsFunc(curvefs::tools::SetS3_blocksize);
     AddUpdateFlagsFunc(curvefs::tools::SetS3_chunksize);
     AddUpdateFlagsFunc(curvefs::tools::SetS3_objectPrefix);
+    AddUpdateFlagsFunc(curvefs::tools::SetS3_storageClass);
     AddUpdateFlagsFunc(curvefs::tools::SetRpcTimeoutMs);
     AddUpdateFlagsFunc(curvefs::tools::SetRpcRetryTimes);
     AddUpdateFlagsFunc(curvefs::tools::SetEnableSumInDir);
@@ -179,6 +185,14 @@ int CreateFsTool::Init() {
         s3->set_blocksize(FLAGS_s3_blocksize);
         s3->set_chunksize(FLAGS_s3_chunksize);
         s3->set_objectprefix(FLAGS_s3_objectPrefix);
+        curvefs::common::StorageClass storageClass;
+        if (!StorageClass_Parse(FLAGS_s3_storageClass, &storageClass)) {
+            std::cerr << "Parse storageClass error, only support "
+                        "NOT_SET|STANDARD|REDUCED_REDUNDANCY|STANDARD_IA|"
+                        "ONEZONE_IA|INTELLIGENT_TIERING|GLACIER|DEEP_ARCHIVE";
+            return -1;
+        }
+        s3->set_storageclass(storageClass);
         request.mutable_fsdetail()->set_allocated_s3info(s3);
         return 0;
     };

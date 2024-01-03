@@ -41,9 +41,9 @@ import (
 
 const (
 	fsExample = `$ curve fs create fs --fsname test1
-$ curve fs create fs --fsname test1 --fstype s3 --s3.ak AK --s3.sk SK --s3.endpoint http://localhost:9000 --s3.bucketname test1 --s3.blocksize 4MiB --s3.chunksize 4MiB
+$ curve fs create fs --fsname test1 --fstype s3 --s3.ak AK --s3.sk SK --s3.endpoint http://localhost:9000 --s3.bucketname test1 --s3.blocksize 4MiB --s3.chunksize 4MiB --s3.storageclass STANDARD
 $ curve fs create fs --fsname test1 --fstype volume --volume.bitmaplocation AtStart --volume.blockgroupsize 128MiB --volume.blocksize 4KiB --volume.name volume --volume.password password --volume.size 1MiB --volume.slicesize 1MiB --volume.user user
-$ curve fs create fs --fsname test1 --fstype hybrid  --s3.ak AK --s3.sk SK --s3.endpoint http://localhost:9000 --s3.bucketname test1 --s3.blocksize 4MiB --s3.chunksize 4MiB  --volume.bitmaplocation AtStart --volume.blockgroupsize 128MiB --volume.blocksize 4KiB --volume.name volume --volume.password password --volume.size 1MiB --volume.slicesize 1MiB --volume.user user`
+$ curve fs create fs --fsname test1 --fstype hybrid  --s3.ak AK --s3.sk SK --s3.endpoint http://localhost:9000 --s3.bucketname test1 --s3.blocksize 4MiB --s3.chunksize 4MiB --s3.storageclass STANDARD --volume.bitmaplocation AtStart --volume.blockgroupsize 128MiB --volume.blocksize 4KiB --volume.name volume --volume.password password --volume.size 1MiB --volume.slicesize 1MiB --volume.user user`
 )
 
 type CreateFsRpc struct {
@@ -98,6 +98,7 @@ func (fCmd *FsCommand) AddFlags() {
 	config.AddS3BucknameOptionFlag(fCmd.Cmd)
 	config.AddS3BlocksizeOptionFlag(fCmd.Cmd)
 	config.AddS3ChunksizeOptionFlag(fCmd.Cmd)
+	config.AddS3StorageclassOptionFlag(fCmd.Cmd)
 	// volume
 	config.AddVolumeSizeOptionFlag(fCmd.Cmd)
 	config.AddVolumeBlockgroupsizeOptionFlag(fCmd.Cmd)
@@ -209,14 +210,19 @@ func setS3Info(detail *mds.FsDetail, cmd *cobra.Command) *cmderror.CmdError {
 		errParse.Format(config.CURVEFS_S3_CHUNKSIZE, chunksizeStr)
 		return errParse
 	}
-
+	storageclassStr := config.GetFlagString(cmd, config.CURVEFS_S3_STORAGECLASS)
+	storageclass, errStorageclass := cobrautil.TranslateStorageClass(storageclassStr)
+	if errStorageclass.TypeCode() != cmderror.CODE_SUCCESS {
+		return errStorageclass
+	}
 	info := &common.S3Info{
-		Ak:         &ak,
-		Sk:         &sk,
-		Endpoint:   &endpoint,
-		Bucketname: &bucketname,
-		BlockSize:  &blocksize,
-		ChunkSize:  &chunksize,
+		Ak:           &ak,
+		Sk:           &sk,
+		Endpoint:     &endpoint,
+		Bucketname:   &bucketname,
+		BlockSize:    &blocksize,
+		ChunkSize:    &chunksize,
+		StorageClass: &storageclass,
 	}
 	detail.S3Info = info
 	return cmderror.ErrSuccess()

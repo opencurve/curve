@@ -2544,6 +2544,8 @@ void DataCache::FlushTaskExecute(
             s3Tasks.begin(), s3Tasks.end(),
             [&](const std::shared_ptr<PutObjectAsyncContext> &context) {
                 context->cb = s3cb;
+                context->putObjectOptions = curve::common::PutObjectOptions{
+                    s3ClientAdaptor_->GetStorageClass()};
                 if (CachePolicy::WRCache == cachePolicy) {
                     context->type = curve::common::ContextType::Disk;
                     s3ClientAdaptor_->GetDiskCacheManager()->Enqueue(context);
