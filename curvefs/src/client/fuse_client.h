@@ -312,18 +312,18 @@ class FuseClient {
     bool PutWarmFilelistTask(fuse_ino_t key, common::WarmupStorageType type,
                              const std::string& path,
                              const std::string& mount_point,
-                             const std::string& root) {
+                             const std::string& root, bool check = false) {
         if (fsInfo_->fstype() == FSType::TYPE_S3) {
             return warmupManager_->AddWarmupFilelist(key, type, path,
-                                                     mount_point, root);
+                                                     mount_point, root, check);
         }  // only support s3
         return true;
     }
 
-    bool PutWarmFileTask(fuse_ino_t key, const std::string &path,
-                         common::WarmupStorageType type) {
+    bool PutWarmFileTask(fuse_ino_t key, const std::string& path,
+                         common::WarmupStorageType type, bool check = false) {
         if (fsInfo_->fstype() == FSType::TYPE_S3) {
-            return warmupManager_->AddWarmupFile(key, path, type);
+            return warmupManager_->AddWarmupFile(key, path, type, check);
         }  // only support s3
         return true;
     }
@@ -338,6 +338,14 @@ class FuseClient {
     bool GetWarmupProgress(fuse_ino_t key, warmup::WarmupProgress *progress) {
         if (fsInfo_->fstype() == FSType::TYPE_S3) {
             return warmupManager_->QueryWarmupProgress(key, progress);
+        }
+        return false;
+    }
+
+    bool GetCheckCachedProgress(fuse_ino_t key,
+                                warmup::WarmupProgress* progress) {
+        if (fsInfo_->fstype() == FSType::TYPE_S3) {
+            return warmupManager_->QueryCheckCachedProgress(key, progress);
         }
         return false;
     }

@@ -23,6 +23,7 @@
 #ifndef CURVEFS_SRC_CLIENT_WARMUP_WARMUP_MANAGER_H_
 #define CURVEFS_SRC_CLIENT_WARMUP_WARMUP_MANAGER_H_
 
+#include <glog/logging.h>
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
@@ -117,17 +118,35 @@ class WarmupProgress {
  public:
     explicit WarmupProgress(WarmupStorageType type = curvefs::client::common::
                                 WarmupStorageType::kWarmupStorageTypeUnknown,
-                            std::string filePath = "")
+                            std::string filePath = "", bool cachedTask = false)
         : total_(0),
           finished_(0),
           storageType_(type),
-          filePathInClient_(filePath) {}
+          filePathInClient_(filePath),
+          cachedTask_(cachedTask),
+          checkTaskDone_(1),
+          doneTimerStarted_(false),
+          querying_(false) {}
 
-    WarmupProgress(const WarmupProgress& wp)
+    explicit WarmupProgress(WarmupProgress&& wp) noexcept
         : total_(wp.total_),
           finished_(wp.finished_),
           storageType_(wp.storageType_),
-          filePathInClient_(wp.filePathInClient_) {}
+          filePathInClient_(std::move(wp.filePathInClient_)),
+          cachedTask_(wp.cachedTask_),
+          checkTaskDone_(1),
+          doneTimerStarted_(wp.doneTimerStarted_.load()),
+          querying_(wp.querying_.load()) {}
+
+    explicit WarmupProgress(const WarmupProgress& wp) noexcept
+        : total_(wp.total_),
+          finished_(wp.finished_),
+          storageType_(wp.storageType_),
+          filePathInClient_(wp.filePathInClient_),
+          cachedTask_(wp.cachedTask_),
+          checkTaskDone_(1),
+          doneTimerStarted_(wp.doneTimerStarted_.load()),
+          querying_(wp.querying_.load()) {}
 
     void AddTotal(uint64_t add) {
         std::lock_guard<std::mutex> lock(totalMutex_);
@@ -162,6 +181,40 @@ class WarmupProgress {
                ",finished:" + std::to_string(finished_);
     }
 
+    bool IsCachedTask() const {
+        return cachedTask_;
+    }
+
+    void SignalCheckTask() {
+        checkTaskDone_.Signal();
+    }
+
+    void WaitCheckTask() {
+        checkTaskDone_.Wait();
+    }
+
+    void DoneTimerStart() {
+        doneTimerStarted_.store(true);
+        doneTimer_.start();
+    }
+
+    uint32_t GetDoneTimerSecond() {
+        doneTimer_.stop();
+        return doneTimer_.s_elapsed();
+    }
+
+    bool IsDoneTimerStart() {
+        return doneTimerStarted_.load();
+    }
+
+    bool IsQuerying() {
+        return querying_.load();
+    }
+
+    void UpdateQuerying(bool start) {
+        querying_.store(start);
+    }
+
     std::string GetFilePathInClient() { return filePathInClient_; }
 
     WarmupStorageType GetStorageType() { return storageType_; }
@@ -173,6 +226,11 @@ class WarmupProgress {
     std::mutex finishedMutex_;
     WarmupStorageType storageType_;
     std::string filePathInClient_;
+    bool cachedTask_;  // Is it a task to check whether it is cached
+    CountDownEvent checkTaskDone_;
+    butil::Timer doneTimer_;  // time after recording is completed
+    std::atomic<bool> doneTimerStarted_;
+    std::atomic<bool> querying_;  // Being queried, avoid being deleted
 };
 
 using FuseOpReadFunctionType =
@@ -215,10 +273,10 @@ class WarmupManager {
     virtual bool AddWarmupFilelist(fuse_ino_t key, WarmupStorageType type,
                                    const std::string& path,
                                    const std::string& mount_point,
-                                   const std::string& root) = 0;
+                                   const std::string& root,
+                                   bool check = false) = 0;
     virtual bool AddWarmupFile(fuse_ino_t key, const std::string& path,
-                               WarmupStorageType type) = 0;
-
+                               WarmupStorageType type, bool check = false) = 0;
     virtual bool CancelWarmupFileOrFilelist(fuse_ino_t key) = 0;
     virtual bool CancelWarmupDependentQueue(fuse_ino_t key) = 0;
 
@@ -262,6 +320,32 @@ class WarmupManager {
         return ret;
     }
 
+    /**
+     * @brief 
+     * 
+     * @param key 
+     * @param progress 
+     * @return true 
+     * @return false no this check task or has warmup task
+     */
+    bool QueryCheckCachedProgress(fuse_ino_t key, WarmupProgress* progress) {
+        bool ret = true;
+        std::unordered_map<fuse_ino_t, WarmupProgress>::iterator iter;
+        {
+            ReadLockGuard lock(inode2ProgressMutex_);
+            iter = FindWarmupProgressByKeyLocked(key);
+            if (iter == inode2Progress_.end() || !iter->second.IsCachedTask()) {
+                // no this check
+               return false;
+            }
+        }
+        iter->second.WaitCheckTask();
+        *progress = iter->second;
+        // can delete iter after querying
+        iter->second.UpdateQuerying(false);
+        return ret;
+    }
+
     bool ListWarmupProgress(Filepath2WarmupProgressMap* filepath2progress) {
         ReadLockGuard lock(inode2ProgressMutex_);
 
@@ -282,13 +366,15 @@ class WarmupManager {
     /**
      * @brief Add warmupProcess
      *
-     * @return true
-     * @return false warmupProcess has been added
+     * @return
      */
     virtual bool AddWarmupProcessLocked(fuse_ino_t key, const std::string& path,
-                                        WarmupStorageType type) {
-        auto retPg = inode2Progress_.emplace(key, WarmupProgress(type, path));
-        return retPg.second;
+                                        WarmupStorageType type,
+                                        bool cachedTask = false) {
+        // WriteLockGuard lock(inode2ProgressMutex_);
+        return inode2Progress_
+            .emplace(key, WarmupProgress(type, path, cachedTask))
+            .second;
     }
 
     virtual bool CancelWarmupProcess(fuse_ino_t key) {
@@ -369,10 +455,10 @@ class WarmupManagerS3Impl : public WarmupManager {
     bool AddWarmupFilelist(fuse_ino_t key, WarmupStorageType type,
                            const std::string& path,
                            const std::string& mount_point,
-                           const std::string& root) override;
+                           const std::string& root,
+                           bool cache = false) override;
     bool AddWarmupFile(fuse_ino_t key, const std::string& path,
-                       WarmupStorageType type) override;
-
+                       WarmupStorageType type, bool cache = false) override;
     bool CancelWarmupFileOrFilelist(fuse_ino_t key) override;
     bool CancelWarmupDependentQueue(fuse_ino_t key) override;
 
@@ -487,6 +573,9 @@ class WarmupManagerS3Impl : public WarmupManager {
 
     // warmup all the prefetchObjs
     void WarmUpAllObjs(
+        fuse_ino_t key,
+        const std::list<std::pair<std::string, uint64_t>>& prefetchObjs);
+    void CheckCachedAllObjs(
         fuse_ino_t key,
         const std::list<std::pair<std::string, uint64_t>>& prefetchObjs);
 

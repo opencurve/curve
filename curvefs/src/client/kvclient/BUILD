@@ -35,5 +35,6 @@ cc_library(
         "//src/common:curve_common",
         "//src/common:curve_s3_adapter",
         "@libmemcached",
+        "@fmt//:fmt",
     ],
 )
