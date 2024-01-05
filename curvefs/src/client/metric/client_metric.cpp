@@ -75,17 +75,18 @@ void AsyncContextCollectMetrics(
     std::shared_ptr<S3Metric> s3Metric,
     const std::shared_ptr<curve::common::GetObjectAsyncContext>& context) {
     if (s3Metric.get() != nullptr) {
-        CollectMetrics(&s3Metric->adaptorReadS3, context->actualLen,
-                       context->timer.u_elapsed());
+
+        CollectMetrics(&s3Metric->adaptorAsyncReadS3, context->actualLen,
+          butil::cpuwide_time_us() - context->start);
 
         switch (context->type) {
             case curve::common::ContextType::Disk:
-                CollectMetrics(&s3Metric->readFromDiskCache, context->actualLen,
-                               context->timer.u_elapsed());
+                CollectMetrics(&s3Metric->asyncReadDiskCache, context->actualLen,
+                  butil::cpuwide_time_us() - context->start);
                 break;
             case curve::common::ContextType::S3:
-                CollectMetrics(&s3Metric->readFromS3, context->actualLen,
-                               context->timer.u_elapsed());
+                CollectMetrics(&s3Metric->asyncReadFromS3, context->actualLen,
+                  butil::cpuwide_time_us() - context->start);
                 break;
             default:
                 break;

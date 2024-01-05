@@ -61,6 +61,7 @@ using WeakDataCachePtr = std::weak_ptr<DataCache>;
 using curve::common::GetObjectAsyncCallBack;
 using curve::common::PutObjectAsyncCallBack;
 using curve::common::S3Adapter;
+using curve::common::ContextType;
 using curvefs::metaserver::Inode;
 using curvefs::metaserver::S3ChunkInfo;
 using curvefs::metaserver::S3ChunkInfoList;
@@ -96,6 +97,9 @@ struct S3ReadRequest {
     uint64_t fsId;
     uint64_t inodeId;
     uint64_t compaction;
+    uint64_t enqueue;
+    uint64_t dequeue;
+    uint64_t processed;
 
     std::string DebugString() const {
         std::ostringstream os;
@@ -426,7 +430,7 @@ class FileCacheManager {
     }
 
     // read kv request, need
-    ReadStatus ReadKVRequest(const std::vector<S3ReadRequest> &kvRequests,
+    ReadStatus ReadKVRequest(std::vector<S3ReadRequest> &kvRequests,
                              char *dataBuf, uint64_t fileLen);
 
     // thread function for ReadKVRequest

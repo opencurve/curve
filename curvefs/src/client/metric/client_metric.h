@@ -251,6 +251,17 @@ struct S3Metric {
     std::string fsName;
     InterfaceMetric adaptorWrite;
     InterfaceMetric adaptorRead;
+
+    InterfaceMetric adaptorDequeue;
+    InterfaceMetric adaptorProcess;
+
+    InterfaceMetric adaptorAsyncReadS3;
+    InterfaceMetric asyncReadDiskCache;
+    InterfaceMetric asyncReadFromS3;
+
+    InterfaceMetric waitDownloading;
+
+
     InterfaceMetric adaptorWriteS3;
     InterfaceMetric adaptorWriteDiskCache;
     InterfaceMetric adaptorReadS3;
@@ -270,11 +281,21 @@ struct S3Metric {
     bvar::Status<uint32_t> readSize;
     bvar::Status<uint32_t> writeSize;
 
+    bvar::Adder<uint64_t> readAllHitsMemCounts;
+    bvar::Adder<uint64_t> readRequestCounts;
+    bvar::Adder<uint64_t> s3ReadRequestCounts;
+
     explicit S3Metric(const std::string& name = "")
         : fsName(!name.empty() ? name
                                : prefix + curve::common::ToHexString(this)),
           adaptorWrite(prefix, fsName + "_adaptor_write"),
           adaptorRead(prefix, fsName + "_adaptor_read"),
+          adaptorDequeue(prefix, fsName + "_adaptor_dequeue"),
+          adaptorProcess(prefix, fsName + "_adaptor_process"),
+          adaptorAsyncReadS3(prefix, fsName + "_adaptor_async_read"),
+          asyncReadDiskCache(prefix, fsName + "_async_read_from_disk"),
+          asyncReadFromS3(prefix, fsName + "_async_read_from_s3"),
+          waitDownloading(prefix, fsName + "_wait_download"),
           adaptorWriteS3(prefix, fsName + "_adaptor_write_s3"),
           adaptorWriteDiskCache(prefix, fsName + "_adaptor_write_disk_cache"),
           adaptorReadS3(prefix, fsName + "_adaptor_read_s3"),
@@ -286,7 +307,11 @@ struct S3Metric {
           writeToKVCache(prefix, fsName + "_write_to_kv_cache"),
           readFromKVCache(prefix, fsName + "_read_from_kv_cache"),
           readSize(prefix, fsName + "_adaptor_read_size", 0),
-          writeSize(prefix, fsName + "_adaptor_write_size", 0) {}
+          writeSize(prefix, fsName + "_adaptor_write_size", 0) {
+              readAllHitsMemCounts.expose_as(prefix, "read_all_hits_mem");
+              readRequestCounts.expose_as(prefix, "read_request_counts");
+              s3ReadRequestCounts.expose_as(prefix, "s3_read_request_counts");
+          }
 };
 
 template <typename Tp>

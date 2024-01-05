@@ -130,6 +130,7 @@ struct GetObjectAsyncContext : public Aws::Client::AsyncCallerContext {
     GetObjectAsyncCallBack cb;
     butil::Timer timer;
     ContextType type = ContextType::Unkown;
+    uint64_t start;
 
     explicit GetObjectAsyncContext(
         std::string key, char* buf, off_t offset, size_t len,
@@ -143,7 +144,8 @@ struct GetObjectAsyncContext : public Aws::Client::AsyncCallerContext {
           len(len),
           cb(std::move(cb)),
           type(type),
-          timer(butil::Timer::STARTED) {}
+          timer(butil::Timer::STARTED),
+          start(0) {}
 };
 
 /*
