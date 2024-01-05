@@ -89,6 +89,7 @@ const (
 	ROW_PEER_ID              = "peerId"
 	ROW_PEER_NUMBER          = "peerNumber"
 	ROW_PHYPOOL              = "phyPool"
+	ROW_PHYPOOLS             = "phyPools"
 	ROW_PATH                 = "path"
 	ROW_POOL                 = "pool"
 	ROW_POOL_ID              = "poolId"
@@ -138,6 +139,7 @@ const (
 	ROW_NEXTSTEP             = "nextStep"
 	ROW_TIME                 = "time"
 	ROW_SNAPSHOTNAME         = "snapshotName"
+	ROW_ALLOC_PERCENT        = "alloc percent(%)"
 
 	ROW_RW_STATUS               = "rwStatus"
 	ROW_DISK_STATE              = "diskState"

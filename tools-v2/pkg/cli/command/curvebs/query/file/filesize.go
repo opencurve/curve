@@ -44,8 +44,9 @@ var _ basecmd.RpcFunc = (*GetFileSizeRpc)(nil) // check interface
 
 type GetFileSizeCommand struct {
 	basecmd.FinalCurveCmd
-	Rpc      *GetFileSizeRpc
-	Response *nameserver2.GetFileSizeResponse
+	Rpc            *GetFileSizeRpc
+	Response       *nameserver2.GetFileSizeResponse
+	GroupByPoolset bool
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*GetFileSizeCommand)(nil) // check interface
@@ -71,6 +72,16 @@ func NewGetFileSizeCommand() *GetFileSizeCommand {
 	return fileCmd
 }
 
+func NewGetCreatedFileSizeGroupedByPoolsetCommand() *GetFileSizeCommand {
+	fileCmd := &GetFileSizeCommand{
+		FinalCurveCmd:  basecmd.FinalCurveCmd{},
+		GroupByPoolset: true,
+	}
+
+	basecmd.NewFinalCurveCli(&fileCmd.FinalCurveCmd, fileCmd)
+	return fileCmd
+}
+
 func (gCmd *GetFileSizeCommand) AddFlags() {
 	config.AddBsMdsFlagOption(gCmd.Cmd)
 	config.AddRpcRetryTimesFlag(gCmd.Cmd)
@@ -87,7 +98,8 @@ func (gCmd *GetFileSizeCommand) Init(cmd *cobra.Command, args []string) error {
 	retrytimes := config.GetFlagInt32(gCmd.Cmd, config.RPCRETRYTIMES)
 	filepath := config.GetBsFlagString(gCmd.Cmd, config.CURVEBS_PATH)
 	request := nameserver2.GetFileSizeRequest{
-		FileName: &filepath,
+		FileName:       &filepath,
+		GroupByPoolset: &gCmd.GroupByPoolset,
 	}
 	gCmd.Rpc = &GetFileSizeRpc{
 		Info:    basecmd.NewRpc(mdsAddrs, timeout, retrytimes, "GetFileSize"),
@@ -134,4 +146,26 @@ func GetFileSize(caller *cobra.Command) (*nameserver2.GetFileSizeResponse, *cmde
 		return nil, retErr
 	}
 	return getCmd.Response, cmderror.Success()
+}
+
+func GetCreatedFileSizeGroupedByPoolset(caller *cobra.Command) (map[string]uint64, *cmderror.CmdError) {
+	getCmd := NewGetCreatedFileSizeGroupedByPoolsetCommand()
+	config.AlignFlagsValue(caller, getCmd.Cmd, []string{
+		config.RPCRETRYTIMES, config.RPCTIMEOUT, config.CURVEBS_MDSADDR,
+		config.CURVEBS_PATH,
+	})
+
+	getCmd.Cmd.Flags().Set(config.CURVEBS_PATH, "/")
+	getCmd.Cmd.Flag(config.CURVEBS_PATH).Changed = true
+	getCmd.Cmd.SilenceErrors = true
+	getCmd.Cmd.SilenceUsage = true
+	getCmd.Cmd.SetArgs([]string{"--format", config.FORMAT_NOOUT})
+	err := getCmd.Cmd.Execute()
+	if err != nil {
+		retErr := cmderror.ErrBsGetFileInfo()
+		retErr.Format(err.Error())
+		return nil, retErr
+	}
+
+	return getCmd.Response.GetFileSizeMap(), cmderror.Success()
 }

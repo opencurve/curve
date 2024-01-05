@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <vector>
 #include <string>
+#include <map>
 #include <memory>
 #include <utility>
 #include "src/mds/nameserver2/curvefs.h"
@@ -2002,13 +2003,12 @@ void NameSpaceService::GetFileSize(
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
-
     LOG(INFO) << "logid = " << cntl->log_id()
         << ", GetFileSize request, fileName = " << request->filename();
 
     StatusCode retCode;
-    uint64_t fileSize = 0;
-    retCode = kCurveFS.GetFileSize(request->filename(), &fileSize);
+    std::map<std::string, uint64_t> fileSizeMap;
+    retCode = kCurveFS.GetFileSize(request->filename(), &fileSizeMap);
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
         LOG(ERROR) << "logid = " << cntl->log_id()
@@ -2018,10 +2018,22 @@ void NameSpaceService::GetFileSize(
         return;
     } else {
         response->set_statuscode(StatusCode::kOK);
-        response->set_filesize(fileSize);
+
+        if (request->groupbypoolset()) {
+            auto* map = response->mutable_filesizemap();
+            for (const auto& p : fileSizeMap) {
+                (*map)[p.first] = p.second;
+            }
+        } else {
+            uint64_t totalSize = 0;
+            for (const auto& p : fileSizeMap) {
+                totalSize += p.second;
+            }
+            response->set_filesize(totalSize);
+        }
         LOG(INFO) << "logid = " << cntl->log_id()
-            << ", GetFileSize ok, fileName = " << request->filename()
-            << ", fileSize = " << response->filesize() / kGB << "GB";
+                  << ", GetFileSize ok, response: "
+                  << response->ShortDebugString();
     }
     return;
 }

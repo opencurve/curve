@@ -30,6 +30,7 @@ import (
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/formatstatus"
 	logicalpool "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/logicalPool"
 	may_broken_vol "github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/may-broken-vol"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/poolset"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/scanstatus"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/server"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/snapshot"
@@ -54,6 +55,7 @@ func (listCmd *ListCommand) AddSubCommands() {
 		scanstatus.NewScanStatusCommand(),
 		may_broken_vol.NewMayBrokenVolCommand(),
 		formatstatus.NewFormatStatusCommand(),
+		poolset.NewPoolsetCommand(),
 		snapshot.NewSnapShotCommand(),
 	)
 }
