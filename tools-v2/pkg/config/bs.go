@@ -688,6 +688,10 @@ func AddBsTaskIDRequiredFlag(cmd *cobra.Command) {
 	AddBsStringRequiredFlag(cmd, CURVEBS_TASKID, "task id")
 }
 
+func AddBsSnapshotFilenameFlag(cmd *cobra.Command) {
+    AddBsStringOptionFlag(cmd, CURVEBS_FILENAME, "snapshot filename")
+}
+
 func AddBsSnapshotIDOptionFlag(cmd *cobra.Command) {
 	AddBsStringOptionFlag(cmd, CURVEBS_SNAPSHOT_ID, "snapshot seqId")
 }

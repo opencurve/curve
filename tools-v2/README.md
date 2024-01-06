@@ -1632,6 +1632,38 @@ Output:
 +------------+-----------+--------+--------+--------+---------+
 ```
 
+##### status volume
+
+###### status volume snapshot
+
+get the snapshot status
+
+Usage:
+
+```bash
+curve bs status volume snapshot --filename test --snapshotaddr 127.0.0.1:5550,127.0.0.1:5551,127.0.0.1:5552
+```
+
+Output:
+
+```bash
++---------------+-------+
+|    STATUS     | COUNT |
++---------------+-------+
+| done          | 10    |
++---------------+-------+
+| in-progress   | 4     |
++---------------+-------+
+| deleting      | 2     |
++---------------+-------+
+| errorDeleting | 0     |
++---------------+-------+
+| canceling     | 0     |
++---------------+-------+
+| error         | 0     |
++---------------+-------+
+```
+
 #### delete
 
 ##### delete peer
