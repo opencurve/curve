@@ -316,15 +316,21 @@ int Ext4FileSystemImpl::Write(int fd,
                                         buf + relativeOffset,
                                         remainLength,
                                         offset);
+
         if (ret < 0) {
             if (errno == EINTR && retryTimes < MAX_RETYR_TIME) {
                 ++retryTimes;
                 continue;
+            } else if (errno == ENOSPC) {
+                LOG(ERROR) << "Disk is full writing fd: " << fd
+                    << ". Waiting for someone to free space...";
+                return -errno;
+            } else if (errno > 0) {
+                LOG(ERROR) << "pwrite failed, fd: " << fd
+                    << ", size: " << remainLength << ", offset: " << offset
+                    << ", error: " << strerror(errno);
+                return -errno;
             }
-            LOG(ERROR) << "pwrite failed, fd: " << fd
-                       << ", size: " << remainLength << ", offset: " << offset
-                       << ", error: " << strerror(errno);
-            return -errno;
         }
         remainLength -= ret;
         offset += ret;
@@ -353,13 +359,18 @@ int Ext4FileSystemImpl::Write(int fd,
             if (errno == EINTR || retryTimes < MAX_RETYR_TIME) {
                 ++retryTimes;
                 continue;
+            } else if (errno == ENOSPC) {
+                LOG(ERROR) << "Disk is full writing fd: " << fd
+                           << ". Waiting for someone to free space...";
+                return -errno;
+            } else if (errno > 0) {
+                LOG(ERROR) << "IOBuf::pcut_into_file_descriptor failed, fd: "
+                    << fd
+                    << ", size: " << remainLength << ", offset: " << offset
+                    << ", error: " << strerror(errno);
+                return -errno;
             }
-            LOG(ERROR) << "IOBuf::pcut_into_file_descriptor failed, fd: " << fd
-                       << ", size: " << remainLength << ", offset: " << offset
-                       << ", error: " << strerror(errno);
-            return -errno;
         }
-
         remainLength -= ret;
         offset += ret;
     }

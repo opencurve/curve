@@ -71,8 +71,13 @@ message CopysetStatistics {
     required uint32 writeIOPS = 4;
 }
 
+enum ErrorType {
+    NORMAL = 0;
+    DISKFULL = 1;
+}
+
 message DiskState {
-    required uint32 errType = 1;
+    required ErrorType errType = 1;
     required string errMsg = 2;
 }
 

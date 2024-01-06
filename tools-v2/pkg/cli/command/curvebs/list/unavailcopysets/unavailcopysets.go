@@ -24,8 +24,10 @@ package unavailcopysets
 
 import (
 	"context"
+	"fmt"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
+	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
@@ -34,6 +36,10 @@ import (
 	"github.com/opencurve/curve/tools-v2/proto/proto/topology/statuscode"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
+)
+
+const (
+	listUnAvailCopySetExample = `$ curve bs list unavail-copyset`
 )
 
 type ListUnAvailCopySets struct {
@@ -66,7 +72,11 @@ func NewUnAvailCopySetsCommand() *cobra.Command {
 
 func NewListUnAvailCopySetsCommand() *UnAvailCopySetsCommand {
 	uCmd := &UnAvailCopySetsCommand{
-		FinalCurveCmd: basecmd.FinalCurveCmd{},
+		FinalCurveCmd: basecmd.FinalCurveCmd{
+			Use:     "unavail-copyset",
+			Short:   "list unavail copyset",
+			Example: listUnAvailCopySetExample,
+		},
 	}
 
 	basecmd.NewFinalCurveCli(&uCmd.FinalCurveCmd, uCmd)
@@ -90,6 +100,8 @@ func (uCmd *UnAvailCopySetsCommand) Init(cmd *cobra.Command, args []string) erro
 		Request: &topology.ListUnAvailCopySetsRequest{},
 		Info:    basecmd.NewRpc(mdsAddrs, timeout, retrytimes, "ListUnAvailCopySets"),
 	}
+	header := []string{cobrautil.ROW_LOGICALPOOL, cobrautil.ROW_COPYSET}
+	uCmd.SetHeader(header)
 	return nil
 }
 
@@ -109,6 +121,18 @@ func (uCmd *UnAvailCopySetsCommand) RunCommand(cmd *cobra.Command, args []string
 		return cmderror.ErrBsListPhysicalPoolRpc(code).ToError()
 	}
 	uCmd.response = response.Copysets
+	uCmd.Result = response.Copysets
+	rows := make([]map[string]string, 0)
+	for _, info := range response.Copysets {
+		row := make(map[string]string)
+		row[cobrautil.ROW_LOGICALPOOL] = fmt.Sprintf("%d", info.GetLogicalPoolId())
+		row[cobrautil.ROW_COPYSET] = fmt.Sprintf("%d", info.GetCopysetId())
+		rows = append(rows, row)
+	}
+	list := cobrautil.ListMap2ListSortByKeys(rows, uCmd.Header, []string{
+		cobrautil.ROW_LOGICALPOOL, cobrautil.ROW_COPYSET,
+	})
+	uCmd.TableNew.AppendBulk(list)
 	return nil
 }
 

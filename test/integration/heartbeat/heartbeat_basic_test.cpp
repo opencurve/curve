@@ -299,6 +299,26 @@ TEST_F(HeartbeatBasicTest, test_chunkserver_ip_port_not_match) {
               rep.statuscode());
 }
 
+TEST_F(HeartbeatBasicTest, test_chunkserver_disk_full) {
+    // 发送空间不足请求
+    ChunkServerHeartbeatRequest req;
+    hbtest_->BuildBasicChunkServerRequest(1, &req);
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(
+        hbtest_->topology_->GetCopySet(CopySetKey{ 1, 1 }, &copysetInfo));
+    CopySetInfo csInfo(1, 1);
+    BuildCopySetInfo(&csInfo, 1, 1, copysetInfo.GetCopySetMembers());
+    hbtest_->AddCopySetToRequest(&req, csInfo);
+    auto *state = req.mutable_diskstate();
+    state->set_errtype(curve::mds::heartbeat::DISKFULL);
+    ChunkServerHeartbeatResponse rep;
+    hbtest_->SendHeartbeat(req, SENDHBOK, &rep);
+
+    ASSERT_EQ(::curve::mds::heartbeat::hbOK, rep.statuscode());
+    // 检查copyset availflag是否为false
+    hbtest_->CheckCopysetAvail(1, false);
+}
+
 TEST_F(HeartbeatBasicTest, test_chunkserver_offline_then_online) {
     // chunkserver上报心跳时间间隔大于offline
     // sleep 800ms, 该chunkserver onffline状态

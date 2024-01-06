@@ -95,11 +95,13 @@ void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
     }
 
     uint64_t nextSleepUS = 0;
-
-    if (!retryDirectly_) {
+    if (rpcstatus == CHUNK_OP_STATUS::CHUNK_OP_STATUS_READONLY ||
+        rpcstatus == CHUNK_OP_STATUS::CHUNK_OP_STATUS_NOSPACE) {
+        nextSleepUS = failReqOpt_.chunkserverWaitDiskFreeRetryIntervalMS;
+    } else if (!retryDirectly_) {
         nextSleepUS = failReqOpt_.chunkserverOPRetryIntervalUS;
         if (rpcstatus == CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED) {
-            nextSleepUS /= 10;
+           nextSleepUS /= 10;
         }
     }
 
@@ -238,6 +240,16 @@ void ClientClosure::Run() {
             OnEpochTooOld();
             break;
 
+        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_READONLY:
+            needRetry = true;
+            OnReadOnly();
+            break;
+
+        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_NOSPACE:
+            needRetry = true;
+            OnNoSpace();
+            break;
+
         default:
             needRetry = true;
             LOG(WARNING) << OpTypeToString(reqCtx_->optype_)
@@ -363,6 +375,30 @@ void ClientClosure::OnEpochTooOld() {
         << ", IO id: " << reqDone_->GetIOTracker()->GetID()
         << ", request id: " << reqCtx_->id_
         << ", remote side: "
+        << butil::endpoint2str(cntl_->remote_side()).c_str();
+}
+
+void ClientClosure::OnReadOnly() {
+    reqDone_->SetFailed(status_);
+    LOG(WARNING) << OpTypeToString(reqCtx_->optype_) << " copyset is readonly, "
+        << *reqCtx_
+        << ", status = " << status_
+        << ", retried times = " << reqDone_->GetRetriedTimes()
+        << ", IO id = " << reqDone_->GetIOTracker()->GetID()
+        << ", request id = " << reqCtx_->id_
+        << ", remote side = "
+        << butil::endpoint2str(cntl_->remote_side()).c_str();
+}
+
+void ClientClosure::OnNoSpace() {
+    reqDone_->SetFailed(status_);
+    LOG(WARNING) << OpTypeToString(reqCtx_->optype_) << " copyset is no space, "
+        << *reqCtx_
+        << ", status = " << status_
+        << ", retried times = " << reqDone_->GetRetriedTimes()
+        << ", IO id = " << reqDone_->GetIOTracker()->GetID()
+        << ", request id = " << reqCtx_->id_
+        << ", remote side = "
         << butil::endpoint2str(cntl_->remote_side()).c_str();
 }
 

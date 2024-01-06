@@ -135,6 +135,8 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
     dsOptions.locationLimit = options.locationLimit;
     dsOptions.enableOdsyncWhenOpenChunkFile =
         options.enableOdsyncWhenOpenChunkFile;
+    dsOptions.waitForDiskFreedIntervalMs =
+        options.waitForDiskFreedIntervalMs;
     dataStore_ = std::make_shared<CSDataStore>(options.localFileSystem,
                                                options.chunkFilePool,
                                                dsOptions);
@@ -345,6 +347,10 @@ void CopysetNode::WaitSnapshotDone() {
     }
 }
 
+bool CopysetNode::ReadOnly() const {
+    return !dataStore_->EnoughChunk();
+}
+
 void CopysetNode::save_snapshot_background(::braft::SnapshotWriter *writer,
                                    ::braft::Closure *done) {
     brpc::ClosureGuard doneGuard(done);
@@ -529,7 +535,9 @@ void CopysetNode::on_leader_start(int64_t term) {
      *   https://github.com/opencurve/curve/pull/2448
      */
     ChunkServerMetric::GetInstance()->IncreaseLeaderCount();
-    concurrentapply_->Flush();
+    if (concurrentapply_ != nullptr) {
+        concurrentapply_->Flush();
+    }
     leaderTerm_.store(term, std::memory_order_release);
     LOG(INFO) << "Copyset: " << GroupIdString()
               << ", peer id: " << peerId_.to_string()

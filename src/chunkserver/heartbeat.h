@@ -69,6 +69,7 @@ struct HeartbeatOptions {
     uint32_t                timeout;
     CopysetNodeManager*     copysetNodeManager;
     ScanManager*            scanManager;
+    uint32_t                chunkserverDiskLimit;
 
     std::shared_ptr<LocalFileSystem> fs;
     std::shared_ptr<FilePool> chunkFilePool;

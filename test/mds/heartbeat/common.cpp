@@ -38,7 +38,7 @@ ChunkServerHeartbeatRequest GetChunkServerHeartbeatRequestForTest() {
     request.set_copysetcount(100);
 
     DiskState *state = new DiskState();
-    state->set_errtype(1);
+    state->set_errtype(curve::mds::heartbeat::NORMAL);
     std::string *errMsg = new std::string("healthy");
     state->set_allocated_errmsg(errMsg);
     request.set_allocated_diskstate(state);

@@ -85,6 +85,7 @@ enum CHUNK_OP_STATUS {
     CHUNK_OP_STATUS_BACKWARD = 10;          // 请求的版本落后当前chunk的版本
     CHUNK_OP_STATUS_CHUNK_EXIST = 11;       // chunk已存在
     CHUNK_OP_STATUS_EPOCH_TOO_OLD = 12;     // request epoch too old
+    CHUNK_OP_STATUS_READONLY = 13;          // If there is insufficient disk space, set the chunkserver to read-only
 };
 
 message ChunkResponse {

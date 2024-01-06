@@ -469,6 +469,8 @@ class CopysetNode : public braft::StateMachine,
 
     void WaitSnapshotDone();
 
+    bool ReadOnly() const;
+
  private:
     inline std::string GroupId() {
         return ToGroupId(logicPoolId_, copysetId_);

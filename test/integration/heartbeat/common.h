@@ -294,6 +294,13 @@ class HeartbeatIntegrationCommon {
                            const std::set<ChunkServerIdType> &members,
                            ChunkServerIdType candidate = UNINTIALIZE_ID);
 
+    /* CheckCopysetAvail 检查copyset的状态
+     *
+     * @param[in] chunkserverId chunkserver的id
+     * @param[in] avail copyset状态
+     */
+    void CheckCopysetAvail(ChunkServerIdType chunkserverId, bool avail);
+
     /* SendHeartbeat 发送心跳
      *
      * @param[in] req

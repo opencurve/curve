@@ -34,6 +34,7 @@ import (
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/server"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/snapshot"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/space"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/list/unavailcopysets"
 	"github.com/spf13/cobra"
 )
 
@@ -55,6 +56,7 @@ func (listCmd *ListCommand) AddSubCommands() {
 		may_broken_vol.NewMayBrokenVolCommand(),
 		formatstatus.NewFormatStatusCommand(),
 		snapshot.NewSnapShotCommand(),
+		unavailcopysets.NewUnAvailCopySetsCommand(),
 	)
 }
 

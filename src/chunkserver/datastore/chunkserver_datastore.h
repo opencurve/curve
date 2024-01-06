@@ -63,6 +63,7 @@ struct DataStoreOptions {
     PageSizeType                        metaPageSize;
     uint32_t                            locationLimit;
     bool                                enableOdsyncWhenOpenChunkFile;
+    uint32_t                            waitForDiskFreedIntervalMs;
 };
 
 /**
@@ -328,12 +329,18 @@ class CSDataStore {
 
     virtual ChunkMap GetChunkMap();
 
+    virtual bool EnoughChunk();
+
     void SetCacheCondPtr(std::shared_ptr<std::condition_variable> cond) {
         metaCache_.SetCondPtr(cond);
     }
 
     void SetCacheLimits(const uint64_t limit, const uint64_t threshold) {
         metaCache_.SetSyncChunkLimits(limit, threshold);
+    }
+
+    void WaitForDiskFreed() {
+        bthread_usleep(waitForDiskFreedIntervalMs_);
     }
 
  private:
@@ -362,6 +369,8 @@ class CSDataStore {
     DataStoreMetricPtr metric_;
     // enable O_DSYNC When Open ChunkFile
     bool enableOdsyncWhenOpenChunkFile_;
+    // wait for retry time when disk space is insufficient
+    uint32_t waitForDiskFreedIntervalMs_;
 };
 
 }  // namespace chunkserver

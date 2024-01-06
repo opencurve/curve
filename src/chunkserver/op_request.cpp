@@ -70,6 +70,12 @@ void ChunkOpRequest::Process() {
         return;
     }
 
+    // check if copyset node readonly
+    if (node_->ReadOnly()) {
+        response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_READONLY);
+        return;
+    }
+
     /**
      * 如果propose成功，说明request成功交给了raft处理，
      * 那么done_就不能被调用，只有propose失败了才需要提前返回
@@ -457,6 +463,12 @@ void WriteChunkRequest::OnApply(uint64_t index,
                      << ", request: " << request_->ShortDebugString();
         response_->set_status(
             CHUNK_OP_STATUS::CHUNK_OP_STATUS_BACKWARD);
+    } else if (CSErrorCode::NoSpaceError == ret) {
+        LOG(WARNING) << "write failed: "
+                     << " data store return: " << ret
+                     << ", request: " << request_->ShortDebugString();
+        response_->set_status(
+            CHUNK_OP_STATUS::CHUNK_OP_STATUS_NOSPACE);
     } else if (CSErrorCode::InternalError == ret ||
                CSErrorCode::CrcCheckError == ret ||
                CSErrorCode::FileFormatError == ret) {
@@ -492,29 +504,38 @@ void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                             request.clonefileoffset());
     }
 
-    auto ret = datastore->WriteChunk(request.chunkid(),
+    while (true) {
+       auto ret = datastore->WriteChunk(request.chunkid(),
                                      request.sn(),
                                      data,
                                      request.offset(),
                                      request.size(),
                                      &cost,
                                      cloneSourceLocation);
-     if (CSErrorCode::Success == ret) {
-         return;
-     } else if (CSErrorCode::BackwardRequestError == ret) {
-        LOG(WARNING) << "write failed: "
-                     << " data store return: " << ret
-                     << ", request: " << request.ShortDebugString();
-    } else if (CSErrorCode::InternalError == ret ||
-               CSErrorCode::CrcCheckError == ret ||
-               CSErrorCode::FileFormatError == ret) {
-        LOG(FATAL) << "write failed: "
-                   << " data store return: " << ret
-                   << ", request: " << request.ShortDebugString();
-    } else {
-        LOG(ERROR) << "write failed: "
-                   << " data store return: " << ret
-                   << ", request: " << request.ShortDebugString();
+       if (CSErrorCode::Success == ret) {
+           return;
+       } else if (CSErrorCode::BackwardRequestError == ret) {
+           LOG(WARNING) << "write failed: "
+                        << " data store return: " << ret
+                        << ", request: " << request.ShortDebugString();
+       } else if (CSErrorCode::NoSpaceError == ret) {
+           LOG(WARNING) << "write failed: "
+                        << " data store return: " << ret
+                        << ", request: " << request_->ShortDebugString();
+           datastore->WaitForDiskFreed();
+           continue;
+       } else if (CSErrorCode::InternalError == ret ||
+                  CSErrorCode::CrcCheckError == ret ||
+                  CSErrorCode::FileFormatError == ret) {
+           LOG(FATAL) << "write failed: "
+                      << " data store return: " << ret
+                      << ", request: " << request.ShortDebugString();
+       } else {
+           LOG(ERROR) << "write failed: "
+                      << " data store return: " << ret
+                      << ", request: " << request.ShortDebugString();
+       }
+       break;
     }
 }
 
@@ -713,6 +734,12 @@ void PasteChunkInternalRequest::Process() {
         return;
     }
 
+    // check if copyset node readonly
+    if (node_->ReadOnly()) {
+        response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_READONLY);
+        return;
+    }
+
     /**
      * 如果propose成功，说明request成功交给了raft处理，
      * 那么done_就不能被调用，只有propose失败了才需要提前返回
@@ -737,6 +764,10 @@ void PasteChunkInternalRequest::OnApply(uint64_t index,
     } else if (CSErrorCode::InternalError == ret) {
         LOG(FATAL) << "paste chunk failed: "
                    << ", request: " << request_->ShortDebugString();
+    } else if (CSErrorCode::NoSpaceError == ret) {
+        LOG(ERROR) << "paste chunk failed: "
+                   << ", request: " << request_->ShortDebugString();
+        response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_NOSPACE);
     } else {
         LOG(ERROR) << "paste chunk failed: "
                    << ", request: " << request_->ShortDebugString();
@@ -749,20 +780,28 @@ void PasteChunkInternalRequest::OnApply(uint64_t index,
 void PasteChunkInternalRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  //NOLINT
                                                const ChunkRequest &request,
                                                const butil::IOBuf &data) {
-    // NOTE: 处理过程中优先使用参数传入的datastore/request
-    auto ret = datastore->PasteChunk(request.chunkid(),
-                                     data.to_string().c_str(),
-                                     request.offset(),
-                                     request.size());
-    if (CSErrorCode::Success == ret)
-        return;
+    while (true) {
+        // NOTE: 处理过程中优先使用参数传入的datastore/request
+        auto ret = datastore->PasteChunk(request.chunkid(),
+                                         data.to_string().c_str(),
+                                         request.offset(),
+                                         request.size());
+        if (CSErrorCode::Success == ret)
+            return;
 
-    if (CSErrorCode::InternalError == ret) {
-        LOG(FATAL) << "paste chunk failed: "
-                   << ", request: " << request.ShortDebugString();
-    } else {
-        LOG(ERROR) << "paste chunk failed: "
-                   << ", request: " << request.ShortDebugString();
+        if (CSErrorCode::InternalError == ret) {
+            LOG(FATAL) << "paste chunk failed: "
+                       << ", request: " << request.ShortDebugString();
+        } else if (CSErrorCode::NoSpaceError == ret) {
+            LOG(ERROR) << "paste chunk failed: "
+                   << ", request: " << request_->ShortDebugString();
+            datastore->WaitForDiskFreed();
+            continue;
+        } else {
+            LOG(ERROR) << "paste chunk failed: "
+                       << ", request: " << request.ShortDebugString();
+        }
+        break;
     }
 }
 

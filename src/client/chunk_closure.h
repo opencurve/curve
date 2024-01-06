@@ -113,6 +113,12 @@ class ClientClosure : public Closure {
     // handle epoch too old
     void OnEpochTooOld();
 
+    // handle readonly
+    void OnReadOnly();
+
+    // handle nospace
+    void OnNoSpace();
+
     // 非法参数
     void OnInvalidRequest();
 

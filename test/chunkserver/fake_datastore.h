@@ -51,6 +51,7 @@ class FakeCSDataStore : public CSDataStore {
         snapDeleteFlag_ = false;
         error_ = CSErrorCode::Success;
         chunkSize_ = options.chunkSize;
+        enoughChunk_ = true;
     }
     virtual ~FakeCSDataStore() {
         delete chunk_;
@@ -204,6 +205,14 @@ class FakeCSDataStore : public CSDataStore {
         }
     }
 
+    bool EnoughChunk() {
+        return enoughChunk_;
+    }
+
+    void SetEnoughChunk(bool enoughChunk) {
+        enoughChunk_ = enoughChunk;
+    }
+
     void InjectError(CSErrorCode errorCode = CSErrorCode::InternalError) {
         error_ = errorCode;
     }
@@ -226,6 +235,7 @@ class FakeCSDataStore : public CSDataStore {
     SequenceNum sn_;
     CSErrorCode error_;
     uint32_t chunkSize_;
+    bool enoughChunk_;
 };
 
 class FakeFilePool : public FilePool {
