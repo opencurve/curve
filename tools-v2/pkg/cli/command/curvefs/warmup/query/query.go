@@ -118,7 +118,7 @@ func (qCmd *QueryCommand) RunCommand(cmd *cobra.Command, args []string) error {
 			break
 		}
 		strs := strings.Split(resultStr, "/")
-		if len(strs) != 2 {
+		if len(strs) < 3 {
 			break
 		}
 		finished, err := strconv.ParseUint(strs[0], 10, 64)
@@ -129,6 +129,8 @@ func (qCmd *QueryCommand) RunCommand(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			break
 		}
+		status := strs[2]
+		bar.Describe(status)
 		bar.ChangeMax64(int64(total))
 		bar.Set64(int64(finished))
 	}

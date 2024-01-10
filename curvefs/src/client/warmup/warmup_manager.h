@@ -23,6 +23,8 @@
 #ifndef CURVEFS_SRC_CLIENT_WARMUP_WARMUP_MANAGER_H_
 #define CURVEFS_SRC_CLIENT_WARMUP_WARMUP_MANAGER_H_
 
+#include <fmt/format.h>
+
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
@@ -63,6 +65,12 @@ using ThreadPool = curvefs::common::TaskThreadPool2<bthread::Mutex,
 using curve::common::BthreadRWLock;
 
 using curvefs::client::common::WarmupStorageType;
+
+enum WarmupStorageErrorType {
+    Ok = 0,
+    WriteFail = 1,
+    Full = 2,
+};
 
 class WarmupFile {
  public:
@@ -121,13 +129,15 @@ class WarmupProgress {
         : total_(0),
           finished_(0),
           storageType_(type),
-          filePathInClient_(filePath) {}
+          filePathInClient_(filePath),
+          storageErr_(WarmupStorageErrorType::Ok) {}
 
     WarmupProgress(const WarmupProgress& wp)
         : total_(wp.total_),
           finished_(wp.finished_),
           storageType_(wp.storageType_),
-          filePathInClient_(wp.filePathInClient_) {}
+          filePathInClient_(wp.filePathInClient_),
+          storageErr_(wp.storageErr_) {}
 
     void AddTotal(uint64_t add) {
         std::lock_guard<std::mutex> lock(totalMutex_);
@@ -137,6 +147,7 @@ class WarmupProgress {
     WarmupProgress& operator=(const WarmupProgress& wp) {
         total_ = wp.total_;
         finished_ = wp.finished_;
+        storageErr_ = wp.storageErr_;
         return *this;
     }
 
@@ -158,13 +169,33 @@ class WarmupProgress {
     std::string ToString() {
         std::lock_guard<std::mutex> lockT(totalMutex_);
         std::lock_guard<std::mutex> lockF(finishedMutex_);
-        return "total:" + std::to_string(total_) +
-               ",finished:" + std::to_string(finished_);
+        std::lock_guard<std::mutex> lockS(storageErrMutex_);
+        return fmt::format("total:{},finished:{},err:{}", total_, finished_,
+                           storageErr_);
     }
 
     std::string GetFilePathInClient() { return filePathInClient_; }
 
     WarmupStorageType GetStorageType() { return storageType_; }
+
+    void SetWarmupStorageErrorType(WarmupStorageErrorType err) {
+        std::lock_guard<std::mutex> lockS(storageErrMutex_);
+        storageErr_ = std::max(err, storageErr_);
+    }
+
+    std::string GetWarmupStorageErr() {
+        std::lock_guard<std::mutex> lockS(storageErrMutex_);
+        switch (storageErr_) {
+            case WarmupStorageErrorType::Ok:
+                return "Ok";
+            case WarmupStorageErrorType::WriteFail:
+                return "write fail";
+            case WarmupStorageErrorType::Full:
+                return "full";
+            default:
+                return "unkown";
+        }
+    }
 
  private:
     uint64_t total_;
@@ -173,6 +204,8 @@ class WarmupProgress {
     std::mutex finishedMutex_;
     WarmupStorageType storageType_;
     std::string filePathInClient_;
+    std::mutex storageErrMutex_;
+    WarmupStorageErrorType storageErr_;
 };
 
 using FuseOpReadFunctionType =

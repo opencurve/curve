@@ -111,6 +111,17 @@ class DiskCacheManagerImpl {
     virtual int UmountDiskCache();
 
     bool IsDiskCacheFull();
+    /**
+     * @brief
+     *
+     * @param fileName
+     * @param buf
+     * @param length
+     * @return int
+        * -2: disk full
+        * -1: write fail
+        * >=0: write success
+     */
     virtual int WriteReadDirect(const std::string fileName, const char* buf,
                                 uint64_t length);
     void InitMetrics(std::string fsName, std::shared_ptr<S3Metric> s3Metric);
