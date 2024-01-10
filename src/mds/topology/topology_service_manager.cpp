@@ -393,8 +393,7 @@ void TopologyServiceManager::SetChunkServer(
 
 void TopologyServiceManager::RegistServer(const ServerRegistRequest *request,
                                           ServerRegistResponse *response) {
-    if ((!request->has_hostname()) &&
-        (!request->has_internalip()) &&
+    if ((!request->has_internalip()) &&
         (!request->has_externalip()) &&
         (!request->has_desc())) {
         response->set_statuscode(kTopoErrCodeInvalidParam);

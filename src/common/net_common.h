@@ -27,6 +27,7 @@
 #include <netdb.h>
 #include <netinet/in.h>    // in_addr
 #include <arpa/inet.h>     // inet_pton, inet_ntop
+#include <ifaddrs.h>
 #include <glog/logging.h>
 #include <string>
 
@@ -69,23 +70,20 @@ class NetCommon {
     }
 
     static bool GetLocalIP(std::string* ipstr) {
-        char hostname[128];
-        int ret = gethostname(hostname, sizeof(hostname));
-
-        if (ret == -1) {
-            LOG(INFO) << "get hostname failed!";
-            return false;
+        struct ifaddrs *ifAddr = NULL;
+        struct ifaddrs *ifa = NULL;
+        getifaddrs(&ifAddr);
+        for (ifa = ifAddr; ifa != NULL; ifa = ifa->ifa_next) {
+            if (!ifa->ifa_addr) {
+                continue;
+            }
+            if (ifa->ifa_addr->sa_family == AF_INET) {
+                break;
+            }
         }
-
-        struct hostent* t;
-        t = gethostbyname(hostname);
-
-        if (t == nullptr) {
-            LOG(INFO) << "get host ip failed!";
-            return false;
-        }
-
-        char* ip = inet_ntoa(*(struct in_addr*)t->h_addr_list[0]);
+        char ip[INET_ADDRSTRLEN];
+        struct in_addr adr = ((struct sockaddr_in *)ifa->ifa_addr)->sin_addr;
+        inet_ntop(AF_INET, &adr, ip, INET_ADDRSTRLEN);
         *ipstr = std::string(ip);
 
         return true;
