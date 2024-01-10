@@ -26,6 +26,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/helper"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -119,7 +120,7 @@ func (lCmd *leaderCommand) Init(cmd *cobra.Command, args []string) error {
 		return pErr.ToError()
 	}
 	peerPara := args[0]
-	leaderPeer, err := peer.ParsePeer(peerPara)
+	leaderPeer, err := helper.ParsePeer(peerPara)
 	if err != nil {
 		return err.ToError()
 	}
@@ -131,7 +132,7 @@ func (lCmd *leaderCommand) Init(cmd *cobra.Command, args []string) error {
 	}
 
 	// 2. judge is same?
-	oldLeaderPeer, err := peer.ParsePeer(oldLeader.GetAddress())
+	oldLeaderPeer, err := helper.ParsePeer(oldLeader.GetAddress())
 	if err != nil {
 		return err.ToError()
 	}
