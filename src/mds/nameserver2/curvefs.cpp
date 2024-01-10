@@ -679,8 +679,7 @@ StatusCode CurveFS::DeleteFile(const std::string & filename, uint64_t fileId,
                                                 fileInfo.filename());
         if (ret != StoreStatus::OK) {
             LOG(ERROR) << "delete file, file is directory and delete fail"
-                       << ", filename = " << filename
-                       << ", ret = " << ret;
+                       << ", filename = " << filename << ", ret = " << ret;
             return StatusCode::kStorageError;
         }
 
@@ -728,8 +727,7 @@ StatusCode CurveFS::DeleteFile(const std::string & filename, uint64_t fileId,
                 storage_->MoveFileToRecycle(fileInfo, recycleFileInfo);
             if (ret1 != StoreStatus::OK) {
                 LOG(ERROR) << "delete file, move file to recycle fail"
-                        << ", filename = " << filename
-                        << ", ret = " << ret1;
+                           << ", filename = " << filename << ", ret = " << ret1;
                 return StatusCode::kStorageError;
             }
             LOG(INFO) << "file delete to recyclebin, fileName = " << filename
@@ -877,7 +875,7 @@ StatusCode CurveFS::RecoverFile(const std::string & originFileName,
 
     auto ret1 = storage_->RenameFile(recycleFileInfo, recoverFileInfo);
     if ( ret1 != StoreStatus::OK ) {
-        LOG(ERROR) << "storage_ recoverfile error, error = " << ret1;
+        LOG(ERROR) << "storage_ recoverfile error, error = " << ret;
         return StatusCode::kStorageError;
     }
     return StatusCode::kOK;
@@ -1122,9 +1120,9 @@ StatusCode CurveFS::RenameFile(const std::string & sourceFileName,
                                                         recycleFileInfo);
         if (ret1 != StoreStatus::OK) {
             LOG(ERROR) << "storage_ ReplaceFileAndRecycleOldFile error"
-                        << ", sourceFileName = " << sourceFileName
-                        << ", destFileName = " << destFileName
-                        << ", ret = " << ret1;
+                       << ", sourceFileName = " << sourceFileName
+                       << ", destFileName = " << destFileName
+                       << ", ret = " << ret1;
 
             return StatusCode::kStorageError;
         }
@@ -1385,8 +1383,8 @@ StatusCode CurveFS::DeAllocateSegment(const std::string& fileName,
     storeRet = storage_->DiscardSegment(fileInfo, segment);
     if (storeRet != StoreStatus::OK) {
         LOG(WARNING) << "Storage CleanSegment return error, filename = "
-                   << fileName << ", offset = " << offset
-                   << ", error = " << storeRet;
+                     << fileName << ", offset = " << offset
+                     << ", error = " << storeRet;
         return StatusCode::kStorageError;
     }
 
@@ -1513,8 +1511,9 @@ StatusCode CurveFS::ListSnapShotFile(const std::string & fileName,
     }
 }
 
-StatusCode CurveFS::GetSnapShotFileInfo(const std::string &fileName,
-                        FileSeqType seq, FileInfo *snapshotFileInfo) const {
+StatusCode CurveFS::GetSnapShotFileInfo(const std::string& fileName,
+                                        FileSeqType seq,
+                                        FileInfo* snapshotFileInfo) const {
     std::vector<FileInfo> snapShotFileInfos;
     StatusCode ret =  ListSnapShotFile(fileName, &snapShotFileInfos);
     if (ret != StatusCode::kOK) {
@@ -1703,17 +1702,15 @@ StatusCode CurveFS::GetSnapShotFileSegment(
         return StatusCode::kSegmentNotAllocated;
     } else {
         LOG(ERROR) << "get segment fail, KInternalError, ret = " << storeRet
-                  << ", fileInfo.id() = "
-                  << fileInfo.id()
-                  << ", offset = " << offset;
+                   << ", fileInfo.id() = " << fileInfo.id()
+                   << ", offset = " << offset;
         return StatusCode::KInternalError;
     }
 }
 
-StatusCode CurveFS::OpenFile(const std::string &fileName,
-                             const std::string &clientIP,
-                             ProtoSession *protoSession,
-                             FileInfo  *fileInfo,
+StatusCode CurveFS::OpenFile(const std::string& fileName,
+                             const std::string& clientIP,
+                             ProtoSession* protoSession, FileInfo* fileInfo,
                              CloneSourceSegment* cloneSourceSegment) {
     // check the existence of the file
     StatusCode ret;

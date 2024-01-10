@@ -50,15 +50,13 @@ enum class StoreStatus {
     InternalError,
 };
 std::ostream& operator << (std::ostream & os, StoreStatus &s);
-
 // TODO(hzsunjianliang): may be storage need high level abstraction
 // put the encoding internal, not external
-
 
 // kv value storage for namespace and segment
 class NameServerStorage {
  public:
-  virtual ~NameServerStorage(void) {}
+    virtual ~NameServerStorage(void) {}
 
     /**
      * @brief PutFile Store fileInfo
