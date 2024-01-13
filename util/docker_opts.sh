@@ -9,6 +9,7 @@ g_docker_opts=(
     "-v /etc/sudoers.d/:/etc/sudoers.d/"
     "-v /etc/sudoers:/etc/sudoers:ro"
     "-v /etc/shadow:/etc/shadow:ro"
+    "-v /etc/hosts:/etc/hosts"
     "-v /var/run/docker.sock:/var/run/docker.sock"
     "-v /root/.docker:/root/.docker"
     "--ulimit core=-1"
