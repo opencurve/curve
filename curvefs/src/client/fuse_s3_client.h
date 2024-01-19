@@ -125,6 +125,10 @@ class FuseS3Client : public FuseClient {
 
     CURVEFS_ERROR Truncate(InodeWrapper *inode, uint64_t length) override;
 
+    CURVEFS_ERROR UpdateS3Info(const std::string& fsName,
+                               const curvefs::common::S3Info& s3Info,
+                               FsInfo* fsInfo);
+
  private:
     bool InitKVCache(const KVClientManagerOpt &opt);
 

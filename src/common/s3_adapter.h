@@ -162,18 +162,21 @@ struct PutObjectAsyncContext : public Aws::Client::AsyncCallerContext {
     butil::Timer timer;
     int retCode;  // >= 0 success, < 0 fail
     ContextType type;
+    size_t retries;
 
     explicit PutObjectAsyncContext(
         std::string key, const char* buffer, size_t bufferSize,
         PutObjectAsyncCallBack cb =
             [](const std::shared_ptr<PutObjectAsyncContext>&) {},
-        ContextType type = ContextType::Unkown)
+        ContextType type = ContextType::Unkown,
+        size_t retries = 10)
         : key(std::move(key)),
           buffer(buffer),
           bufferSize(bufferSize),
           cb(std::move(cb)),
           type(type),
-          timer(butil::Timer::STARTED) {}
+          timer(butil::Timer::STARTED),
+          retries(retries) {}
 };
 
 class S3Adapter {

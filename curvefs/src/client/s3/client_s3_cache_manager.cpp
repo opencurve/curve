@@ -2524,6 +2524,10 @@ void DataCache::FlushTaskExecute(
 
             LOG(WARNING) << "Put object failed, key: " << context->key;
             // Retry using s3 no matter what the original was
+            if (--(context->retries) <= 0) {
+                s3TaskEvent.Signal();
+                return;
+            }
             context->type = curve::common::ContextType::S3;
             s3ClientAdaptor_->GetS3Client()->UploadAsync(context);
         };

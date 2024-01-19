@@ -77,7 +77,7 @@ enum FsStatus {
 
 message FsDetail {
     optional common.Volume volume = 1;
-    optional common.S3Info s3Info = 2;
+    optional common.S3Info s3info = 2;
 }
 
 message Mountpoint {
@@ -110,6 +110,16 @@ message FsUsage {
 }
 
 message GetFsInfoResponse {
+    required FSStatusCode statusCode = 1;
+    optional FsInfo fsInfo = 2;
+}
+
+message UpdateS3InfoRequest {
+    required string fsName = 1;
+    required common.S3Info s3Info = 2;
+}
+
+message UpdateS3InfoResponse {
     required FSStatusCode statusCode = 1;
     optional FsInfo fsInfo = 2;
 }
@@ -255,6 +265,7 @@ message TsoResponse {
 service MdsService {
     // fs interface
     rpc CreateFs(CreateFsRequest) returns (CreateFsResponse);
+    rpc UpdateS3Info(UpdateS3InfoRequest) returns (UpdateS3InfoResponse);
     rpc MountFs(MountFsRequest) returns (MountFsResponse);
     rpc UmountFs(UmountFsRequest) returns (UmountFsResponse);
     // TODO(chengyi01): move to GetFssInfo

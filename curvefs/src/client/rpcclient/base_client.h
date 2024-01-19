@@ -76,6 +76,8 @@ using curvefs::mds::FsInfo;
 using curvefs::mds::FsStatus;
 using curvefs::mds::GetFsInfoRequest;
 using curvefs::mds::GetFsInfoResponse;
+using curvefs::mds::UpdateS3InfoRequest;
+using curvefs::mds::UpdateS3InfoResponse;
 using curvefs::mds::MountFsRequest;
 using curvefs::mds::MountFsResponse;
 using curvefs::mds::GetLatestTxIdRequest;
@@ -142,6 +144,12 @@ inline std::ostream& operator<<(std::ostream& os, const InodeParam& p) {
 class MDSBaseClient {
  public:
     virtual ~MDSBaseClient() = default;
+
+    virtual void UpdateS3Info(const std::string& fsName,
+                              const curvefs::common::S3Info& s3Info,
+                              UpdateS3InfoResponse* response,
+                              brpc::Controller* cntl,
+                              brpc::Channel* channel);
 
     virtual void MountFs(const std::string& fsName, const Mountpoint& mountPt,
                          MountFsResponse* response, brpc::Controller* cntl,

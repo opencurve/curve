@@ -43,6 +43,7 @@ namespace metric {
 struct MDSClientMetric {
     static const std::string prefix;
 
+    InterfaceMetric updateS3Info;
     InterfaceMetric mountFs;
     InterfaceMetric umountFs;
     InterfaceMetric getFsInfo;
@@ -61,6 +62,7 @@ struct MDSClientMetric {
     MDSClientMetric()
         : mountFs(prefix, "mountFs"),
           umountFs(prefix, "umountFs"),
+          updateS3Info(prefix, "updateS3Info"),
           getFsInfo(prefix, "getFsInfo"),
           getMetaServerInfo(prefix, "getMetaServerInfo"),
           getMetaServerListInCopysets(prefix, "getMetaServerListInCopysets"),

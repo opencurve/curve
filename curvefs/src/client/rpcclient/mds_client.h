@@ -60,6 +60,7 @@ namespace curvefs {
 namespace client {
 namespace rpcclient {
 
+using curvefs::common::S3Info;
 using curvefs::mds::GetLatestTxIdRequest;
 using curvefs::mds::GetLatestTxIdResponse;
 using curvefs::mds::CommitTxRequest;
@@ -74,6 +75,9 @@ class MdsClient {
 
     virtual FSStatusCode Init(const ::curve::client::MetaServerOption &mdsOpt,
                               MDSBaseClient *baseclient) = 0;
+
+    virtual FSStatusCode UpdateS3Info(const std::string& fsName,
+                                      const S3Info& s3Info, FsInfo* fsInfo) = 0;
 
     virtual FSStatusCode MountFs(const std::string& fsName,
                                  const Mountpoint& mountPt, FsInfo* fsInfo) = 0;
@@ -170,6 +174,9 @@ class MdsClientImpl : public MdsClient {
 
     FSStatusCode Init(const ::curve::client::MetaServerOption &mdsOpt,
                       MDSBaseClient *baseclient) override;
+
+    FSStatusCode UpdateS3Info(const std::string& fsName, const S3Info& s3Info,
+                              FsInfo* fsInfo) override;
 
     FSStatusCode MountFs(const std::string& fsName, const Mountpoint& mountPt,
                          FsInfo* fsInfo) override;

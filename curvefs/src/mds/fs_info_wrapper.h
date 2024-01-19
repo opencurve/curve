@@ -35,6 +35,7 @@ namespace curvefs {
 namespace mds {
 
 using ::curvefs::common::FSType;
+using ::curvefs::common::S3Info;
 
 // A wrapper for proto FsInfo
 class FsInfoWrapper {
@@ -64,6 +65,11 @@ class FsInfoWrapper {
 
     void SetStatus(FsStatus status) {
         fsInfo_.set_status(status);
+    }
+
+    void SetS3Info(S3Info s3info) {
+        FsDetail* fsdetail_ = fsInfo_.mutable_detail();
+        fsdetail_->mutable_s3info()->CopyFrom(s3info);
     }
 
     void SetFsName(const std::string& name) {

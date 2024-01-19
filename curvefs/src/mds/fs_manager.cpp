@@ -598,6 +598,36 @@ FSStatusCode FsManager::DeleteFs(const std::string& fsName) {
     return FSStatusCode::OK;
 }
 
+FSStatusCode FsManager::UpdateS3Info(const std::string& fsName,
+                                     const S3Info& s3Info, FsInfo* fsInfo) {
+    NameLockGuard lock(nameLock_, fsName);
+
+    // query fs
+    FsInfoWrapper wrapper;
+    FSStatusCode ret = fsStorage_->Get(fsName, &wrapper);
+    if (ret != FSStatusCode::OK) {
+        LOG(WARNING) << "UpdateS3Info fail, get fs fail, fsName = " << fsName
+                     << ", errCode = " << FSStatusCode_Name(ret);
+        return ret;
+    }
+
+    // update s3Info
+    wrapper.SetS3Info(s3Info);
+    // for persistence consider
+    ret = fsStorage_->Update(wrapper);
+    if (ret != FSStatusCode::OK) {
+        LOG(WARNING) << "UpdateS3Info fail, update fs fail, fsName = " << fsName
+                     << ", s3Info = " << s3Info.ShortDebugString()
+                     << ", errCode = " << FSStatusCode_Name(ret);
+        return ret;
+    }
+
+    // convert fs info
+    *fsInfo = std::move(wrapper).ProtoFsInfo();
+
+    return FSStatusCode::OK;
+}
+
 FSStatusCode FsManager::MountFs(const std::string& fsName,
                                 const Mountpoint& mountpoint, FsInfo* fsInfo) {
     NameLockGuard lock(nameLock_, fsName);

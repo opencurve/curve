@@ -60,6 +60,39 @@ MdsClientImpl::Init(const ::curve::client::MetaServerOption &mdsOpt,
     [&](int addrindex, uint64_t rpctimeoutMS, brpc::Channel *channel,          \
         brpc::Controller *cntl) -> int
 
+FSStatusCode MdsClientImpl::UpdateS3Info(const std::string& fsName,
+                                         const curvefs::common::S3Info& s3Info,
+                                         FsInfo* fsInfo) {
+    auto task = RPCTask {
+        (void)addrindex;
+        (void)rpctimeoutMS;
+        mdsClientMetric_.updateS3Info.qps.count << 1;
+        LatencyUpdater updater(&mdsClientMetric_.updateS3Info.latency);
+        UpdateS3InfoResponse response;
+        mdsbasecli_->UpdateS3Info(fsName, s3Info, &response, cntl, channel);
+        if (cntl->Failed()) {
+            mdsClientMetric_.updateS3Info.eps.count << 1;
+            LOG(WARNING) << "UpdateS3Info Failed, errorcode = "
+                         << cntl->ErrorCode()
+                         << ", error content:" << cntl->ErrorText()
+                         << ", log id = " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+
+        FSStatusCode ret = response.statuscode();
+        if (ret != FSStatusCode::OK) {
+            LOG(WARNING) << "UpdateS3Info: fsname = " << fsName
+                         << ", s3Info = " << s3Info.ShortDebugString()
+                         << ", errcode = " << ret
+                         << ", errmsg = " << FSStatusCode_Name(ret);
+        } else if (response.has_fsinfo()) {
+            fsInfo->CopyFrom(response.fsinfo());
+        }
+        return ret;
+    };
+    return ReturnError(rpcexcutor_.DoRPCTask(task, mdsOpt_.mdsMaxRetryMS));
+}
+
 FSStatusCode MdsClientImpl::MountFs(const std::string& fsName,
                                     const Mountpoint& mountPt, FsInfo* fsInfo) {
     auto task = RPCTask {
