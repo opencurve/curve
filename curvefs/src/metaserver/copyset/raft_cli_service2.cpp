@@ -175,7 +175,7 @@ void RaftCliService2::GetLeader(google::protobuf::RpcController* controller,
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
-    std::vector<scoped_refptr<braft::NodeImpl>> nodes;
+    std::vector<scoped_refptr<braft::NodeImpl>> nodes;  // braft Node
     braft::NodeManager* const nm = braft::NodeManager::GetInstance();
     GroupId groupId = ToGroupId(request->poolid(), request->copysetid());
 
@@ -187,7 +187,7 @@ void RaftCliService2::GetLeader(google::protobuf::RpcController* controller,
 
     for (size_t i = 0; i < nodes.size(); ++i) {
         braft::PeerId leaderId = nodes[i]->leader_id();
-        if (!leaderId.is_empty()) {
+        if (!leaderId.is_empty()) {   // check LeaderId
             response->mutable_leader()->set_address(leaderId.to_string());
             return;
         }
