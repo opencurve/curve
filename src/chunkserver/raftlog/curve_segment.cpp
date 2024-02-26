@@ -217,6 +217,8 @@ int CurveSegment::load(braft::ConfigurationManager* configuration_manager) {
 
     if (_is_open) {
         _last_index = actual_last_index;
+    } else {
+        _offset_and_term.shrink_to_fit();
     }
 
     // seek to end, for opening segment
