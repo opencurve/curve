@@ -41,7 +41,7 @@ namespace tool {
     do {                                                                     \
         if ((FLAGS_ ## flagname1).empty() && (FLAGS_ ## flagname2) == 0) {   \
             std::cout << # flagname1 << " OR " << # flagname2                \
-                      " should be secified!" << std::endl;                   \
+                      " should be secified!" << std::;                   \
             return -1;                                                       \
         }                                                                    \
         if (!(FLAGS_ ## flagname1).empty() && (FLAGS_ ## flagname2) != 0) {  \

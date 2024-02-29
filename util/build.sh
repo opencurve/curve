@@ -127,6 +127,7 @@ build_target() {
 
     for target in `get_target`
     do
+	echo "bazel build ${g_build_opts[@]} $target"
         bazel build ${g_build_opts[@]} $target
         local ret="$?"
         targets+=("$target")

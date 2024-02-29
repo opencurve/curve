@@ -50,17 +50,21 @@ struct ConcurrentApplyOption {
     int wqueuedepth;
     int rconcurrentsize;
     int rqueuedepth;
+    int dconcurrentsize;
+    int dqueuedepth;
 };
 
-enum class ThreadPoolType {READ, WRITE};
+enum class ThreadPoolType {READ, WRITE, DELETE};
 
 class CURVE_CACHELINE_ALIGNMENT ConcurrentApplyModule {
  public:
     ConcurrentApplyModule(): start_(false),
                              rconcurrentsize_(0),
                              wconcurrentsize_(0),
+                             dconcurrentsize_(0),
                              rqueuedepth_(0),
                              wqueuedepth_(0),
+                             dqueuedepth_(0),
                              cond_(0) {}
     ~ConcurrentApplyModule() {}
 
@@ -89,6 +93,9 @@ class CURVE_CACHELINE_ALIGNMENT ConcurrentApplyModule {
                 break;
             case ThreadPoolType::WRITE:
                 wapplyMap_[Hash(key, wconcurrentsize_)]->tq.Push(task);
+                break;
+            case ThreadPoolType::DELETE:
+                dapplyMap_[Hash(key, dconcurrentsize_)]->tq.Push(task);
                 break;
         }
 
@@ -129,9 +136,12 @@ class CURVE_CACHELINE_ALIGNMENT ConcurrentApplyModule {
     int rqueuedepth_;
     int wconcurrentsize_;
     int wqueuedepth_;
+    int dconcurrentsize_;
+    int dqueuedepth_;
     CountDownEvent cond_;
     CURVE_CACHELINE_ALIGNMENT std::unordered_map<threadIndex, taskthread_t*> wapplyMap_; // NOLINT
     CURVE_CACHELINE_ALIGNMENT std::unordered_map<threadIndex, taskthread_t*> rapplyMap_;   // NOLINT
+    CURVE_CACHELINE_ALIGNMENT std::unordered_map<threadIndex, taskthread_t*> dapplyMap_;   // NOLINT
 };
 }   // namespace concurrent
 }   // namespace chunkserver
