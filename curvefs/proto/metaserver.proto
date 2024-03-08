@@ -239,7 +239,13 @@ message S3ChunkInfo {
     required uint64 offset = 3;  // file offset
     required uint64 len = 4;  // file logic length
     required uint64 size = 5; // file size in object storage
-    required bool zero = 6; //
+    required bool zero = 6;
+
+    message RemoteCacheWorker {
+       required string id;  // identifier of cache worker
+    }
+
+    repeated RemoteCacheWorker cacheWorkers = 7;
 };
 
 message S3ChunkInfoList {

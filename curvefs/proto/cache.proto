@@ -1,0 +1,59 @@
+syntax = "proto2";
+
+enum CacheErrorCode {
+    CACHE_OK = 0;
+    CACHE_FULL = 1;
+    CACHE_NOT_FOUND = 2;
+    CACHE_INTERNAL_ERROR = 3;
+    // ...
+};
+
+message GetObjectRequest {
+    message Range {
+        required uint32 offset = 1;
+        required uint32 len = 2;
+    }
+
+    required string key = 1;   // 对象名
+    optional Range range = 2;  // 读取对象的范围，不设置时获取整个对象
+    optional bool read_through = 3 [default = true];  // 在缓存未命中时，控制是否从对象存储获取
+    optional bool cache_on_worker = 4 [defualt = true];  // 控制在从对象存储获取对象后，是否缓存到worker中
+}
+
+message GetObjectResponse {
+    required CacheErrorCode err_code = 1;
+
+    // 如果成功，数据在controller中的attachment中
+}
+
+message PutObjectRequset {
+    required string key = 1;                      // 对象名
+    optional bool pin = 2 [default = false];      // 是否pin对象
+    optional int64 cache_ttl = 3 [default = -1];  // 缓存的ttl，单位为秒，-1表示不设置ttl
+    optional uint64 upload_deadline = 4 [default = -1];  // 用于写缓存，标记上传的deadline，单位为秒，0表示收到请求后立即上传
+
+    // 数据在controller的attachment中
+}
+
+message PutObjectResponse {
+    required CacheErrorCode err_code = 1;
+}
+
+message RemoveObjectRequest {
+    required string key = 1;
+}
+
+message RemoveObjectResponse {
+    required CacheErrorCode err_code = 1;    
+}
+
+message PinObjectRequest {
+    required string key = 1;
+    required bool pin = 2;   // pin or unpin
+}
+
+message PinObjectResponse {
+    required CacheErrorCode err_code = 1;
+}
+
+// batch version
