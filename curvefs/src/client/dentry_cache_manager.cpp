@@ -63,10 +63,12 @@ CURVEFS_ERROR DentryCacheManagerImpl::GetDentry(uint64_t parent,
     return CURVEFS_ERROR::OK;
 }
 
-CURVEFS_ERROR DentryCacheManagerImpl::CreateDentry(const Dentry &dentry) {
+CURVEFS_ERROR DentryCacheManagerImpl::CreateDentry(const Dentry &dentry,
+                                                   const InodeParam& param,
+                                                   Inode* inode) {
     std::string key = GetDentryCacheKey(dentry.parentinodeid(), dentry.name());
     NameLockGuard lock(nameLock_, key);
-    MetaStatusCode ret = metaClient_->CreateDentry(dentry);
+    MetaStatusCode ret = metaClient_->CreateDentry(dentry, param, inode);
     if (ret != MetaStatusCode::OK) {
         LOG(ERROR) << "metaClient_ CreateDentry failed, MetaStatusCode = "
                    << ret

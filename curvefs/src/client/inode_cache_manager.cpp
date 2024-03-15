@@ -289,6 +289,14 @@ CURVEFS_ERROR InodeCacheManagerImpl::CreateInode(
     return CURVEFS_ERROR::OK;
 }
 
+CURVEFS_ERROR InodeCacheManagerImpl::ConvertInode(Inode inode,
+                                                  std::shared_ptr<InodeWrapper> &out) {
+    out = std::make_shared<InodeWrapper>(inode, metaClient_,
+        s3ChunkInfoMetric_, option_.maxDataSize,
+        option_.refreshDataIntervalSec);
+    return CURVEFS_ERROR::OK;
+}
+
 CURVEFS_ERROR InodeCacheManagerImpl::CreateManageInode(
     const InodeParam &param,
     std::shared_ptr<InodeWrapper> &out) {

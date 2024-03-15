@@ -206,9 +206,9 @@ void S3Adapter::Deinit() {
 void S3Adapter::Shutdown() {
     // one program should only call once
     auto shutdownSDK = [&]() {
-        Aws::ShutdownAPI(AWS_SDK_OPTIONS);
+        // Aws::ShutdownAPI(AWS_SDK_OPTIONS);
     };
-    std::call_once(S3SHUTDOWN_FLAG, shutdownSDK);
+    shutdownSDK();
 }
 
 void S3Adapter::Reinit(const S3AdapterOption& option) {

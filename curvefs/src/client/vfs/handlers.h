@@ -38,19 +38,48 @@ namespace vfs {
 using ::curve::common::Mutex;
 using ::curve::common::LockGuard;
 
-struct FileHandler {
-    FileHandler() : ino(0), offset(0) {}
-    FileHandler(Ino ino, uint64_t offset): ino(ino), offset(offset) {}
+enum HandlerType : uint8_t {
+    DIR = 0,
+    FILE = 1,
+};
 
+struct FileHandler {
+    // for file
+    FileHandler(HandlerType type, Ino ino, uint64_t offset,
+                uint64_t length, uint32_t flags)
+        : type(type),
+          ino(ino),
+          offset(offset),
+          length(length),
+          flags(flags),
+          fh(0),
+          entries(nullptr) {}
+
+    // for directory
+    FileHandler(HandlerType type, Ino ino)
+        : type(type),
+          ino(ino),
+          offset(0),
+          length(0),
+          flags(0),
+          fh(0),
+          entries(nullptr) {}
+
+    HandlerType type;
     Ino ino;
     uint64_t offset;
+    uint64_t length;
+    uint32_t flags;
+
+    uint64_t fh;
+    std::shared_ptr<DirEntryList> entries;
 };
 
 class FileHandlers {
  public:
     FileHandlers();
 
-    uint64_t NextHandler(Ino ino, uint64_t offset);
+    uint64_t NextHandler(const FileHandler& fh);
 
     bool GetHandler(uint64_t fd, std::shared_ptr<FileHandler>* handler);
 

@@ -33,6 +33,7 @@
 #include <utility>
 
 #include "curvefs/src/client/rpcclient/metaserver_client.h"
+#include "curvefs/src/client/rpcclient/base_client.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/concurrent/name_lock.h"
 #include "curvefs/src/client/filesystem/error.h"
@@ -44,6 +45,7 @@ namespace client {
 
 using rpcclient::MetaServerClient;
 using rpcclient::MetaServerClientImpl;
+using rpcclient::InodeParam;
 using ::curvefs::client::filesystem::CURVEFS_ERROR;
 
 static const char* kDentryKeyDelimiter = ":";
@@ -60,7 +62,9 @@ class DentryCacheManager {
     virtual CURVEFS_ERROR GetDentry(uint64_t parent,
         const std::string &name, Dentry *out) = 0;
 
-    virtual CURVEFS_ERROR CreateDentry(const Dentry &dentry) = 0;
+    virtual CURVEFS_ERROR CreateDentry(const Dentry &dentry,
+                                       const InodeParam& param,
+                                       Inode* inode) = 0;
 
     virtual CURVEFS_ERROR DeleteDentry(uint64_t parent,
         const std::string &name,
@@ -86,7 +90,9 @@ class DentryCacheManagerImpl : public DentryCacheManager {
     CURVEFS_ERROR GetDentry(uint64_t parent,
         const std::string &name, Dentry *out) override;
 
-    CURVEFS_ERROR CreateDentry(const Dentry &dentry) override;
+    CURVEFS_ERROR CreateDentry(const Dentry &dentry,
+                               const InodeParam& param,
+                               Inode* inode) override;
 
     CURVEFS_ERROR DeleteDentry(uint64_t parent,
         const std::string &name,

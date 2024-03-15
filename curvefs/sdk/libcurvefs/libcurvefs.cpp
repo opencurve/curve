@@ -21,30 +21,25 @@
  */
 
 #include "curvefs/src/client/filesystem/error.h"
+#include "curvefs/src/client/vfs/meta.h"
 #include "curvefs/sdk/libcurvefs/libcurvefs.h"
 
 using ::curvefs::client::filesystem::CURVEFS_ERROR;
 using ::curvefs::client::filesystem::SysErr;
-using ::curvefs::client::vfs::DirStream;
-using ::curvefs::client::vfs::DirEntry;
+using ::curvefs::client::vfs::File;
+using ::curvefs::client::vfs::Dirent;
 
 static curvefs_mount_t* get_instance(uintptr_t instance_ptr) {
     return reinterpret_cast<curvefs_mount_t*>(instance_ptr);
 }
 
-static void stream_cast(DirStream* stream, dir_stream_t* dir_stream) {
-    dir_stream->fh = stream->fh;
-    dir_stream->ino = stream->ino;
-    dir_stream->offset = stream->offset;
-}
-
-uintptr_t curvefs_create() {
+uintptr_t curvefs_new() {
     auto mount = new curvefs_mount_t();
     mount->cfg = Configure::Default();
     return reinterpret_cast<uintptr_t>(mount);
 }
 
-void curvefs_release(uintptr_t instance_ptr) {
+void curvefs_delete(uintptr_t instance_ptr) {
     auto mount = get_instance(instance_ptr);
     delete mount;
     mount = nullptr;
@@ -94,61 +89,52 @@ int curvefs_rmdir(uintptr_t instance_ptr, const char* path) {
 
 int curvefs_opendir(uintptr_t instance_ptr,
                     const char* path,
-                    dir_stream_t* dir_stream) {
-    DirStream stream;
+                    uint64_t* fd) {
     auto mount = get_instance(instance_ptr);
-    auto rc = mount->vfs->OpenDir(path, &stream);
-    if (rc == CURVEFS_ERROR::OK) {
-        stream_cast(&stream, dir_stream);
-    }
+    auto rc = mount->vfs->OpenDir(path, fd);
     return SysErr(rc);
 }
 
 ssize_t curvefs_readdir(uintptr_t instance_ptr,
-                        dir_stream_t* dir_stream,
-                        dirent_t* dirent) {
-    DirEntry dirEntry;
+                        uint64_t fd,
+                        dirent_t dirents[],
+                        size_t count) {
+    size_t nread = 0;
     auto mount = get_instance(instance_ptr);
-    DirStream* stream = reinterpret_cast<DirStream*>(dir_stream);
-    auto rc = mount->vfs->ReadDir(stream, &dirEntry);
+    auto rc = mount->vfs->ReadDir(
+        fd, reinterpret_cast<Dirent*>(dirents), count, &nread);
     if (rc == CURVEFS_ERROR::OK) {
-        std::string name = dirEntry.name;
-        name.copy(dirent->name, name.size() );
-        dirent->name[name.size()] = '\0';
-        mount->vfs->Attr2Stat(&dirEntry.attr, &dirent->stat);
-        return 1;
+        return nread;
     } else if (rc == CURVEFS_ERROR::END_OF_FILE) {
         return 0;
     }
     return SysErr(rc);
 }
 
-int curvefs_closedir(uintptr_t instance_ptr, dir_stream_t* dir_stream) {
-    DirStream* stream = reinterpret_cast<DirStream*>(dir_stream);
+int curvefs_closedir(uintptr_t instance_ptr, uint64_t fd) {
     auto mount = get_instance(instance_ptr);
-    auto rc = mount->vfs->CloseDir(stream);
+    auto rc = mount->vfs->CloseDir(fd);
+    return SysErr(rc);
+}
+
+int curvefs_create(uintptr_t instance_ptr,
+                   const char* path,
+                   uint16_t mode,
+                   file_t* file) {
+    CURVEFS_ERROR rc;
+    auto mount = get_instance(instance_ptr);
+    rc = mount->vfs->Create(path, mode, reinterpret_cast<File*>(file));
     return SysErr(rc);
 }
 
 int curvefs_open(uintptr_t instance_ptr,
                  const char* path,
                  uint32_t flags,
-                 uint16_t mode) {
+                 file_t* file) {
     CURVEFS_ERROR rc;
     auto mount = get_instance(instance_ptr);
-    if (flags & O_CREAT) {
-        rc = mount->vfs->Create(path, mode);
-        if (rc != CURVEFS_ERROR::OK) {
-            return SysErr(rc);
-        }
-    }
-
-    uint64_t fd = 0;
-    rc = mount->vfs->Open(path, flags, mode, &fd);
-    if (rc != CURVEFS_ERROR::OK) {
-        return SysErr(rc);
-    }
-    return static_cast<int>(fd);
+    rc = mount->vfs->Open(path, flags, reinterpret_cast<File*>(file));
+    return SysErr(rc);
 }
 
 int curvefs_lseek(uintptr_t instance_ptr,
@@ -252,5 +238,17 @@ int curvefs_rename(uintptr_t instance_ptr,
                    const char* newpath) {
     auto mount = get_instance(instance_ptr);
     auto rc = mount->vfs->Rename(oldpath, newpath);
+    return SysErr(rc);
+}
+
+int curvefs_remove(uintptr_t instance_ptr, const char* path) {
+    auto mount = get_instance(instance_ptr);
+    auto rc = mount->vfs->Remove(path);
+    return SysErr(rc);
+}
+
+int curvefs_removeall(uintptr_t instance_ptr, const char* path) {
+    auto mount = get_instance(instance_ptr);
+    auto rc = mount->vfs->RemoveAll(path);
     return SysErr(rc);
 }
