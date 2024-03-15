@@ -2636,7 +2636,7 @@ void FsCacheManager::ReadCacheReleaseExecutor::Stop() {
 FsCacheManager::ReadCacheReleaseExecutor::~ReadCacheReleaseExecutor() {
     Stop();
     t_.join();
-    LOG(INFO) << "ReadCacheReleaseExecutor stopped";
+    VLOG(3) << "ReadCacheReleaseExecutor stopped";
 }
 
 void FsCacheManager::ReadCacheReleaseExecutor::Release(

@@ -92,7 +92,9 @@ class MetaServerClient {
                                       bool onlyDir,
                                       std::list<Dentry> *dentryList) = 0;
 
-    virtual MetaStatusCode CreateDentry(const Dentry &dentry) = 0;
+    virtual MetaStatusCode CreateDentry(const Dentry &dentry,
+                                        const InodeParam& param,
+                                        Inode* inode) = 0;
 
     virtual MetaStatusCode DeleteDentry(uint32_t fsId, uint64_t inodeid,
                                         const std::string &name,
@@ -200,7 +202,9 @@ class MetaServerClientImpl : public MetaServerClient {
                               bool onlyDir,
                               std::list<Dentry> *dentryList) override;
 
-    MetaStatusCode CreateDentry(const Dentry &dentry) override;
+    MetaStatusCode CreateDentry(const Dentry &dentry,
+                                const InodeParam& param,
+                                Inode* inode) override;
 
     MetaStatusCode DeleteDentry(uint32_t fsId, uint64_t inodeid,
                                 const std::string &name,

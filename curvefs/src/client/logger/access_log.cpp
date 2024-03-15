@@ -34,8 +34,13 @@ bool InitAccessLog(const std::string& prefix) {
         return true;
     }
 
-    std::string filename = StrFormat("%s/access.%d.log", prefix, getpid());
-    Logger = spdlog::daily_logger_mt("fuse_access", filename, 0, 0);
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    std::string name = StrFormat("access-%d-%d", now.tv_sec, now.tv_nsec);
+
+    std::string filename = StrFormat("%s/access.%d.%d.log",
+                                     prefix, getpid(), now.tv_sec);
+    Logger = spdlog::daily_logger_mt(name, filename, 0, 0);
     spdlog::flush_every(std::chrono::seconds(1));
     inited = true;
     return true;

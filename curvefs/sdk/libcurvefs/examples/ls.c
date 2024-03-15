@@ -17,17 +17,17 @@ main(int argc, char** argv) {
     }
 
     // opendir
-    dir_stream_t dir_stream;
-    rc = curvefs_opendir(instance, argv[1], &dir_stream);
+    uint64_t fd;
+    rc = curvefs_opendir(instance, argv[1], &fd);
     if (rc != 0) {
         fprintf(stderr, "opendir failed: retcode = %d\n", rc);
         return rc;
     }
 
     // readdir
-    dirent_t dirent;
+    dirent_t dirents[8192];
     for ( ;; ) {
-        ssize_t n = curvefs_readdir(instance, &dir_stream, &dirent);
+        ssize_t n = curvefs_readdir(instance, fd, dirents, 8192);
         if (n < 0) {
             rc = n;
             fprintf(stderr, "readdir failed: retcode = %d\n", rc);
@@ -36,12 +36,14 @@ main(int argc, char** argv) {
             break;
         }
 
-        printf("%s: ino=%d size=%d\n", dirent.name,
-                                       dirent.stat.st_ino,
-                                       dirent.stat.st_size);
+        for (int i = 0; i < n; i++) {
+            printf("%s: ino=%d size=%d\n", dirents[i].name,
+                                           dirents[i].stat.st_ino,
+                                           dirents[i].stat.st_size);
+        }
     }
 
-    rc = curvefs_closedir(instance, &dir_stream);
+    rc = curvefs_closedir(instance, fd);
     if (rc != 0) {
         fprintf(stderr, "closedir failed: retcode = %d\n", rc);
     }

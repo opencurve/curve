@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2023 NetEase Inc.
+ *  Copyright (c) 2024 NetEase Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 /*
  * Project: Curve
- * Created Date: 2023-08-08
+ * Created Date: 2024-03-08
  * Author: Jingli Chen (Wine93)
  */
 

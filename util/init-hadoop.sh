@@ -65,6 +65,11 @@ cat << EOF > "${g_hadoop_etc}"
 </property>
 
 <property>
+<name>curvefs.client.common.logDir</name>
+<value>/tmp</value>
+</property>
+
+<property>
 <name>curvefs.fs.accessLogging</name>
 <value>true</value>
 </property>

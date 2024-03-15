@@ -357,12 +357,29 @@ std::shared_ptr<StreamServer> MetaStoreImpl::GetStreamServer() {
         response->set_statuscode(status);                                      \
         return status;                                                         \
     }
-
-
 // dentry
 MetaStatusCode MetaStoreImpl::CreateDentry(const CreateDentryRequest* request,
                                            CreateDentryResponse* response,
                                            int64_t logIndex) {
+    // create inode
+    uint64_t inodeid;
+    Inode* inode = response->mutable_inode();
+    {
+        CreateInodeRequest req = request->createinoderequest();
+        CreateInodeResponse resp;
+        if (request->has_createinoderequest()) {
+            auto status = CreateInode(&req, &resp, logIndex);
+            if (status != MetaStatusCode::OK) {
+                response->set_statuscode(status);
+                return status;
+            }
+        }
+
+        *inode = resp.inode();
+        inodeid = resp.inode().inodeid();
+    }
+
+    // create dentry
     ReadLockGuard readLockGuard(rwLock_);
     std::shared_ptr<Partition> partition;
     GET_PARTITION_OR_RETURN(partition);
@@ -375,9 +392,17 @@ MetaStatusCode MetaStoreImpl::CreateDentry(const CreateDentryRequest* request,
     Time tm;
     tm.set_sec(now);
     tm.set_nsec(now_ns);
+
+    Dentry dentry = request->dentry();
+    dentry.set_inodeid(inodeid);
+
     MetaStatusCode status =
-        partition->CreateDentry(request->dentry(), tm, logIndex);
+        partition->CreateDentry(dentry, tm, logIndex);
     response->set_statuscode(status);
+
+    LOG(ERROR) << "<<<< inode = " << response->inode().ShortDebugString();
+
+
     return status;
 }
 

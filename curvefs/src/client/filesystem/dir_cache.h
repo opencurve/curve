@@ -59,9 +59,9 @@ class DirEntryList {
 
     void Iterate(IterateHandler handler);
 
-    bool Get(Ino ino, DirEntry* dirEntry);
+    void IterateRange(uint64_t offset, uint64_t count, IterateHandler handler);
 
-    bool At(uint32_t index, DirEntry* dirEntry);
+    bool Get(Ino ino, DirEntry* dirEntry);
 
     bool UpdateAttr(Ino ino, const InodeAttr& attr);
 

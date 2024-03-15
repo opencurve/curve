@@ -8,13 +8,15 @@ build_jni_library() {
     # 1) generate jni native header file
     local maven_repo="/home/${USER}/.m2/repository"
     cd "${g_root}/curvefs/sdk/java/src/main/java"
-    javac -cp "${maven_repo}/org/apache/commons/commons-compress/1.24.0/commons-compress-1.24.0.jar":. \
+    javac -cp "${maven_repo}/org/apache/commons/commons-compress/1.24.0/commons-compress-1.24.0.jar":"${maven_repo}/org/apache/hadoop/hadoop-common/2.7.3/hadoop-common-2.7.3.jar":. \
         -h \
         "${g_root}/curvefs/sdk/java/native/" \
-        io/opencurve/curve/fs/libfs/CurveFSMount.java
+        io/opencurve/curve/fs/libfs/CurveFsMount.java
 
     # 2) build libcurvefs_jni.so
     cd "${g_root}"
+
+    # TODO: --config=gcc7-later
     bazel build \
         --config=gcc7-later \
         --compilation_mode=opt \

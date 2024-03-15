@@ -23,11 +23,7 @@
 
 #include "curvefs/sdk/libcurvefs/libcurvefs.h"
 
-const char* KEY_FSNAME = "CURVEFS_FSNAME";
-const char* KEY_S3_AK = "s3.ak";
-const char* KEY_S3_SK = "s3.sk";
-const char* KEY_S3_ENDPOINT = "s3.endpoint";
-const char* KEY_S3_BUCKET = "s3.bucket_name";
+const char* KEY_FSNAME = "curvefs.name";
 const char* KEY_MDS_ADDRS = "mdsOpt.rpcRetryOpt.addrs";
 
 char*
@@ -42,7 +38,8 @@ require_string(const char* name) {
 
 char*
 get_filesystem_name() {
-    return require_string(KEY_FSNAME);
+    //return require_string(KEY_FSNAME);
+    return "perf02";
 }
 
 char*
@@ -52,12 +49,9 @@ get_mountpoint() {
 
 void
 load_cfg_from_environ(uintptr_t instance) {
-    curvefs_conf_set(instance, KEY_S3_AK, require_string(KEY_S3_AK));
-    curvefs_conf_set(instance, KEY_S3_SK, require_string(KEY_S3_SK));
-    curvefs_conf_set(instance, KEY_S3_ENDPOINT,
-                     require_string(KEY_S3_ENDPOINT));
-    curvefs_conf_set(instance, KEY_S3_BUCKET, require_string(KEY_S3_BUCKET));
-    curvefs_conf_set(instance, KEY_MDS_ADDRS, require_string(KEY_MDS_ADDRS));
+    //curvefs_conf_set(instance, KEY_MDS_ADDRS, require_string(KEY_MDS_ADDRS));
+    curvefs_conf_set(instance, KEY_MDS_ADDRS, "10.221.103.160:6700,10.221.103.160:6701,10.221.103.160:6702");
+    curvefs_conf_set(instance, "client.common.logDir", "/tmp");
     curvefs_conf_set(instance, "fs.accessLogging", "true");
     curvefs_conf_set(instance, "client.loglevel", "6");
     curvefs_conf_set(instance, "diskCache.diskCacheType", "0");

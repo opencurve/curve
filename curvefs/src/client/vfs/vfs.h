@@ -63,19 +63,21 @@ class VFS {
 
     CURVEFS_ERROR RmDir(const std::string& path);
 
-    CURVEFS_ERROR OpenDir(const std::string& path, DirStream* stream);
+    CURVEFS_ERROR OpenDir(const std::string& path, uint64_t* fd);
 
-    CURVEFS_ERROR ReadDir(DirStream* stream, DirEntry* dirEntry);
+    CURVEFS_ERROR ReadDir(uint64_t fd,
+                          Dirent dirents[],
+                          size_t count,
+                          uint64_t* nread);
 
-    CURVEFS_ERROR CloseDir(DirStream* stream);
+    CURVEFS_ERROR CloseDir(uint64_t fd);
 
     // file*
-    CURVEFS_ERROR Create(const std::string& path, uint16_t mode);
+    CURVEFS_ERROR Create(const std::string& path, uint16_t mode, File* file);
 
     CURVEFS_ERROR Open(const std::string& path,
                        uint32_t flags,
-                       uint16_t mode,
-                       uint64_t* fd);
+                       File* file);
 
     CURVEFS_ERROR LSeek(uint64_t fd, uint64_t offset, int whence);
 
@@ -106,6 +108,10 @@ class VFS {
     CURVEFS_ERROR Chmod(const std::string& path, uint16_t mode);
 
     CURVEFS_ERROR Chown(const std::string& path, uint32_t uid, uint32_t gid);
+
+    CURVEFS_ERROR Remove(const std::string& path);
+
+    CURVEFS_ERROR RemoveAll(const std::string& path);
 
     CURVEFS_ERROR Rename(const std::string& oldpath,
                          const std::string& newpath);

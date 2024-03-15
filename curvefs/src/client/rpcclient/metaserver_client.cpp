@@ -237,9 +237,40 @@ MetaStatusCode MetaServerClientImpl::ListDentry(uint32_t fsId, uint64_t inodeid,
     return ConvertToMetaStatusCode(excutor.DoRPCTask());
 }
 
-MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
+namespace {
+    CreateInodeRequest NewCreateInodeRequest(const InodeParam& param,
+                                             uint32_t poolId,
+                                             uint32_t copysetId,
+                                             uint32_t partitionId) {
+        CreateInodeRequest request;
+
+        request.set_poolid(poolId);
+        request.set_copysetid(copysetId);
+        request.set_partitionid(partitionId);
+        request.set_fsid(param.fsId);
+        request.set_length(param.length);
+        request.set_uid(param.uid);
+        request.set_gid(param.gid);
+        request.set_mode(param.mode);
+        request.set_type(param.type);
+        request.set_rdev(param.rdev);
+        request.set_symlink(param.symlink);
+        request.set_parent(param.parent);
+        struct timespec now;
+        clock_gettime(CLOCK_REALTIME, &now);
+        Time *tm = new Time();
+        tm->set_sec(now.tv_sec);
+        tm->set_nsec(now.tv_nsec);
+        request.set_allocated_create(tm);
+        return request;
+    }
+};
+
+MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry &dentry,
+                                                  const InodeParam& param,
+                                                  Inode* inode) {
     auto task = RPCTask {
-        (void)taskExecutorDone;
+        (void) taskExecutorDone;
         metric_.createDentry.qps.count << 1;
         LatencyUpdater updater(&metric_.createDentry.latency);
         CreateDentryResponse response;
@@ -261,6 +292,12 @@ MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
         tm->set_sec(now.tv_sec);
         tm->set_nsec(now.tv_nsec);
         request.set_allocated_create(tm);
+        //auto ignore = NewCreateInodeRequest(param);
+
+        CreateInodeRequest* req = new CreateInodeRequest();
+        *req = NewCreateInodeRequest(param, poolID, copysetID, partitionID);
+        request.set_allocated_createinoderequest(req);
+
         curvefs::metaserver::MetaServerService_Stub stub(channel);
         stub.CreateDentry(cntl, &request, &response, nullptr);
 
@@ -290,6 +327,8 @@ MetaStatusCode MetaServerClientImpl::CreateDentry(const Dentry &dentry) {
                 << (ret == MetaStatusCode::OK ? "success" : "failure")
                 << ", request: " << request.DebugString()
                 << "response: " << response.DebugString();
+
+        *inode = response.inode();
         return ret;
     };
 
