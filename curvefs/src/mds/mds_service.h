@@ -50,6 +50,11 @@ class MdsServiceImpl : public MdsService {
                   CreateFsResponse* response,
                   ::google::protobuf::Closure* done);
 
+    void UpdateS3Info(::google::protobuf::RpcController* controller,
+                      const UpdateS3InfoRequest* request,
+                      UpdateS3InfoResponse* response,
+                      ::google::protobuf::Closure* done);
+
     void MountFs(::google::protobuf::RpcController* controller,
                  const MountFsRequest* request,
                  MountFsResponse* response,

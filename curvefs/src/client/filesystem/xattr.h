@@ -45,6 +45,7 @@ const char XATTR_DIR_RFBYTES[] = "curve.dir.rfbytes";
 const char XATTR_DIR_PREFIX[] = "curve.dir";
 const char XATTR_WARMUP_OP[] = "curvefs.warmup.op";
 const char XATTR_WARMUP_OP_LIST[] = "curvefs.warmup.op.list";
+const char XATTR_S3_CONFIG[] = "curvefs.s3.update.config";
 
 inline bool IsSpecialXAttr(const std::string& key) {
     static std::map<std::string, bool> xattrs {
@@ -67,6 +68,10 @@ inline bool IsWarmupXAttr(const std::string& key) {
 
 inline bool IsListWarmupXAttr(const std::string& key) {
     return key == XATTR_WARMUP_OP_LIST;
+}
+
+inline bool IsS3ConfigXAttr(const std::string& key) {
+    return key == XATTR_S3_CONFIG;
 }
 
 }  // namespace filesystem

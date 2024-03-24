@@ -33,6 +33,7 @@ import (
 
 const (
 	// curvefs
+	CURVEFS_CTRL_FILE            = "__ctrl_file__.tmp"
 	CURVEFS_MDSADDR              = "mdsaddr"
 	VIPER_CURVEFS_MDSADDR        = "curvefs.mdsAddr"
 	CURVEFS_MDSDUMMYADDR         = "mdsdummyaddr"
@@ -658,9 +659,17 @@ func AddS3AkOptionFlag(cmd *cobra.Command) {
 	AddStringOptionFlag(cmd, CURVEFS_S3_AK, "s3 ak")
 }
 
+func GetS3AkOptionFlag(cmd *cobra.Command) string {
+	return GetFlagString(cmd, CURVEFS_S3_AK)
+}
+
 // S3.Sk [option]
 func AddS3SkOptionFlag(cmd *cobra.Command) {
 	AddStringOptionFlag(cmd, CURVEFS_S3_SK, "s3 sk")
+}
+
+func GetS3SkOptionFlag(cmd *cobra.Command) string {
+	return GetFlagString(cmd, CURVEFS_S3_SK)
 }
 
 // S3.Endpoint [option]
@@ -668,9 +677,17 @@ func AddS3EndpointOptionFlag(cmd *cobra.Command) {
 	AddStringOptionFlag(cmd, CURVEFS_S3_ENDPOINT, "s3 endpoint")
 }
 
+func GetS3EndpointOptionFlag(cmd *cobra.Command) string {
+	return GetFlagString(cmd, CURVEFS_S3_ENDPOINT)
+}
+
 // S3.Buckname [option]
 func AddS3BucknameOptionFlag(cmd *cobra.Command) {
 	AddStringOptionFlag(cmd, CURVEFS_S3_BUCKETNAME, "s3 buckname")
+}
+
+func GetS3BucknameOptionFlag(cmd *cobra.Command) string {
+	return GetFlagString(cmd, CURVEFS_S3_BUCKETNAME)
 }
 
 // S3.Blocksize [option]

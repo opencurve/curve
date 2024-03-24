@@ -141,6 +141,37 @@ void MdsServiceImpl::CreateFs(::google::protobuf::RpcController* controller,
               << ", capacity = " << request->capacity();
 }
 
+void MdsServiceImpl::UpdateS3Info(::google::protobuf::RpcController* controller,
+                                  const UpdateS3InfoRequest* request,
+                                  UpdateS3InfoResponse* response,
+                                  ::google::protobuf::Closure* done) {
+    (void)controller;
+    brpc::ClosureGuard doneGuard(done);
+    const std::string &fsName = request->fsname();
+    const curvefs::common::S3Info &s3Info = request->s3info();
+
+    LOG(INFO) << "UpdateS3Info request, fsName = " << fsName
+              << ", s3Info = " << s3Info.ShortDebugString();
+
+    FSStatusCode status =
+        fsManager_->UpdateS3Info(fsName, s3Info, response->mutable_fsinfo());
+
+    if (status != FSStatusCode::OK) {
+        response->clear_fsinfo();
+        response->set_statuscode(status);
+        LOG(ERROR) << "UpdateS3Info fail, fsName = " << fsName
+                   << ", s3Info = " << s3Info.ShortDebugString()
+                   << ", errCode = " << FSStatusCode_Name(status);
+        return;
+    }
+
+    response->set_statuscode(FSStatusCode::OK);
+    LOG(INFO) << "UpdateS3Info success, fsName = " << fsName
+              << ", s3Info in response = "
+              << response->fsinfo().detail().s3info().ShortDebugString()
+              << ", mps = " << response->mutable_fsinfo()->mountpoints_size();
+}
+
 void MdsServiceImpl::MountFs(::google::protobuf::RpcController* controller,
     const MountFsRequest* request, MountFsResponse* response,
     ::google::protobuf::Closure* done) {

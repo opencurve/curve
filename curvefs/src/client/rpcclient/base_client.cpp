@@ -30,6 +30,18 @@ namespace rpcclient {
 using ::curvefs::mds::space::SpaceService_Stub;
 
 
+void MDSBaseClient::UpdateS3Info(const std::string& fsName,
+                                 const curvefs::common::S3Info& s3Info,
+                                 UpdateS3InfoResponse* response,
+                                 brpc::Controller* cntl,
+                                 brpc::Channel* channel) {
+    UpdateS3InfoRequest request;
+    request.set_fsname(fsName);
+    request.mutable_s3info()->CopyFrom(s3Info);
+    curvefs::mds::MdsService_Stub stub(channel);
+    stub.UpdateS3Info(cntl, &request, response, nullptr);
+}
+
 void MDSBaseClient::MountFs(const std::string& fsName,
                             const Mountpoint& mountPt,
                             MountFsResponse* response, brpc::Controller* cntl,

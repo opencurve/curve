@@ -41,6 +41,7 @@ class S3Client {
     S3Client() {}
     virtual ~S3Client() {}
     virtual void Init(const curve::common::S3AdapterOption& option) = 0;
+    virtual void Reinit(const curve::common::S3AdapterOption& option) = 0;
     virtual void Deinit() = 0;
     virtual int Upload(const std::string& name, const char* buf,
                        uint64_t length) = 0;
@@ -65,6 +66,7 @@ class S3ClientImpl : public S3Client {
     }
     virtual ~S3ClientImpl() {}
     void Init(const curve::common::S3AdapterOption& option);
+    void Reinit(const curve::common::S3AdapterOption& option);
     void Deinit();
     int Upload(const std::string& name, const char* buf, uint64_t length);
     void UploadAsync(std::shared_ptr<PutObjectAsyncContext> context);

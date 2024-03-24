@@ -50,6 +50,10 @@ class MockMdsClient : public MdsClient {
                  FSStatusCode(const ::curve::client::MetaServerOption& mdsOpt,
                               MDSBaseClient* baseclient));
 
+    MOCK_METHOD3(UpdateS3Info,
+                 FSStatusCode(const std::string& fsName,
+                              const S3Info& s3Info, FsInfo* fsInfo));
+
     MOCK_METHOD3(MountFs,
                  FSStatusCode(const std::string& fsName,
                               const Mountpoint& mountPt, FsInfo* fsInfo));

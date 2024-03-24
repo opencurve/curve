@@ -68,6 +68,7 @@ using ::curvefs::client::filesystem::EntryOut;
 using ::curvefs::client::filesystem::FileOut;
 using ::curvefs::client::filesystem::IsListWarmupXAttr;
 using ::curvefs::client::filesystem::IsWarmupXAttr;
+using ::curvefs::client::filesystem::IsS3ConfigXAttr;
 using ::curvefs::client::filesystem::StrAttr;
 using ::curvefs::client::filesystem::StrEntry;
 using ::curvefs::client::filesystem::StrMode;
@@ -421,6 +422,78 @@ struct CodeGuard {
 
 FuseClient* Client() {
     return g_ClientInstance;
+}
+
+
+void UpdateS3Config(fuse_req_t req,
+                    fuse_ino_t ino,
+                    const char* name,
+                    const char* value) {
+    auto fs = g_ClientInstance->GetFileSystem();
+
+    if (g_ClientInstance->GetFsInfo()->fstype() != FSType::TYPE_S3) {
+        LOG(ERROR) << "updating s3 config only works for s3";
+        return fs->ReplyError(req, CURVEFS_ERROR::NOT_SUPPORT);
+    }
+
+    const std::string fsName = g_ClientInstance->GetFsInfo()->fsname();
+    const curvefs::common::S3Info oldS3Info =
+        g_ClientInstance->GetFsInfo()->detail().s3info();
+    curvefs::common::S3Info newS3Info(oldS3Info);
+
+    Json::CharReaderBuilder builder;
+    Json::CharReaderBuilder::strictMode(&builder.settings_);
+    std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+    Json::Value rootNode;
+    JSONCPP_STRING errormsg;
+    if (!reader->parse(value, value + strlen(value), &rootNode, &errormsg)) {
+        LOG(ERROR) << "Error parsing the input value ' "
+                   << value
+                   << " ': " << errormsg;
+        return fs->ReplyError(req, CURVEFS_ERROR::IO_ERROR);
+    }
+
+    FuseS3Client* g_S3ClientInstance =
+        dynamic_cast<FuseS3Client*>(g_ClientInstance);
+    if (!g_S3ClientInstance) {
+        LOG(ERROR) << "Dynamic cast from FuseClient to FuseS3Client failed";
+        return fs->ReplyError(req, CURVEFS_ERROR::INTERNAL);
+    }
+
+    if (rootNode.isMember("ak") &&
+        rootNode["ak"].asString() != oldS3Info.ak()) {
+        newS3Info.set_ak(rootNode["ak"].asString());
+    }
+
+    if (rootNode.isMember("sk") &&
+        rootNode["sk"].asString() != oldS3Info.sk()) {
+        newS3Info.set_sk(rootNode["sk"].asString());
+    }
+
+    if (rootNode.isMember("bucketname") &&
+        rootNode["bucketname"].asString() != oldS3Info.bucketname()) {
+        newS3Info.set_bucketname(rootNode["bucketname"].asString());
+    }
+
+    if (rootNode.isMember("endpoint") &&
+        rootNode["endpoint"].asString() != oldS3Info.endpoint()) {
+        newS3Info.set_endpoint(rootNode["endpoint"].asString());
+    }
+
+    if (oldS3Info.SerializeAsString() == newS3Info.SerializeAsString()) {
+        return fs->ReplyError(req, CURVEFS_ERROR::NODATA);
+    }
+
+    FsInfo fsInfo;
+    CURVEFS_ERROR updateStatusCode =
+        g_S3ClientInstance->UpdateS3Info(fsName, newS3Info, &fsInfo);
+    if (updateStatusCode != CURVEFS_ERROR::OK) {
+        return fs->ReplyError(req, updateStatusCode);
+    }
+
+    g_ClientInstance->SetFsInfo(std::make_shared<FsInfo>(fsInfo));
+
+    return fs->ReplyError(req, CURVEFS_ERROR::OK);
 }
 
 void TriggerWarmup(fuse_req_t req,
@@ -921,6 +994,8 @@ void FuseOpSetXattr(fuse_req_t req,
 
     if (IsWarmupXAttr(name)) {
         return TriggerWarmup(req, ino, name, value, size);
+    } else if (IsS3ConfigXAttr(name)) {
+        return UpdateS3Config(req, ino, name, value);
     }
     rc = client->FuseOpSetXattr(req, ino, name, value, size, flags);
     return fs->ReplyError(req, rc);

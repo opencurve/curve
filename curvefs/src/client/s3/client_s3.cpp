@@ -28,6 +28,10 @@ void S3ClientImpl::Init(const curve::common::S3AdapterOption &option) {
     s3Adapter_->Init(option);
 }
 
+void S3ClientImpl::Reinit(const curve::common::S3AdapterOption &option) {
+    s3Adapter_->Reinit(option);
+}
+
 void S3ClientImpl::Deinit() {
     s3Adapter_->Deinit();
 }

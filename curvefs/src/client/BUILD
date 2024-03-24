@@ -92,6 +92,7 @@ cc_library(
         "//external:brpc",
         "//external:gflags",
         "//external:glog",
+        "//external:json",
         "//src/client:curve_client",
         "//src/common:curve_common",
         "//src/common:curve_s3_adapter",

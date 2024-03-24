@@ -59,6 +59,7 @@ enum class CURVEFS_ERROR {
     NOSYS = -20,
     END_OF_FILE = -21,
     NOT_A_DIRECTORY = -22,
+    UPDATE_S3_INFO_FAILED = -23,
 };
 
 std::string StrErr(CURVEFS_ERROR code);

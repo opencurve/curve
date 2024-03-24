@@ -30,6 +30,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <assert.h>
+#include <json/json.h>
 
 #include "curvefs/src/client/fuse_common.h"
 

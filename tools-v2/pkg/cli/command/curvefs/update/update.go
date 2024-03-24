@@ -20,6 +20,7 @@ import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/update/fs"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/update/mds"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/update/s3info"
 	"github.com/spf13/cobra"
 )
 
@@ -33,6 +34,7 @@ func (updateCmd *UpdateCommand) AddSubCommands() {
 	updateCmd.Cmd.AddCommand(
 		fs.NewFsCommand(),
 		mds.NewMdsCommand(),
+		s3info.NewUpdateCommand(),
 	)
 }
 

@@ -389,6 +389,35 @@ CURVEFS_ERROR FuseS3Client::Truncate(InodeWrapper *inode, uint64_t length) {
     return s3Adaptor_->Truncate(inode, length);
 }
 
+CURVEFS_ERROR FuseS3Client::UpdateS3Info(const std::string& fsName,
+                                         const curvefs::common::S3Info& s3Info,
+                                         FsInfo* fsInfo) {
+    ::curve::common::S3InfoOption s3InfoOption;
+    ::curvefs::client::common::S3Info2FsS3Option(s3Info, &s3InfoOption);
+    FSStatusCode updateStatusCode =
+        mdsClient_->UpdateS3Info(fsName, s3Info, fsInfo);
+    if (updateStatusCode != FSStatusCode::OK) {
+        LOG(ERROR) << "Update s3 info error code: (FSStatusCode)"
+                   << updateStatusCode;
+        return CURVEFS_ERROR::UPDATE_S3_INFO_FAILED;
+    }
+
+    if (option_.s3Opt.s3AdaptrOpt.ak != s3Info.ak() ||
+        option_.s3Opt.s3AdaptrOpt.sk != s3Info.sk() ||
+        option_.s3Opt.s3AdaptrOpt.s3Address != s3Info.endpoint() ||
+        option_.s3Opt.s3AdaptrOpt.bucketName != s3Info.bucketname()) {
+
+        option_.s3Opt.s3AdaptrOpt.s3Address = s3Info.endpoint();
+        option_.s3Opt.s3AdaptrOpt.ak = s3Info.ak();
+        option_.s3Opt.s3AdaptrOpt.sk = s3Info.sk();
+        option_.s3Opt.s3AdaptrOpt.bucketName = s3Info.bucketname();
+
+        s3Adaptor_->GetS3Client()->Reinit(option_.s3Opt.s3AdaptrOpt);
+    }
+
+    return CURVEFS_ERROR::OK;
+}
+
 CURVEFS_ERROR FuseS3Client::FuseOpFlush(fuse_req_t req, fuse_ino_t ino,
                                         struct fuse_file_info *fi) {
     (void)req;

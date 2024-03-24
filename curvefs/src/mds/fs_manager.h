@@ -62,10 +62,11 @@ using ::curve::common::Atomic;
 using ::curve::common::InterruptibleSleeper;
 using ::curve::common::S3Adapter;
 using ::curve::common::Thread;
+
+using ::curvefs::common::S3Info;
 using ::curvefs::mds::topology::PartitionTxId;
 using ::curvefs::mds::topology::Topology;
 using ::curvefs::mds::topology::TopologyManager;
-
 using ::curvefs::mds::dlock::DLock;
 using ::curvefs::mds::Mountpoint;
 
@@ -125,6 +126,20 @@ class FsManager {
      *         else return error code
      */
     FSStatusCode DeleteFs(const std::string& fsName);
+
+    /**
+     * @brief Update s3 info and return the update fs info that includes
+     * updated s3 info.
+     *
+     * @param[in]  fsName: fsname of fs
+     * @param[in]  s3Info: fsInfo
+     * @param[out] fsInfo: return the fsInfo
+     *
+     * @return If success return OK;
+     *         else return error code
+     */
+    FSStatusCode UpdateS3Info(const std::string& fsName,
+                              const S3Info& s3Info, FsInfo* fsInfo);
 
     /**
      * @brief Mount fs, mount point can not repeat. It will increate
