@@ -82,6 +82,7 @@ void TrashManager::Remove(uint32_t partitionId) {
         LOG(INFO) << "Remove partition from trash manager, partitionId = "
                   << partitionId;
         it->second->StopScan();
+        it->second->RemoveDeleteNode();
         trashs_.erase(it);
     } else {
         LOG(INFO) << "Remove partition from trash manager, "

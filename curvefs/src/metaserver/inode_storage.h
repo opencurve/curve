@@ -87,6 +87,8 @@ class InodeStorage {
 
     MetaStatusCode RemoveDeletedInode(const Key4Inode& key);
 
+    MetaStatusCode RemoveAllDeletedInode();
+
     void LoadDeletedInodes(std::map<std::string, uint64_t> * inodes);
 
     /**

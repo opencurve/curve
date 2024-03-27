@@ -255,6 +255,17 @@ void InodeStorage::LoadDeletedInodes(std::map<std::string, uint64_t> * inodes) {
     VLOG(6) << "load deleted over";
 }
 
+MetaStatusCode InodeStorage::RemoveAllDeletedInode() {
+    VLOG(6) << "remove all deleted key start with: " << table4DelInode_;
+    auto s = kvStorage_->HClear(table4DelInode_);
+    if (s.ok()) {
+       VLOG(6) << "remove all deleted key over";
+       return MetaStatusCode::OK;
+    }
+    LOG(ERROR) << "remove all deleted key failed, status = " << s.ToString();
+    return MetaStatusCode::STORAGE_INTERNAL_ERROR;
+}
+
 MetaStatusCode InodeStorage::Get(const Key4Inode& key, Inode* inode) {
     ReadLockGuard lg(rwLock_);
     std::string skey = conv_.SerializeToString(key);

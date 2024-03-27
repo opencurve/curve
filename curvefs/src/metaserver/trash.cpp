@@ -152,6 +152,10 @@ void TrashImpl::RemoveDeletedInode(uint64_t inodeId) {
     }
 }
 
+void TrashImpl::RemoveDeleteNode() {
+    inodeStorage_->RemoveAllDeletedInode();
+}
+
 bool TrashImpl::NeedDelete(uint64_t dtime) {
     // for compatibility, if fs recycleTimeHour is 0, use old trash logic
     // if fs recycleTimeHour is 0, use trash wait until expiredAfterSec
