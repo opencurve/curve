@@ -25,6 +25,7 @@
 #include <aws/core/Aws.h>                                 //NOLINT
 #include <aws/core/auth/AWSCredentialsProvider.h>         //NOLINT
 #include <aws/core/client/ClientConfiguration.h>          //NOLINT
+#include <aws/core/client/DefaultRetryStrategy.h>         //NOLINT
 #include <aws/core/http/HttpRequest.h>                    //NOLINT
 #include <aws/core/http/Scheme.h>                         //NOLINT
 #include <aws/core/utils/memory/AWSMemory.h>              //NOLINT
@@ -69,6 +70,9 @@ struct GetObjectAsyncContext;
 struct PutObjectAsyncContext;
 class S3Adapter;
 
+const char STANDARD_MODE[] = "standard";
+const char DEFAULT_MODE[] = "default";
+const char DISABLE_MODE[] = "disable";
 struct S3AdapterOption {
     std::string ak;
     std::string sk;
@@ -92,6 +96,9 @@ struct S3AdapterOption {
     uint64_t bpsReadMB;
     uint64_t bpsWriteMB;
     bool useVirtualAddressing;
+    std::string retryMode;
+    int maxRetries;
+    int scaleFactor;
 };
 
 struct S3InfoOption {

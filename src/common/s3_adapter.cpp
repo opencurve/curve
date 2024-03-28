@@ -107,6 +107,26 @@ void InitS3AdaptorOptionExceptS3InfoOption(Configuration* conf,
         &s3Opt->useVirtualAddressing));
     LOG_IF(FATAL, !conf->GetStringValue("s3.region", &s3Opt->region));
 
+    if (!conf->GetStringValue("s3.retryMode", &s3Opt->retryMode)) {
+        LOG(WARNING) << "Not found s3.retryMode in conf";
+        s3Opt->retryMode = DEFAULT_MODE;
+    }
+    if (!conf->GetIntValue("s3.maxRetries", &s3Opt->maxRetries) ||
+        s3Opt->maxRetries < 0) {
+        LOG(WARNING) << "Not found s3.maxRetries in conf";
+        if (s3Opt->retryMode == DEFAULT_MODE) {
+            s3Opt->maxRetries = 10;
+        } else if (s3Opt->retryMode == STANDARD_MODE) {
+            s3Opt->maxRetries = 2;
+        }
+    }
+    if (!conf->GetIntValue("s3.scaleFactor", &s3Opt->scaleFactor) ||
+        s3Opt->scaleFactor < 0) {
+        LOG(WARNING) << "Not found s3.scaleFactor in conf";
+        if (s3Opt->retryMode == DEFAULT_MODE) {
+            s3Opt->scaleFactor = 25;
+        }
+    }
     if (!conf->GetUInt64Value("s3.maxAsyncRequestInflightBytes",
                               &s3Opt->maxAsyncRequestInflightBytes)) {
         LOG(WARNING) << "Not found s3.maxAsyncRequestInflightBytes in conf";
@@ -156,6 +176,22 @@ void S3Adapter::Init(const S3AdapterOption &option) {
     clientCfg_->connectTimeoutMs = option.connectTimeout;
     clientCfg_->requestTimeoutMs = option.requestTimeout;
     clientCfg_->endpointOverride = s3Address_;
+
+    if (option.retryMode == STANDARD_MODE) {
+        clientCfg_->retryStrategy =
+            Aws::MakeShared<Aws::Client::StandardRetryStrategy>(
+                AWS_ALLOCATE_TAG, option.maxRetries + 1);
+    } else if (option.retryMode == DEFAULT_MODE) {
+        clientCfg_->retryStrategy =
+            Aws::MakeShared<Aws::Client::DefaultRetryStrategy>(
+                AWS_ALLOCATE_TAG, option.maxRetries,
+                option.scaleFactor);
+    } else if (option.retryMode == DISABLE_MODE) {
+        clientCfg_->retryStrategy =
+            Aws::MakeShared<Aws::Client::DefaultRetryStrategy>(
+                AWS_ALLOCATE_TAG, 0);
+    }
+
     auto asyncThreadNum = option.asyncThreadNum;
     LOG(INFO) << "S3Adapter init thread num = " << asyncThreadNum << std::endl;
     clientCfg_->executor =
