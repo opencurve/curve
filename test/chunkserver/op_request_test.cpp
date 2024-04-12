@@ -391,6 +391,7 @@ TEST(ChunkOpRequestTest, OnApplyErrorTest) {
     std::shared_ptr<FakeCSDataStore> dataStore =
         std::make_shared<FakeCSDataStore>(options, fs);
     nodePtr->SetCSDateStore(dataStore);
+    nodePtr->on_leader_start(1);
 
     // write data store error will cause fatal, so not test in here
 
@@ -591,6 +592,106 @@ TEST(ChunkOpRequestTest, OnApplyErrorTest) {
         ASSERT_DEATH(opReq->OnApply(appliedIndex, &done), "");
         delete opReq;
         delete cntl;
+    }
+    // write: data store no space
+    {
+        ChunkRequest request;
+        ChunkResponse response;
+        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_WRITE);
+        request.set_logicpoolid(logicPoolId);
+        request.set_copysetid(copysetId);
+        request.set_chunkid(chunkId);
+        request.set_offset(offset);
+        request.set_size(size);
+        request.set_sn(sn);
+        brpc::Controller *cntl = new brpc::Controller();
+        ChunkOpRequest *opReq = new WriteChunkRequest(nodePtr,
+                                                      cntl,
+                                                      &request,
+                                                      &response,
+                                                      nullptr);
+        dataStore->InjectError(curve::chunkserver::NoSpaceError);
+        OpFakeClosure done;
+        opReq->OnApply(appliedIndex, &done);
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_NOSPACE,
+                  response.status());
+        delete opReq;
+        delete cntl;
+    }
+    // paste: data store no space
+    {
+        ChunkRequest request;
+        ChunkResponse response;
+        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_PASTE);
+        request.set_logicpoolid(logicPoolId);
+        request.set_copysetid(copysetId);
+        request.set_chunkid(chunkId);
+        request.set_offset(offset);
+        request.set_size(size);
+        request.set_sn(sn);
+        ChunkOpRequest *opReq = new PasteChunkInternalRequest(nodePtr,
+                                                      &request,
+                                                      &response,
+                                                      nullptr,
+                                                      nullptr);
+        dataStore->InjectError(curve::chunkserver::NoSpaceError);
+        OpFakeClosure done;
+        opReq->OnApply(appliedIndex, &done);
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_NOSPACE,
+                  response.status());
+        delete opReq;
+    }
+    // write: data store readonly
+    {
+        ChunkRequest request;
+        ChunkResponse response;
+        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_WRITE);
+        request.set_logicpoolid(logicPoolId);
+        request.set_copysetid(copysetId);
+        request.set_chunkid(chunkId);
+        request.set_offset(offset);
+        request.set_size(size);
+        request.set_sn(sn);
+        dataStore->SetEnoughChunk(false);
+        brpc::Controller *cntl = new brpc::Controller();
+        ChunkOpRequest *opReq = new WriteChunkRequest(nodePtr,
+                                                      cntl,
+                                                      &request,
+                                                      &response,
+                                                      nullptr);
+        OpFakeClosure done;
+        opReq->Process();
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_READONLY,
+                  response.status());
+        delete opReq;
+        delete cntl;
+        dataStore->SetEnoughChunk(true);
+    }
+    // paste: data store readonly
+    {
+        ChunkRequest request;
+        ChunkResponse response;
+        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_PASTE);
+        request.set_logicpoolid(logicPoolId);
+        request.set_copysetid(copysetId);
+        request.set_chunkid(chunkId);
+        request.set_offset(offset);
+        request.set_size(size);
+        request.set_sn(sn);
+        dataStore->SetEnoughChunk(false);
+        brpc::Controller *cntl = new brpc::Controller();
+        ChunkOpRequest *opReq = new WriteChunkRequest(nodePtr,
+                                                      cntl,
+                                                      &request,
+                                                      &response,
+                                                      nullptr);
+        OpFakeClosure done;
+        opReq->Process();
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_READONLY,
+                  response.status());
+        delete opReq;
+        delete cntl;
+        dataStore->SetEnoughChunk(true);
     }
     // write: backward request
     {

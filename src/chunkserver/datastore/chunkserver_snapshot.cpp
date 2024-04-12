@@ -20,6 +20,7 @@
  * Author: yangyaokai
  */
 
+#include <errno.h>
 #include <memory>
 #include "src/chunkserver/datastore/chunkserver_datastore.h"
 #include "src/chunkserver/datastore/chunkserver_snapshot.h"
@@ -154,7 +155,8 @@ CSErrorCode CSSnapshot::Open(bool createFile) {
         if (ret != 0) {
             LOG(ERROR) << "Error occured when create snapshot."
                    << " filepath = " << snapshotPath;
-            return CSErrorCode::InternalError;
+            return ret == -ENOSPC ? CSErrorCode::NoSpaceError :
+             CSErrorCode::InternalError;
         }
     }
     int rc = lfs_->Open(snapshotPath, O_RDWR|O_NOATIME|O_DSYNC);
@@ -216,7 +218,8 @@ CSErrorCode CSSnapshot::Write(const char * buf, off_t offset, size_t length) {
         LOG(ERROR) << "Write snapshot failed."
                    << "ChunkID: " << chunkId_
                    << ",snapshot sn: " << metaPage_.sn;
-        return CSErrorCode::InternalError;
+        return rc == -ENOSPC ? CSErrorCode::NoSpaceError :
+         CSErrorCode::InternalError;
     }
     uint32_t pageBeginIndex = offset / blockSize_;
     uint32_t pageEndIndex = (offset + length - 1) / blockSize_;

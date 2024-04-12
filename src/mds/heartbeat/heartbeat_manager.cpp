@@ -36,6 +36,7 @@ using ::curve::mds::topology::UNINTIALIZE_ID;
 using ::curve::mds::topology::ChunkServerStatus;
 using ::curve::mds::topology::ChunkServerStat;
 using ::curve::mds::topology::CopysetStat;
+using ::curve::mds::topology::CopySetFilter;
 using ::curve::mds::topology::SplitPeerId;
 
 namespace curve {
@@ -100,13 +101,34 @@ void HeartbeatManager::UpdateChunkServerDiskStatus(
     const ChunkServerHeartbeatRequest &request) {
     // update ChunkServerState status (disk status)
     ChunkServerState state;
-    if (request.diskstate().errtype() != 0) {
+    curve::mds::heartbeat::ErrorType errType = request.diskstate().errtype();
+
+    if (errType == curve::mds::heartbeat::DISKFULL) {
+        // When the chunkserver disk is close to full, copyset availflag
+        // needs to be set to false to prevent new space from being
+        // allocated from these copysets.
+        CopySetFilter filter = [](const curve::mds::topology::CopySetInfo &cs) {
+           return cs.IsAvailable();
+        };
+        std::vector<CopySetKey> keys = topology_->GetCopySetsInChunkServer(
+            request.chunkserverid(), filter);
+        for (auto key : keys) {
+            topology_->SetCopySetAvalFlag(key, false);
+        }
+        // If disk error is set, the copyset will not be migrated to
+        // this chunkserver.
+        state.SetDiskState(curve::mds::topology::DISKFULL);
+        LOG(ERROR) << "heartbeat report disk full error, "
+                   << "diskused = " << request.diskused()
+                   << "capacity = " << request.diskcapacity()
+                   << "chunkserverid =" << request.chunkserverid();
+    } else if (errType == curve::mds::heartbeat::NORMAL) {
+        state.SetDiskState(curve::mds::topology::DISKNORMAL);
+    } else {
         state.SetDiskState(curve::mds::topology::DISKERROR);
         LOG(ERROR) << "heartbeat report disk error, "
                    << "errortype = " << request.diskstate().errtype()
                    << "errmsg = " << request.diskstate().errmsg();
-    } else {
-        state.SetDiskState(curve::mds::topology::DISKNORMAL);
     }
 
     state.SetDiskCapacity(request.diskcapacity());

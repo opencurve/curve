@@ -52,6 +52,9 @@ namespace chunkserver {
 DEFINE_bool(raftSyncSegments, true, "call fsync when a segment is closed");
 DEFINE_bool(enableWalDirectWrite, true, "enable wal direct write or not");
 DEFINE_uint32(walAlignSize, 4096, "wal align size to write");
+DEFINE_uint32(waitForDiskFreedIntervalMs, 60000,
+              "wait for retry time when disk space is insufficient");
+
 
 int CurveSegment::create() {
     if (!_is_open) {
@@ -65,11 +68,20 @@ int CurveSegment::create() {
     char* metaPage = new char[_meta_page_size];
     memset(metaPage, 0, _meta_page_size);
     memcpy(metaPage, &_meta.bytes, sizeof(_meta.bytes));
-    int res = _walFilePool->GetFile(path, metaPage);
-    delete[] metaPage;
-    if (res != 0) {
-        LOG(ERROR) << "Get segment from chunk file pool fail!";
-        return -1;
+    int res;
+    while (true) {
+        int res = _walFilePool->GetFile(path, metaPage);
+        if (res == -ENOSPC) {
+            bthread_usleep(FLAGS_waitForDiskFreedIntervalMs);
+            continue;
+        }
+
+        delete[] metaPage;
+        if (res != 0) {
+            LOG(ERROR) << "Get segment from chunk file pool fail!";
+            return -1;
+        }
+        break;
     }
     _fd = ::open(path.c_str(), O_RDWR|O_NOATIME, 0644);
     if (_fd >= 0) {

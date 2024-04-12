@@ -503,6 +503,9 @@ void ChunkServer::InitChunkFilePoolOptions(
     LOG_IF(FATAL, !conf->GetBoolValue(
         "chunkfilepool.enable_get_chunk_from_pool",
         &chunkFilePoolOptions->getFileFromPool));
+    LOG_IF(FATAL, !conf->GetUInt32Value(
+        "chunkfilepool.chunk_reserved",
+        &chunkFilePoolOptions->chunkReserved));
 
     if (chunkFilePoolOptions->getFileFromPool == false) {
         std::string chunkFilePoolUri;
@@ -710,6 +713,9 @@ void ChunkServer::InitCopysetNodeOptions(
         LOG_IF(FATAL, !conf->GetUInt32Value("copyset.sync_trigger_seconds",
                 &copysetNodeOptions->syncTriggerSeconds));
     }
+    LOG_IF(FATAL, !conf->GetUInt32Value(
+        "copyset.wait_for_disk_freed_interval_ms",
+        &copysetNodeOptions->waitForDiskFreedIntervalMs));
 }
 
 void ChunkServer::InitCopyerOptions(
@@ -781,6 +787,9 @@ void ChunkServer::InitHeartbeatOptions(
         &heartbeatOptions->intervalSec));
     LOG_IF(FATAL, !conf->GetUInt32Value("mds.heartbeat_timeout",
         &heartbeatOptions->timeout));
+    LOG_IF(FATAL, !conf->GetUInt32Value(
+        "chunkfilepool.disk_usage_percent_limit",
+        &heartbeatOptions->chunkserverDiskLimit));
 }
 
 void ChunkServer::InitRegisterOptions(

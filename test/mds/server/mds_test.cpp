@@ -181,7 +181,7 @@ TEST_F(MDSTest, common) {
     request1.set_ip("127.0.0.1");
     request1.set_port(8888);
     heartbeat::DiskState *diskState = new heartbeat::DiskState();
-    diskState->set_errtype(0);
+    diskState->set_errtype(curve::mds::heartbeat::NORMAL);
     diskState->set_errmsg("");
     request1.set_allocated_diskstate(diskState);
     request1.set_diskcapacity(2ull * 1024 * 1024 * 1024);

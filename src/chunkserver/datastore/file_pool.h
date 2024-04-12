@@ -71,6 +71,7 @@ struct FilePoolOptions {
     uint32_t preAllocateNum;
     uint64_t filePoolSize;
     uint32_t formatThreadNum;
+    uint32_t chunkReserved;
 
     std::string copysetDir;
     std::string recycleDir;
@@ -94,6 +95,7 @@ struct FilePoolOptions {
         formatThreadNum = 1;
         ::memset(metaPath, 0, 256);
         ::memset(filePoolDir, 0, 256);
+        chunkReserved = 0;
     }
 };
 
@@ -219,6 +221,10 @@ class CURVE_CACHELINE_ALIGNMENT FilePool {
      */
     virtual size_t Size();
     /**
+     * Returns whether there is enough chunk space
+     */
+    virtual bool EnoughChunk();
+    /**
      * Get the allocation status of FilePool
      */
     virtual FilePoolState GetState() const;
@@ -289,9 +295,9 @@ class CURVE_CACHELINE_ALIGNMENT FilePool {
      * Perform metapage assignment for the new chunkfile
      * @param: sourcepath is the file path to be written
      * @param: page is the metapage information to be written
-     * @return: returns true if successful, otherwise false
+     * @return: return 0 if successful, otherwise return less than 0
      */
-    bool WriteMetaPage(const std::string& sourcepath, const char* page);
+    int WriteMetaPage(const std::string& sourcepath, const char* page);
     /**
      * Directly allocate chunks, not from FilePool
      * @param: chunkpath is the path of the chunk file in the datastore
@@ -304,9 +310,9 @@ class CURVE_CACHELINE_ALIGNMENT FilePool {
      * @param needClean: Whether need the zeroed chunk
      * @param chunkid: The return chunk's id
      * @param isCleaned: Whether the return chunk is zeroed
-     * @return: Return false if there is no valid chunk, else return true
+     * @return: return 0 if successful, otherwise return less than 0
      */
-    bool GetChunk(bool needClean, uint64_t* chunkid, bool* isCleaned);
+    int GetChunk(bool needClean, uint64_t* chunkid, bool* isCleaned);
 
     /**
      * @brief: Zeroing specify chunk file
@@ -314,9 +320,9 @@ class CURVE_CACHELINE_ALIGNMENT FilePool {
      * @param onlyMarked: Use fallocate() to zeroing chunk file 
      *                    if onlyMarked is ture, otherwise 
      *                    write all bytes in chunk to zero
-     * @return: Return true if success, else return false
+     * @return: return 0 if successful, otherwise return less than 0
      */
-    bool CleanChunk(uint64_t chunkid, bool onlyMarked);
+    int CleanChunk(uint64_t chunkid, bool onlyMarked);
 
     /**
      * @brief: Clean chunk one by one

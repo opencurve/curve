@@ -238,7 +238,7 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
      */
     curve::mds::heartbeat::DiskState* diskState =
                     new curve::mds::heartbeat::DiskState();
-    diskState->set_errtype(0);
+    diskState->set_errtype(curve::mds::heartbeat::NORMAL);
     diskState->set_errmsg("");
     req->set_allocated_diskstate(diskState);
 
@@ -294,6 +294,12 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
     }
     req->set_diskcapacity(cap);
     req->set_diskused(cap - avail);
+
+    if (options_.chunkserverDiskLimit > 0 &&
+        req->diskused() * 100 / cap > options_.chunkserverDiskLimit) {
+        diskState->set_errtype(curve::mds::heartbeat::DISKFULL);
+        diskState->set_errmsg("Disk near full");
+    }
 
     std::vector<CopysetNodePtr> copysets;
     copysetMan_->GetAllCopysetNodes(&copysets);
