@@ -98,7 +98,7 @@ message ZoneData {
 
 message ServerData {
     required uint32 serverId = 1;
-    required string hostName = 2;
+    optional string hostName = 2;
     required string internalHostIP = 3;
     required uint32 internalPort = 4;
     required string externalHostIP = 5;
@@ -231,7 +231,7 @@ message SetChunkServerStatusResponse {
 //server message
 message ServerInfo {
     required uint32 serverID = 1;
-    required string hostName = 2;
+    optional string hostName = 2;
     required string internalIp = 3;
     required uint32 internalPort = 4;
     required string externalIp = 5;
@@ -244,7 +244,7 @@ message ServerInfo {
 }
 
 message ServerRegistRequest {
-    required string hostName = 1;
+    optional string hostName = 1;
     required string internalIp = 2; // for internal uses(between mds & chunkserver)
     optional uint32 internalPort = 3;
     required string externalIp = 4; // for client use (read & write & snapshot and so on)
