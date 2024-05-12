@@ -55,13 +55,13 @@ var _ basecmd.RpcFunc = (*ListLogicalPoolRpc)(nil) // check interface
 
 type LogicalPoolCommand struct {
 	basecmd.FinalCurveCmd
-	Rpc              []*ListLogicalPoolRpc
-	Metric           *basecmd.Metric
-	recycleAllocRes  *nameserver2.GetAllocatedSizeResponse
-	logicalPoolInfo  []*topology.ListLogicalPoolResponse
-	totalCapacity    uint64
-	allocatedSize    uint64
-	recycleAllocSize uint64
+	Rpc             []*ListLogicalPoolRpc
+	Metric          *basecmd.Metric
+	recycleAllocRes *nameserver2.GetAllocatedSizeResponse
+	logicalPoolInfo []*topology.ListLogicalPoolResponse
+	capacity        []uint64 // capacity for each logicalpool
+	allocated       []uint64 // allocated for each logicalpool
+	recyclable      []uint64 // recyclable for each logicalpool
 }
 
 var _ basecmd.FinalCurveCmdFunc = (*LogicalPoolCommand)(nil) // check interface
@@ -134,7 +134,6 @@ func (lCmd *LogicalPoolCommand) Init(cmd *cobra.Command, args []string) error {
 		return err.ToError()
 	}
 	lCmd.recycleAllocRes = res
-	lCmd.recycleAllocSize = res.GetAllocatedSize()
 	return nil
 }
 
@@ -180,7 +179,7 @@ func (lCmd *LogicalPoolCommand) RunCommand(cmd *cobra.Command, args []string) er
 			}
 			row[cobrautil.ROW_TOTAL] = humanize.IBytes(value)
 			total = value
-			lCmd.totalCapacity += value
+			lCmd.capacity = append(lCmd.capacity, value)
 
 			// alloc size
 			metricName = cobrautil.GetPoolLogicalAllocSubUri(loPoolInfo.GetLogicalPoolName())
@@ -190,11 +189,12 @@ func (lCmd *LogicalPoolCommand) RunCommand(cmd *cobra.Command, args []string) er
 			}
 			row[cobrautil.ROW_USED] = humanize.IBytes(value)
 			row[cobrautil.ROW_LEFT] = humanize.IBytes(total - value)
-			lCmd.allocatedSize += value
+			lCmd.allocated = append(lCmd.allocated, value)
 
 			// recycle
 			recycle := lCmd.recycleAllocRes.AllocSizeMap[loPoolInfo.GetLogicalPoolID()]
 			row[cobrautil.ROW_RECYCLE] = humanize.IBytes(recycle)
+			lCmd.recyclable = append(lCmd.recyclable, recycle)
 			rows = append(rows, row)
 		}
 	}
@@ -232,7 +232,7 @@ func (lCmd *LogicalPoolCommand) queryMetric(metricName string) (uint64, *cmderro
 	}
 }
 
-func ListLogicalPoolInfoAndAllocSize(caller *cobra.Command) ([]*topology.ListLogicalPoolResponse, uint64, uint64, uint64, *cmderror.CmdError) {
+func ListLogicalPoolInfoAndAllocSize(caller *cobra.Command) ([]*topology.ListLogicalPoolResponse, []uint64, []uint64, []uint64, *cmderror.CmdError) {
 	listCmd := NewListLogicalPoolCommand()
 	config.AlignFlagsValue(caller, listCmd.Cmd, []string{
 		config.CURVEBS_MDSADDR, config.RPCRETRYTIMES, config.RPCTIMEOUT,
@@ -244,7 +244,7 @@ func ListLogicalPoolInfoAndAllocSize(caller *cobra.Command) ([]*topology.ListLog
 	if err != nil {
 		retErr := cmderror.ErrBsListLogicalPoolInfo()
 		retErr.Format(err.Error())
-		return nil, 0, 0, 0, retErr
+		return nil, nil, nil, nil, retErr
 	}
-	return listCmd.logicalPoolInfo, listCmd.totalCapacity, listCmd.allocatedSize, listCmd.recycleAllocSize, cmderror.Success()
+	return listCmd.logicalPoolInfo, listCmd.capacity, listCmd.allocated, listCmd.recyclable, cmderror.Success()
 }

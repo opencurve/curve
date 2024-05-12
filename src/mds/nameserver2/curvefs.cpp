@@ -512,9 +512,9 @@ StatusCode CurveFS::GetDirAllocSize(const std::string& fileName,
     return StatusCode::kOK;
 }
 
-StatusCode CurveFS::GetFileSize(const std::string& fileName, uint64_t* size) {
-    assert(size != nullptr);
-    *size = 0;
+StatusCode CurveFS::GetFileSize(const std::string& fileName,
+                                std::map<std::string, uint64_t>* fileSizeMap) {
+    assert(fileSizeMap != nullptr);
     FileInfo fileInfo;
     auto ret = GetFileInfo(fileName, &fileInfo);
     if (ret != StatusCode::kOK) {
@@ -527,21 +527,24 @@ StatusCode CurveFS::GetFileSize(const std::string& fileName, uint64_t* size) {
                    << fileInfo.filetype() << ", fileName = " << fileName;
         return StatusCode::kNotSupported;
     }
-    return GetFileSize(fileName, fileInfo, size);
+    return GetFileSize(fileName, fileInfo, fileSizeMap);
 }
 
 StatusCode CurveFS::GetFileSize(const std::string& fileName,
                                 const FileInfo& fileInfo,
-                                uint64_t* fileSize) {
+                                std::map<std::string, uint64_t>* fileSizeMap) {
     // return file length if it is a file
     switch (fileInfo.filetype()) {
         case FileType::INODE_PAGEFILE: {
-            *fileSize = fileInfo.length();
+            if (fileInfo.has_poolset()) {
+                (*fileSizeMap)[fileInfo.poolset()] += fileInfo.length();
+            } else {
+                (*fileSizeMap)[kDefaultPoolsetName] += fileInfo.length();
+            }
             return StatusCode::kOK;
         }
         case FileType::INODE_SNAPSHOT_PAGEFILE: {
             // Do not count snapshot file size, set fileSize=0
-            *fileSize = 0;
             return StatusCode::kOK;
         }
         case FileType::INODE_DIRECTORY: {
@@ -569,14 +572,12 @@ StatusCode CurveFS::GetFileSize(const std::string& fileName,
         } else {
             fullPathName = fileName + "/" + file.filename();
         }
-        uint64_t size = 0;
-        ret = GetFileSize(fullPathName, file, &size);
+        ret = GetFileSize(fullPathName, file, fileSizeMap);
         if (ret != StatusCode::kOK) {
             LOG(ERROR) << "Get file size of " << fullPathName
                        << " fail, error code: " << ret;
             return ret;
         }
-        *fileSize += size;
     }
     return StatusCode::kOK;
 }

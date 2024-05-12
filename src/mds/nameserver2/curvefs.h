@@ -187,10 +187,11 @@ class CurveFS {
     /**
      *  @brief get size of the file or directory
      *  @brief fileName
-     *  @param[out]: size: the fileLength of the file or directory
+     *  @param[out]: fileSizeMap: total file size of corresponding poolset
      *  @return StatusCode::kOK if succeeded
      */
-    StatusCode GetFileSize(const std::string& fileName, uint64_t* size);
+    StatusCode GetFileSize(const std::string& fileName,
+                           std::map<std::string, uint64_t>* fileSizeMap);
 
     /**
      *  @brief delete file
@@ -764,12 +765,12 @@ class CurveFS {
      *  @brief get the size of file or directory
      *  @param: fileName
      *  @param: fileInfo
-     *  @param[out]: fileSize: the size of file or directory
+     *  @param[out]: fileSizeMap: total file size of corresponding poolset
      *  @return StatusCode::kOK if succeeded
      */
     StatusCode GetFileSize(const std::string& fileName,
                            const FileInfo& fileInfo,
-                           uint64_t* fileSize);
+                           std::map<std::string, uint64_t>* fileSizeMap);
 
     /**
      *  @brief check file has rely dest file

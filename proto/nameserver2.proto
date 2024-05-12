@@ -539,12 +539,15 @@ message GetAllocatedSizeResponse {
 
 message GetFileSizeRequest {
     required string fileName = 1;
+    optional bool groupByPoolset = 2 [default = false];
 }
 
 message GetFileSizeResponse {
     required StatusCode statusCode = 1;
     // 文件或目录的file length
     optional uint64 fileSize = 2;
+    // key is poolset name and value is total file size on this poolset
+    map<string, uint64> fileSizeMap = 3;
 }
 
 message ClientInfo {

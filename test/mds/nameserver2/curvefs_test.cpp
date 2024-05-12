@@ -1221,8 +1221,17 @@ TEST_F(CurveFSTest, testGetAllocatedSize) {
     }
 }
 
+namespace {
+uint64_t TotalSize(const std::map<std::string, uint64_t>& fileSizeMap) {
+    uint64_t total = 0;
+    for (const auto& p : fileSizeMap) {
+        total += p.second;
+    }
+    return total;
+}
+}  // namespace
+
 TEST_F(CurveFSTest, testGetFileSize) {
-    uint64_t fileSize;
     FileInfo  fileInfo;
     fileInfo.set_id(0);
     fileInfo.set_filetype(FileType::INODE_PAGEFILE);
@@ -1234,9 +1243,10 @@ TEST_F(CurveFSTest, testGetFileSize) {
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
             Return(StoreStatus::OK)));
+        std::map<std::string, uint64_t> fileSizeMap;
         ASSERT_EQ(StatusCode::kOK,
-                    curvefs_->GetFileSize("/tests", &fileSize));
-        ASSERT_EQ(10 * kGB, fileSize);
+                    curvefs_->GetFileSize("/tests", &fileSizeMap));
+        ASSERT_EQ(10 * kGB, TotalSize(fileSizeMap));
     }
     // test directory normal
     {
@@ -1254,17 +1264,19 @@ TEST_F(CurveFSTest, testGetFileSize) {
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(files),
                         Return(StoreStatus::OK)));
+        std::map<std::string, uint64_t> fileSizeMap;
         ASSERT_EQ(StatusCode::kOK,
-                    curvefs_->GetFileSize("/tests", &fileSize));
-        ASSERT_EQ(30 * kGB, fileSize);
+                    curvefs_->GetFileSize("/tests", &fileSizeMap));
+        ASSERT_EQ(30 * kGB, TotalSize(fileSizeMap));
     }
     // test GetFile fail
     {
         EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::KeyNotExist));
+        std::map<std::string, uint64_t> fileSizeMap;
         ASSERT_EQ(StatusCode::kFileNotExists,
-                    curvefs_->GetFileSize("/tests", &fileSize));
+                    curvefs_->GetFileSize("/tests", &fileSizeMap));
     }
     // test file type not supported
     {
@@ -1274,8 +1286,9 @@ TEST_F(CurveFSTest, testGetFileSize) {
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(appendFileInfo),
             Return(StoreStatus::OK)));
+        std::map<std::string, uint64_t> fileSizeMap;
         ASSERT_EQ(StatusCode::kNotSupported,
-                    curvefs_->GetFileSize("/tests", &fileSize));
+                    curvefs_->GetFileSize("/tests", &fileSizeMap));
     }
     // test list directory fail
     {
@@ -1288,9 +1301,80 @@ TEST_F(CurveFSTest, testGetFileSize) {
         EXPECT_CALL(*storage_, ListFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::InternalError));
+        std::map<std::string, uint64_t> fileSizeMap;
         ASSERT_EQ(StatusCode::kStorageError,
-                    curvefs_->GetFileSize("/tests", &fileSize));
+                    curvefs_->GetFileSize("/tests", &fileSizeMap));
     }
+}
+
+TEST_F(CurveFSTest, testGetFileSizeGroupByPoolset) {
+    // /
+    // ├──A (no poolset info)
+    // └──B
+    //    ├── C (poolset a)
+    //    ├── D (poolset b)
+    //    └── E (poolset a)
+    FileInfo root;
+    root.set_id(0);
+    root.set_filename("/");
+    root.set_filetype(FileType::INODE_DIRECTORY);
+
+    FileInfo fileInfoA;
+    fileInfoA.set_id(1);
+    fileInfoA.set_filename("A");
+    fileInfoA.set_filetype(FileType::INODE_PAGEFILE);
+    fileInfoA.set_length(10 * kGB);
+
+    FileInfo dirB;
+    dirB.set_id(2);
+    dirB.set_filename("B");
+    dirB.set_filetype(FileType::INODE_DIRECTORY);
+
+    FileInfo fileInfoC;
+    fileInfoC.set_id(3);
+    fileInfoC.set_filename("C");
+    fileInfoC.set_filetype(FileType::INODE_PAGEFILE);
+    fileInfoC.set_length(10 * kGB);
+    fileInfoC.set_poolset("poolset-a");
+
+    FileInfo fileInfoD;
+    fileInfoD.set_id(4);
+    fileInfoD.set_filename("D");
+    fileInfoD.set_filetype(FileType::INODE_PAGEFILE);
+    fileInfoD.set_length(15 * kGB);
+    fileInfoD.set_poolset("poolset-b");
+
+    FileInfo fileInfoE;
+    fileInfoE.set_id(5);
+    fileInfoE.set_filename("E");
+    fileInfoE.set_filetype(FileType::INODE_PAGEFILE);
+    fileInfoE.set_length(20 * kGB);
+    fileInfoE.set_poolset("poolset-a");
+
+    EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(root), Return(StoreStatus::OK)));
+
+    std::vector<FileInfo> listRootResults;
+    listRootResults.push_back(fileInfoA);
+    listRootResults.push_back(dirB);
+
+    std::vector<FileInfo> listDirBResults;
+    listDirBResults.push_back(fileInfoC);
+    listDirBResults.push_back(fileInfoD);
+    listDirBResults.push_back(fileInfoE);
+
+    EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .WillOnce(
+            DoAll(SetArgPointee<2>(listRootResults), Return(StoreStatus::OK)))
+        .WillOnce(
+            DoAll(SetArgPointee<2>(listDirBResults), Return(StoreStatus::OK)));
+
+    std::map<std::string, uint64_t> fileSizeMap;
+    ASSERT_EQ(StatusCode::kOK, curvefs_->GetFileSize("/", &fileSizeMap));
+    ASSERT_EQ(3, fileSizeMap.size());
+    ASSERT_EQ(10 * kGB, fileSizeMap[kDefaultPoolsetName]);
+    ASSERT_EQ(30 * kGB, fileSizeMap["poolset-a"]);
+    ASSERT_EQ(15 * kGB, fileSizeMap["poolset-b"]);
 }
 
 TEST_F(CurveFSTest, testReadDir) {
