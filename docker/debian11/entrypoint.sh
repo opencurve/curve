@@ -9,6 +9,8 @@ g_prefix=""
 g_preexec="/curvebs/tools-v2/sbin/daemon"
 g_binary=""
 g_start_args=""
+g_disk=""
+disk_mount_point=/curvebs/chunkserver/data
 
 ############################  BASIC FUNCTIONS
 function msg() {
@@ -30,15 +32,17 @@ function usage () {
 Usage:
     entrypoint.sh --role=ROLE
     entrypoint.sh --role=ROLE --args=ARGS
+    entrypoint.sh --role=ROLE --args=ARGS --disk=DISKUUID
 
 Examples:
     entrypoint.sh --role=etcd
     entrypoint.sh --role=client --args="-o default_permissions"
+    entrypoint.sh --role=chunkserver --args="raftSnapshotUri=curve:///curvebs/chunkserver/data/copysets..." --disk=UUID=39de3b63-ec32-47de-bfa0-e1d6917853da
 _EOC_
 }
 
 function get_options() {
-    local long_opts="role:,args:,help"
+    local long_opts="role:,args:,disk:,help"
     local args=`getopt -o ra --long $long_opts -n "$0" -- "$@"`
     eval set -- "${args}"
     while true
@@ -50,6 +54,10 @@ function get_options() {
                 ;;
             -a|--args)
                 g_args=$2
+                shift 2
+                ;;
+            -d|--disk)
+                g_disk=$2
                 shift 2
                 ;;
             -h)
@@ -81,6 +89,11 @@ function prepare() {
             g_start_args="--confPath $conf_path"
             ;;
         chunkserver)
+            if [ "$g_disk" ]; then
+                [[ ! -d $disk_mount_point ]] && die "mount point $disk_mount_point does not exist.\n"
+                mount -o rw,errors=remount-ro $g_disk $disk_mount_point
+                [[ $? -ne 0 ]] && die "mount disk device $g_disk to $disk_mount_point failed.\n"
+            fi
             g_binary="$g_prefix/sbin/curvebs-chunkserver"
             g_start_args="--conf=$conf_path"
             ;;
