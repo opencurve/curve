@@ -46,9 +46,7 @@ namespace client {
 class KVClientManager;
 struct SetKVCacheTask;
 struct GetKVCacheTask;
-
-class GetKvCacheContext;
-class SetKvCacheContext;
+struct ExistKVCacheTask;
 
 using curve::common::GetObjectAsyncContext;
 using curve::common::TaskThreadPool;
@@ -58,6 +56,8 @@ using SetKVCacheDone =
     std::function<void(const std::shared_ptr<SetKVCacheTask>&)>;
 using GetKVCacheDone =
     std::function<void(const std::shared_ptr<GetKVCacheTask>&)>;
+using ExistKVCacheDone =
+    std::function<void(const std::shared_ptr<ExistKVCacheTask>&)>;
 
 struct SetKVCacheTask {
     std::string key;
@@ -79,7 +79,7 @@ struct SetKVCacheTask {
 };
 
 struct GetKVCacheTask {
-    const std::string& key;
+    std::string key;
     char* value;
     uint64_t offset;
     uint64_t valueLength;
@@ -101,11 +101,21 @@ struct GetKVCacheTask {
           timer(butil::Timer::STARTED) {}
 };
 
-using GetKvCacheCallBack =
-    std::function<void(const std::shared_ptr<GetKvCacheContext>&)>;
+struct ExistKVCacheTask {
+    std::string key;
+    bool res;
+    uint64_t length = 0;  // useless,just for OnReturn
+    ExistKVCacheDone done;
+    butil::Timer timer;
 
-using SetKvCacheCallBack =
-    std::function<void(const std::shared_ptr<SetKvCacheContext>&)>;
+    explicit ExistKVCacheTask(
+        const std::string& k,
+        ExistKVCacheDone done = [](const std::shared_ptr<ExistKVCacheTask>&) {})
+        : key(k),
+          res(false),
+          done(std::move(done)),
+          timer(butil::Timer::STARTED) {}
+};
 
 struct KvCacheContext {
     std::string key;
@@ -115,17 +125,6 @@ struct KvCacheContext {
     uint64_t chunkIndex;
     uint64_t chunkPos;
     uint64_t startTime;
-};
-
-struct GetKvCacheContext : KvCacheContext {
-    char* value;
-    bool res;
-    GetKvCacheCallBack cb;
-};
-
-struct SetKvCacheContext : KvCacheContext {
-    const char* value;
-    SetKvCacheCallBack cb;
 };
 
 class KVClientManager {
@@ -145,6 +144,8 @@ class KVClientManager {
     void Set(std::shared_ptr<SetKVCacheTask> task);
 
     void Get(std::shared_ptr<GetKVCacheTask> task);
+
+    void Exist(std::shared_ptr<ExistKVCacheTask> task);
 
     KVClientManagerMetric* GetMetricForTesting() {
         return kvClientManagerMetric_.get();

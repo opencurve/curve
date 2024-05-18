@@ -26,6 +26,7 @@ import (
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/warmup/add"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/warmup/cancel"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/warmup/check"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/warmup/list"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvefs/warmup/query"
 	"github.com/spf13/cobra"
@@ -43,6 +44,7 @@ func (warmupCmd *WarmupCommand) AddSubCommands() {
 		query.NewQueryCommand(),
 		cancel.NewCancelCommand(),
 		list.NewListCommand(),
+		check.NewCheckCommand(),
 	)
 }
 

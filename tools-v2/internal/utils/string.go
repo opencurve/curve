@@ -195,3 +195,12 @@ func StringList2Uint32List(strList []string) ([]uint32, error) {
 	}
 	return retList, nil
 }
+
+func IsNumeric(s string) bool {
+	for _, r := range s {
+		if !IsDigit(r) {
+			return false
+		}
+	}
+	return true
+}

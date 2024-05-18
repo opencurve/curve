@@ -323,6 +323,7 @@ struct KVClientManagerMetric {
     std::string fsName;
     InterfaceMetric get;
     InterfaceMetric set;
+    InterfaceMetric exist;
     // kvcache count
     bvar::Adder<uint64_t> count;
     // kvcache hit
@@ -339,6 +340,7 @@ struct KVClientManagerMetric {
                                : prefix + curve::common::ToHexString(this)),
           get(prefix, fsName + "_get"),
           set(prefix, fsName + "_set"),
+          exist(prefix, fsName + "_exist"),
           count(prefix, fsName + "_count"),
           hit(prefix, fsName + "_hit"),
           miss(prefix, fsName + "_miss"),
@@ -352,12 +354,14 @@ struct MemcacheClientMetric {
     std::string fsName;
     InterfaceMetric get;
     InterfaceMetric set;
+    InterfaceMetric exist;
 
     explicit MemcacheClientMetric(const std::string& name = "")
         : fsName(!name.empty() ? name
                                : prefix + curve::common::ToHexString(this)),
           get(prefix, fsName + "_get"),
-          set(prefix, fsName + "_set") {}
+          set(prefix, fsName + "_set"),
+          exist(prefix, fsName + "_exist"){}
 };
 
 struct S3ChunkInfoMetric {

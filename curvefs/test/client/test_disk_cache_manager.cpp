@@ -397,19 +397,19 @@ TEST_F(TestDiskCacheManager, TrimRun_1) {
 }
 
 TEST_F(TestDiskCacheManager, TrimCache_2) {
-    struct statfs stat;
-    stat.f_frsize = 1;
-    stat.f_blocks = 1;
-    stat.f_bfree = 0;
-    stat.f_bavail = 0;
+    struct statfs stat1;
+    stat1.f_frsize = 1;
+    stat1.f_blocks = 1;
+    stat1.f_bfree = 0;
+    stat1.f_bavail = 0;
+    struct statfs stat2;
+    stat2.f_frsize = 1;
+    stat2.f_blocks = 1;
+    stat2.f_bfree = 2;
+    stat2.f_bavail = 101;
     EXPECT_CALL(*wrapper, statfs(NotNull(), _))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(stat), Return(0)));
-    stat.f_frsize = 1;
-    stat.f_blocks = 1;
-    stat.f_bfree = 2;
-    stat.f_bavail = 101;
-    EXPECT_CALL(*wrapper, statfs(NotNull(), _))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(stat), Return(0)));
+        .WillOnce(DoAll(SetArgPointee<1>(stat1), Return(0)))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(stat2), Return(0)));
     std::string buf = "test";
     EXPECT_CALL(*diskCacheWrite_, GetCacheIoFullDir())
         .WillRepeatedly(Return(buf));
@@ -419,7 +419,8 @@ TEST_F(TestDiskCacheManager, TrimCache_2) {
     option.diskCacheOpt.cacheDir = "/tmp";
     option.diskCacheOpt.trimCheckIntervalSec = 1;
     option.objectPrefix = 0;
-    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull())).WillOnce(Return(-1));
+    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
+        .WillRepeatedly(Return(-1));
     EXPECT_CALL(*wrapper, mkdir(_, _)).WillOnce(Return(-1));
     diskCacheManager_->Init(client_, option);
     diskCacheManager_->InitMetrics("test", s3Metric_);
@@ -430,19 +431,19 @@ TEST_F(TestDiskCacheManager, TrimCache_2) {
 }
 
 TEST_F(TestDiskCacheManager, TrimCache_4) {
-    struct statfs stat;
-    stat.f_frsize = 1;
-    stat.f_blocks = 1;
-    stat.f_bfree = 0;
-    stat.f_bavail = 0;
+    struct statfs stat1;
+    stat1.f_frsize = 1;
+    stat1.f_blocks = 1;
+    stat1.f_bfree = 0;
+    stat1.f_bavail = 0;
+    struct statfs stat2;
+    stat2.f_frsize = 1;
+    stat2.f_blocks = 1;
+    stat2.f_bfree = 2;
+    stat2.f_bavail = 101;
     EXPECT_CALL(*wrapper, statfs(NotNull(), _))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(stat), Return(0)));
-    stat.f_frsize = 1;
-    stat.f_blocks = 1;
-    stat.f_bfree = 2;
-    stat.f_bavail = 101;
-    EXPECT_CALL(*wrapper, statfs(NotNull(), _))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(stat), Return(0)));
+        .WillOnce(DoAll(SetArgPointee<1>(stat1), Return(0)))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(stat2), Return(0)));
     std::string buf = "test";
     EXPECT_CALL(*diskCacheWrite_, GetCacheIoFullDir())
         .WillRepeatedly(Return(buf));
@@ -454,7 +455,8 @@ TEST_F(TestDiskCacheManager, TrimCache_4) {
     S3ClientAdaptorOption option;
     option.diskCacheOpt.cacheDir = "/tmp";
     option.diskCacheOpt.trimCheckIntervalSec = 1;
-    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull())).WillOnce(Return(-1));
+    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
+        .WillRepeatedly(Return(-1));
     EXPECT_CALL(*wrapper, mkdir(_, _)).WillOnce(Return(-1));
     option.objectPrefix = 0;
     diskCacheManager_->Init(client_, option);
@@ -466,19 +468,19 @@ TEST_F(TestDiskCacheManager, TrimCache_4) {
 }
 
 TEST_F(TestDiskCacheManager, TrimCache_5) {
-    struct statfs stat;
-    stat.f_frsize = 1;
-    stat.f_blocks = 1;
-    stat.f_bfree = 0;
-    stat.f_bavail = 0;
+    struct statfs stat1;
+    stat1.f_frsize = 1;
+    stat1.f_blocks = 1;
+    stat1.f_bfree = 0;
+    stat1.f_bavail = 0;
+    struct statfs stat2;
+    stat2.f_frsize = 1;
+    stat2.f_blocks = 1;
+    stat2.f_bfree = 2;
+    stat2.f_bavail = 101;
     EXPECT_CALL(*wrapper, statfs(NotNull(), _))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(stat), Return(0)));
-    stat.f_frsize = 1;
-    stat.f_blocks = 1;
-    stat.f_bfree = 2;
-    stat.f_bavail = 101;
-    EXPECT_CALL(*wrapper, statfs(NotNull(), _))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(stat), Return(0)));
+        .WillOnce(DoAll(SetArgPointee<1>(stat1), Return(0)))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(stat2), Return(0)));
 
     std::string buf = "test";
     EXPECT_CALL(*diskCacheWrite_, GetCacheIoFullDir())
@@ -492,7 +494,8 @@ TEST_F(TestDiskCacheManager, TrimCache_5) {
     option.diskCacheOpt.cacheDir = "/tmp";
     option.diskCacheOpt.trimCheckIntervalSec = 1;
     option.objectPrefix = 0;
-    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull())).WillOnce(Return(-1));
+    EXPECT_CALL(*wrapper, stat(NotNull(), NotNull()))
+        .WillRepeatedly(Return(-1));
     EXPECT_CALL(*wrapper, mkdir(_, _)).WillOnce(Return(-1));
     diskCacheManager_->Init(client_, option);
     diskCacheManager_->InitMetrics("test", s3Metric_);

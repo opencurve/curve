@@ -24,6 +24,7 @@
 
 #include <libmemcached-1.0/types/return.h>
 
+#include <cstdint>
 #include <string>
 
 namespace curvefs {
@@ -54,6 +55,8 @@ class KVClient {
     virtual bool Get(const std::string& key, char* value, uint64_t offset,
                      uint64_t length, std::string* errorlog,
                      uint64_t* actLength, memcached_return_t* retCod) = 0;
+
+    virtual bool Exist(const std::string& key) = 0;
 };
 
 }  // namespace client
