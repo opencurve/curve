@@ -153,7 +153,7 @@ int DiskCacheManagerImpl::WriteReadDirect(const std::string fileName,
     if (!diskCacheManager_->IsDiskUsedInited() ||
       diskCacheManager_->IsDiskCacheFull()) {
         VLOG(6) << "write disk file fail, disk full.";
-        return -1;
+        return 0;
     }
     int ret = diskCacheManager_->WriteReadDirect(fileName, buf, length);
     if (ret < 0) {
