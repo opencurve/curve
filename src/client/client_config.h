@@ -48,9 +48,24 @@ class ClientConfig {
 
     uint16_t GetDummyserverStartPort();
 
+    uint64_t GetStripeUnit() const {
+        return stripeUnit_;
+    }
+
+    uint64_t GetStripeCount() const {
+        return stripeCount_;
+    }
+
  private:
     FileServiceOption fileServiceOption_;
     common::Configuration conf_;
+
+    // TODO: if cinder use old-version client but want stripe-volume feature,
+    // you can add this parameter in the configuration file.
+    // But this is not an elegant approach; it would be better if Cinder
+    // could be upgraded to accommodate this.
+    uint64_t stripeUnit_ = 0;
+    uint64_t stripeCount_ = 0;
 };
 
 }  // namespace client

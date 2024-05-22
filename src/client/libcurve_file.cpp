@@ -308,6 +308,12 @@ int FileClient::Create(const std::string& filename,
         ctx.user = userinfo;
         ctx.length = size;
 
+        if (clientconfig_.GetStripeUnit() > 0 &&
+            clientconfig_.GetStripeCount() > 0) {
+          ctx.stripeUnit = clientconfig_.GetStripeUnit();
+          ctx.stripeCount = clientconfig_.GetStripeCount();
+        }
+
         ret = mdsClient_->CreateFile(ctx);
         LOG_IF(ERROR, ret != LIBCURVE_ERROR::OK)
             << "Create file failed, filename: " << filename << ", ret: " << ret;
