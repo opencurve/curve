@@ -287,6 +287,14 @@ int ClientConfig::Init(const std::string& configpath) {
     LOG_IF(WARNING, ret = false)
         << "config no csBroadCasterOpt.broadCastMaxNum info";
 
+    ret = conf_.GetUInt64Value("create.file.stripeUnit",
+        &stripeUnit_);
+    LOG_IF(WARNING, ret = false) << "config no create.file.stripeUnit info";
+
+    ret = conf_.GetUInt64Value("create.file.stripeCount",
+        &stripeCount_);
+    LOG_IF(WARNING, ret = false) << "config no create.file.stripeCount info";
+
     return 0;
 }
 
