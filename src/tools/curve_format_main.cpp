@@ -248,6 +248,7 @@ int main(int argc, char** argv) {
     tmpChunkSet_.insert(tmpvec.begin(), tmpvec.end());
     uint64_t size = tmpChunkSet_.size() ? atoi((*(--tmpChunkSet_.end())).c_str()) : 0;          // NOLINT
     allocateChunknum_.store(size + 1);
+    LOG(ERROR) << "allocateChunknum_ = " << allocateChunknum_.load();
 
     FileSystemInfo finfo;
     int r = fsptr->Statfs(FLAGS_fileSystemPath, &finfo);
@@ -257,7 +258,7 @@ int main(int argc, char** argv) {
     }
 
     uint64_t freepercent = finfo.available * 100 / finfo.total;
-    LOG(INFO) << "free space = " << finfo.available
+    LOG(ERROR) << "free space = " << finfo.available
               << ", total space = " << finfo.total
               << ", freepercent = " << freepercent;
 

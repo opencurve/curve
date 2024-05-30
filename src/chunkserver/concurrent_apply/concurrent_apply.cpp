@@ -43,9 +43,10 @@ bool ConcurrentApplyModule::Init(const ConcurrentApplyOption &opt) {
     }
 
     start_ = true;
-    cond_.Reset(opt.rconcurrentsize + opt.wconcurrentsize);
+    cond_.Reset(opt.rconcurrentsize + opt.wconcurrentsize + opt.wconcurrentsize);
     InitThreadPool(ThreadPoolType::READ, rconcurrentsize_, rqueuedepth_);
     InitThreadPool(ThreadPoolType::WRITE, wconcurrentsize_, wqueuedepth_);
+    InitThreadPool(ThreadPoolType::DELETE, dconcurrentsize_, dqueuedepth_);
 
     if (!cond_.WaitFor(5000)) {
         LOG(ERROR) << "init concurrent module's threads fail";
@@ -72,6 +73,8 @@ bool ConcurrentApplyModule::checkOptAndInit(
     wqueuedepth_ = opt.wqueuedepth;
     rconcurrentsize_ = opt.rconcurrentsize;
     rqueuedepth_ = opt.rqueuedepth;
+    dconcurrentsize_ = opt.wconcurrentsize;
+    dqueuedepth_ = opt.wqueuedepth;
 
     return true;
 }
@@ -91,6 +94,10 @@ void ConcurrentApplyModule::InitThreadPool(
         case ThreadPoolType::WRITE:
             wapplyMap_.insert(std::make_pair(i, asyncth));
             break;
+
+        case ThreadPoolType::DELETE:
+            dapplyMap_.insert(std::make_pair(i, asyncth));
+            break;
         }
     }
 
@@ -103,6 +110,11 @@ void ConcurrentApplyModule::InitThreadPool(
 
         case ThreadPoolType::WRITE:
             wapplyMap_[i]->th =
+                std::thread(&ConcurrentApplyModule::Run, this, type, i);
+            break;
+
+        case ThreadPoolType::DELETE:
+            dapplyMap_[i]->th =
                 std::thread(&ConcurrentApplyModule::Run, this, type, i);
             break;
         }
@@ -119,6 +131,10 @@ void ConcurrentApplyModule::Run(ThreadPoolType type, int index) {
 
         case ThreadPoolType::WRITE:
             wapplyMap_[index]->tq.Pop()();
+            break;
+
+        case ThreadPoolType::DELETE:
+            dapplyMap_[index]->tq.Pop()();
             break;
         }
     }
@@ -142,6 +158,13 @@ void ConcurrentApplyModule::Stop() {
     }
     wapplyMap_.clear();
 
+    for (auto iter : dapplyMap_) {
+        iter.second->tq.Push(wakeup);
+        iter.second->th.join();
+        delete iter.second;
+    }
+    dapplyMap_.clear();
+
     LOG(INFO) << "stop ConcurrentApplyModule ok.";
 }
 
@@ -163,8 +186,10 @@ ThreadPoolType ConcurrentApplyModule::Schedule(CHUNK_OP_TYPE optype) {
     case CHUNK_OP_READ:
     case CHUNK_OP_RECOVER:
         return ThreadPoolType::READ;
-    default:
+    case CHUNK_OP_WRITE:
         return ThreadPoolType::WRITE;
+    default:
+        return ThreadPoolType::DELETE;
     }
 }
 }   // namespace concurrent
