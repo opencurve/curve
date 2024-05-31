@@ -57,6 +57,8 @@ static const char* kHelpStr = "Usage: curve_ops_tool [Command] [OPTIONS...]\n"
         "check-copyset : check the health state of one copyset\n"
         "check-server : check the health state of the server\n"
         "check-operator : check the operators\n"
+        "update-chunkserver: update chunkserver in&ex ip\n\n"
+        "update-server: update server in&ex ip\n\n"
         "list-may-broken-vol: list all volumes on majority offline copysets\n"
         "rapid-leader-schedule: rapid leader schedule in cluster in logicalpool\n\n"  //NOLINT
         "list-poolsets: list all poolsets in cluster\n\n"

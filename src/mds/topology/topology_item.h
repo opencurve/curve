@@ -463,6 +463,14 @@ class Server {
         desc_ = desc;
     }
 
+    void SetInternalHostIp(const std::string &ip) {
+        internalHostIp_ = ip;
+    }
+
+    void SetExternalHostIp(const std::string &ip) {
+        externalHostIp_ = ip;
+    }
+
     std::string GetDesc() const {
         return desc_;
     }

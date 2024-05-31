@@ -508,6 +508,26 @@ message GetCopySetsInClusterResponse {
     repeated common.CopysetInfo copysetInfos = 2;
 }
 
+message UpdateChunkServerRequest {
+    required uint32 chunkServerID = 1;
+    optional string hostIp = 2;
+    optional string externalIp = 3;
+}
+
+message UpdateChunkServerResponse {
+    required sint32 statusCode = 1;
+}
+
+message UpdateServerRequest {
+    required uint32 serverID = 1;
+    optional string hostIp = 2;
+    optional string externalIp = 3;
+}
+
+message UpdateServerResponse {
+    required sint32 statusCode = 1;
+}
+
 //TODO(hzsunjianliang): update userPolicy and so on
 service TopologyService {
     rpc RegistChunkServer(ChunkServerRegistRequest) returns (ChunkServerRegistResponse);
@@ -548,4 +568,9 @@ service TopologyService {
     rpc GetCopySetsInChunkServer(GetCopySetsInChunkServerRequest) returns (GetCopySetsInChunkServerResponse);
     rpc GetCopySetsInCluster(GetCopySetsInClusterRequest) returns (GetCopySetsInClusterResponse);
     rpc GetClusterInfo(GetClusterInfoRequest) returns (GetClusterInfoResponse);
+
+    // ops updateserver\chunkserver
+    rpc UpdateServer(UpdateServerRequest) returns (UpdateServerResponse);
+    rpc UpdateChunkServer(UpdateChunkServerRequest) returns (UpdateChunkServerResponse);
+
 }

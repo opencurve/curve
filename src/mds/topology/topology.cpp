@@ -1445,6 +1445,56 @@ int TopologyImpl::UpdateChunkServerVersion(const std::string &version,
     return ret;
 }
 
+int TopologyImpl::UpdateChunkServer(uint32_t chunkserverId,
+                                    const std::string &hostIp,
+                                    const std::string &externalIP) {
+    ReadLockGuard rlockChunkServerMap(chunkServerMutex_);
+    auto it = chunkServerMap_.find(chunkserverId);
+    if (it != chunkServerMap_.end()) {
+        WriteLockGuard wlockChunkServer(it->second.GetRWLockRef());
+        ChunkServer temp = it->second;
+
+        if (!hostIp.empty() && hostIp != temp.GetHostIp()) {
+            temp.SetHostIp(hostIp);
+        }
+        if (!externalIP.empty() && externalIP != temp.GetExternalHostIp()) {
+            temp.SetExternalHostIp(externalIP);
+        }
+
+        if (!storage_->UpdateChunkServer(temp)) {
+            return kTopoErrCodeStorgeFail;
+        }
+        it->second = std::move(temp);
+        it->second.SetDirtyFlag(false);
+        return kTopoErrCodeSuccess;
+    } else {
+        return kTopoErrCodeChunkServerNotFound;
+    }
+}
+
+int TopologyImpl::UpdateServer(uint32_t serverId, const std::string &hostIp,
+                               const std::string &externalIp) {
+    WriteLockGuard wlockServer(serverMutex_);
+    auto it = serverMap_.find(serverId);
+    if (it != serverMap_.end()) {
+       Server temp = it->second;
+
+       if (!hostIp.empty() && hostIp != temp.GetInternalHostIp()) {
+           temp.SetInternalHostIp(hostIp);
+       }
+       if (!externalIp.empty() && externalIp != temp.GetExternalHostIp()) {
+           temp.SetExternalHostIp(externalIp);
+       }
+       if (!storage_->UpdateServer(temp)) {
+           return kTopoErrCodeStorgeFail;
+       }
+        it->second = std::move(temp);
+        return kTopoErrCodeSuccess;
+    } else {
+        return kTopoErrCodeServerNotFound;
+    }
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve

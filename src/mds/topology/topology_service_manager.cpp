@@ -1705,6 +1705,44 @@ void TopologyServiceManager::GetClusterInfo(
     }
 }
 
+void TopologyServiceManager::UpdateChunkServer(
+    const UpdateChunkServerRequest *request,
+    UpdateChunkServerResponse *response) {
+  std::string hostIp, externalIp;
+  if (request->has_hostip()) {
+    hostIp = request->hostip();
+  }
+
+  if (request->has_externalip()) {
+    externalIp = request->externalip();
+  }
+
+  int errorcode = topology_->UpdateChunkServer(request->chunkserverid(), hostIp,
+                                               externalIp);
+  response->set_statuscode(errorcode);
+}
+
+void TopologyServiceManager::UpdateServer(const UpdateServerRequest *request,
+                                          UpdateServerResponse *response) {
+  std::string hostIp, externalIp;
+  if (request->has_hostip()) {
+    hostIp = request->hostip();
+  }
+
+  if (request->has_externalip()) {
+    externalIp = request->externalip();
+  }
+
+  if (hostIp.empty() && externalIp.empty()) {
+    response->set_statuscode(kTopoErrCodeInvalidParam);
+    return;
+  }
+
+  int errorcode =
+      topology_->UpdateChunkServer(request->serverid(), hostIp, externalIp);
+  response->set_statuscode(errorcode);
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve

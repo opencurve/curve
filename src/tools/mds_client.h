@@ -440,6 +440,12 @@ class MDSClient {
 
     int ListPoolset(std::vector<PoolsetInfo>* poolsets);
 
+
+    int UpdateChunkServer(uint32_t chunkserverId, const std::string& internalIp,
+                          const std::string& externalIp);
+    int UpdateServer(uint32_t serverId, const std::string& internalIp,
+                     const std::string& externalIp);
+
  private:
     /**
      *  @brief 切换mds

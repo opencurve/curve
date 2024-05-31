@@ -210,6 +210,17 @@ class TopologyServiceImpl : public TopologyService {
                       const GetClusterInfoRequest* request,
                       GetClusterInfoResponse* response,
                       google::protobuf::Closure* done);
+    
+    virtual void UpdateChunkServer(
+                      google::protobuf::RpcController* cntl_base,
+                      const UpdateChunkServerRequest* request,
+                      UpdateChunkServerResponse* response,
+                      google::protobuf::Closure* done);
+    virtual void UpdateServer(
+                      google::protobuf::RpcController* cntl_base,
+                      const UpdateServerRequest* request,
+                      UpdateServerResponse* response,
+                      google::protobuf::Closure* done);
 
  private:
     std::shared_ptr<TopologyServiceManager> topology_;

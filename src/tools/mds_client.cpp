@@ -1046,5 +1046,47 @@ int MDSClient::ListPoolset(std::vector<PoolsetInfo>* poolsets) {
     return -1;
 }
 
+int MDSClient::UpdateChunkServer(uint32_t chunkserverId,
+                                 const std::string &internalIp,
+                                 const std::string &externalIp) {
+    curve::mds::topology::UpdateChunkServerRequest request;
+    curve::mds::topology::UpdateChunkServerResponse response;
+    curve::mds::topology::TopologyService_Stub stub(&channel_);
+
+    auto fp = &curve::mds::topology::TopologyService_Stub::UpdateChunkServer;
+    if (0 != SendRpcToMds(&request, &response, &stub, fp)) {
+        std::cout << "UpdateChunkServer fail" << std::endl;
+        return -1;
+    }
+
+    if (response.statuscode() == curve::mds::topology::kTopoErrCodeSuccess) {
+        return 0;
+    }
+
+    std::cout << "UpdateChunkServer fail with errCode: " << response.statuscode()
+                << std::endl;
+    return -1;
+}
+
+int MDSClient::UpdateServer(uint32_t serverId, const std::string &internalIp,
+                            const std::string &externalIp) {
+  curve::mds::topology::UpdateServerRequest request;
+  curve::mds::topology::UpdateServerResponse response;
+  curve::mds::topology::TopologyService_Stub stub(&channel_);
+  auto fp = &curve::mds::topology::TopologyService_Stub::UpdateServer;
+  if (0 != SendRpcToMds(&request, &response, &stub, fp)) {
+    std::cout << "UpdateServer fail" << std::endl;
+    return -1;
+  }
+
+  if (response.statuscode() == curve::mds::topology::kTopoErrCodeSuccess) {
+    return 0;
+  }
+
+  std::cout << "UpdateServer fail with errCode: " << response.statuscode()
+            << std::endl;
+  return -1;
+}
+
 }  // namespace tool
 }  // namespace curve
