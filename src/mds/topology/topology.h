@@ -179,6 +179,12 @@ class Topology {
     virtual int UpdateChunkServerStartUpTime(uint64_t time,
                          ChunkServerIdType id) = 0;
 
+    virtual int UpdateChunkServer(uint32_t chunkserverId,
+                                  const std::string &hostIp,
+                                  const std::string &externalIP) = 0;
+    virtual int UpdateServer(uint32_t serverId, const std::string &hostIp,
+                             const std::string &externalIp) = 0;
+
     /**
      * @brief update copyset info
      * @detail
@@ -660,7 +666,14 @@ class TopologyImpl : public Topology {
     int GetBelongPhysicalPoolIdByServerId(ServerIdType serverId,
         PoolIdType *physicalPoolIdOut);
 
- private:
+    int UpdateChunkServer(uint32_t chunkserverId,
+                                  const std::string &hostIp,
+                                  const std::string &externalIP);
+
+    int UpdateServer(uint32_t serverId, const std::string &hostIp,
+                             const std::string &externalIp);
+
+  private:
     int LoadClusterInfo();
 
     int CleanInvalidLogicalPoolAndCopyset();

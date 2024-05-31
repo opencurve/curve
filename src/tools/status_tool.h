@@ -143,6 +143,8 @@ class StatusTool : public CurveTool {
     int ServerListCmd();
     int LogicalPoolListCmd();
     int ChunkServerStatusCmd();
+    int UpdateChunkServerCmd();
+    int UpdateServerCmd();
     int GetPoolsInCluster(std::vector<PhysicalPoolInfo>* phyPools,
                           std::vector<LogicalPoolInfo>* lgPools);
     int GetSpaceInfo(SpaceInfo* spaceInfo);

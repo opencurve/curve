@@ -31,11 +31,15 @@ DEFINE_bool(checkCSAlive, false, "if true, it will check the online state of "
                                 "chunkservers with rpc in chunkserver-list");
 DEFINE_bool(listClientInRepo, true, "if true, list-client will list all clients"
                                     " include that in repo");
+DEFINE_string(externalIp, "", "external ip");
+DEFINE_string(internalIp, "", "internal ip");
 DEFINE_uint64(walSegmentSize, 8388608, "wal segment size");
 DECLARE_string(mdsAddr);
 DECLARE_string(etcdAddr);
 DECLARE_string(mdsDummyPort);
 DECLARE_bool(detail);
+DECLARE_uint32(chunkserverId);
+DECLARE_uint32(serverId);
 
 const char* kProtocalCurve = "curve";
 
@@ -124,7 +128,10 @@ bool StatusTool::SupportCommand(const std::string& command) {
                                  || command == kSnapshotCloneStatusCmd
                                  || command == kClusterStatusCmd
                                  || command == kServerListCmd
-                                 || command == kLogicalPoolList);
+                                 || command == kLogicalPoolList
+                                 || command == kUpdateChunkserverCmd
+                                 || command == kUpdateServerCmd
+                                 );
 }
 
 void StatusTool::PrintHelp(const std::string& cmd) {
@@ -153,6 +160,15 @@ void StatusTool::PrintHelp(const std::string& cmd) {
     if (cmd == kClientListCmd) {
         std::cout << " [-listClientInRepo=false]"
                   << " [-confPath=/etc/curve/tools.conf]";
+    }
+    if (cmd == kUpdateChunkserverCmd) {
+      std::cout
+          << " -chunkserverID=1 [-internalIp=127.0.0.1] [-external=127.0.0.1]"
+          << " [-confPath=/etc/curve/tools.conf]";
+    }
+    if (cmd == kUpdateServerCmd) {
+      std::cout << " -serverID=1 [-internalIp=127.0.0.1] [-external=127.0.0.1]"
+                << " [-confPath=/etc/curve/tools.conf]";
     }
     std::cout << std::endl;
 }
@@ -1059,6 +1075,26 @@ int StatusTool::GetSpaceInfo(SpaceInfo* spaceInfo) {
     return 0;
 }
 
+int StatusTool::UpdateChunkServerCmd() {
+    int res = mdsClient_->UpdateChunkServer(FLAGS_chunkserverId, FLAGS_internalIp,
+                                            FLAGS_externalIp);
+    if (res != 0) {
+        std::cout << "UpdateChunkServer fail!" << std::endl;
+        return -1;
+    }
+    return 0;
+}
+
+int StatusTool::UpdateServerCmd() {
+    int res = mdsClient_->UpdateServer(FLAGS_serverId, FLAGS_internalIp,
+                                  FLAGS_externalIp);
+    if (res != 0) {
+        std::cout << "UpdateServer fail!" << std::endl;
+        return -1;
+    }
+    return 0;
+}
+
 int StatusTool::RunCommand(const std::string &cmd) {
     if (Init(cmd) != 0) {
         std::cout << "Init StatusTool failed" << std::endl;
@@ -1088,6 +1124,10 @@ int StatusTool::RunCommand(const std::string &cmd) {
         return PrintClusterStatus();
     } else if (cmd == kClientListCmd) {
         return ClientListCmd();
+    } else if (cmd == kUpdateChunkserverCmd) {
+        return UpdateChunkServerCmd();
+    } else if (cmd == kUpdateServerCmd) {
+        return UpdateServerCmd();
     } else {
         std::cout << "Command not supported!" << std::endl;
         return -1;

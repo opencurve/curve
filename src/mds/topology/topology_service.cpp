@@ -1031,6 +1031,40 @@ void TopologyServiceImpl::GetClusterInfo(
     }
 }
 
+void TopologyServiceImpl::UpdateChunkServer(
+    google::protobuf::RpcController *cntl_base,
+    const UpdateChunkServerRequest *request,
+    UpdateChunkServerResponse *response, google::protobuf::Closure *done) {
+    brpc::ClosureGuard done_guard(done);
+
+    brpc::Controller* cntl =
+      static_cast<brpc::Controller*>(cntl_base);
+
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
+                << "] from " << cntl->remote_side()
+                << " to " << cntl->local_side()
+                << ". [UpdateChunkServerRequest] "
+                << request->DebugString();
+    topology_->UpdateChunkServer(request, response);
+}
+
+void TopologyServiceImpl::UpdateServer(
+    google::protobuf::RpcController *cntl_base,
+    const UpdateServerRequest *request,
+    UpdateServerResponse *response, google::protobuf::Closure *done) {
+    brpc::ClosureGuard done_guard(done);
+
+    brpc::Controller* cntl =
+      static_cast<brpc::Controller*>(cntl_base);
+
+    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
+                << "] from " << cntl->remote_side()
+                << " to " << cntl->local_side()
+                << ". [UpdateServerRequest] "
+                << request->DebugString();
+    topology_->UpdateServer(request, response);
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve
