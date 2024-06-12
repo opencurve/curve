@@ -444,7 +444,14 @@ int FileCacheManager::Read(uint64_t inodeId, uint64_t offset, uint64_t length,
     ReadFromMemCache(offset, length, dataBuf, &actualReadLen,
                      &memCacheMissRequest);
     if (memCacheMissRequest.empty()) {
+        if (s3ClientAdaptor_->s3Metric_) {
+            s3ClientAdaptor_->s3Metric_->readAllHitsMemCounts << 1;
+       }
         return actualReadLen;
+    }
+    if (s3ClientAdaptor_->s3Metric_) {
+
+        s3ClientAdaptor_->s3Metric_->readRequestCounts << memCacheMissRequest.size();
     }
     VLOG(6) << "memcache miss request size: " << memCacheMissRequest.size();
 
@@ -579,22 +586,34 @@ bool FileCacheManager::ReadKVRequestFromS3(const std::string &name,
 }
 
 FileCacheManager::ReadStatus
-FileCacheManager::ReadKVRequest(const std::vector<S3ReadRequest> &kvRequests,
+FileCacheManager::ReadKVRequest(std::vector<S3ReadRequest> &kvRequests,
                                 char *dataBuf, uint64_t fileLen) {
     absl::BlockingCounter counter(kvRequests.size());
     std::once_flag cancelFlag;
     std::atomic<bool> isCanceled{false};
     std::atomic<int> retCode{0};
 
-    for (const auto &req : kvRequests) {
+    for (auto &req : kvRequests) {
+        req.enqueue = butil::cpuwide_time_us();
         readTaskPool_->Enqueue([&]() {
             auto defer = absl::MakeCleanup([&]() { counter.DecrementCount(); });
             if (isCanceled) {
                 LOG(WARNING) << "kv request is canceled " << req.DebugString();
                 return;
             }
+            req.dequeue = butil::cpuwide_time_us() - req.enqueue;
             ProcessKVRequest(req, dataBuf, fileLen, cancelFlag, isCanceled,
                              retCode);
+            req.processed = butil::cpuwide_time_us() - req.enqueue;
+
+            if (s3ClientAdaptor_->s3Metric_) {
+                curve::client::CollectMetrics(
+                    &s3ClientAdaptor_->s3Metric_->adaptorDequeue, req.len, req.dequeue);
+                curve::client::CollectMetrics(
+                    &s3ClientAdaptor_->s3Metric_->adaptorProcess, req.len, req.processed);
+                s3ClientAdaptor_->s3Metric_->s3ReadRequestCounts << 1;
+            }
+
         });
     }
 
@@ -620,7 +639,10 @@ void FileCacheManager::ProcessKVRequest(const S3ReadRequest &req, char *dataBuf,
     std::string prefetchName = curvefs::common::s3util::GenObjName(
         req.chunkId, blockIndex, req.compaction, req.fsId, req.inodeId,
         objectPrefix);
+
+    uint64_t start = butil::cpuwide_time_us();
     bool waitDownloading = false;
+
     // if obj is in downloading, wait for it.
     while (true) {
         {
@@ -641,6 +663,12 @@ void FileCacheManager::ProcessKVRequest(const S3ReadRequest &req, char *dataBuf,
             bthread_usleep(FLAGS_bigIoRetryIntervalUs);
         }
     }
+
+    if (waitDownloading && s3ClientAdaptor_->s3Metric_) {
+        curve::client::CollectMetrics(
+            &s3ClientAdaptor_->s3Metric_->waitDownloading, req.len, butil::cpuwide_time_us() - start);
+    }
+
 
     // prefetch
     if (s3ClientAdaptor_->HasDiskCache() && !waitDownloading &&
@@ -852,7 +880,8 @@ void FileCacheManager::PrefetchS3Objs(
         if (fromS3) {
             auto context = std::make_shared<GetObjectAsyncContext>(
                 name, dataCacheS3, 0, readLen,
-                AsyncPrefetchCallback{inode_, s3ClientAdaptor_, true});
+                AsyncPrefetchCallback{inode_, s3ClientAdaptor_, true}, ContextType::S3);
+            context->start = butil::cpuwide_time_us();
             auto task = [this, context]() {
                 s3ClientAdaptor_->GetS3Client()->DownloadAsync(context);
             };
@@ -860,7 +889,8 @@ void FileCacheManager::PrefetchS3Objs(
         } else {
             auto context = std::make_shared<GetObjectAsyncContext>(
                 name, dataCacheS3, 0, readLen,
-                AsyncPrefetchCallback{inode_, s3ClientAdaptor_, false});
+                AsyncPrefetchCallback{inode_, s3ClientAdaptor_, false}, ContextType::Disk);
+            context->start = butil::cpuwide_time_us();
             kvClientManager_->Enqueue(context);
         }
     }
