@@ -438,7 +438,8 @@ void MDS::InitHeartbeatManager() {
 
     heartbeatOption.mdsStartTime = steady_clock::now();
     heartbeatManager_ = std::make_shared<HeartbeatManager>(
-        heartbeatOption, topology_, coordinator_, spaceManager_);
+        heartbeatOption, topology_, coordinator_, topologyManager_,
+        spaceManager_);
     heartbeatManager_->Init();
 }
 
