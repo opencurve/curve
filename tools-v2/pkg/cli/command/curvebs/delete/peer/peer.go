@@ -24,6 +24,7 @@ package peer
 import (
 	"context"
 	"fmt"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/helper"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -126,7 +127,7 @@ func (cCmd *Command) Init(cmd *cobra.Command, args []string) error {
 		return pErr.ToError()
 	}
 	peer := args[0]
-	cCmd.removePeer, e = ParsePeer(peer)
+	cCmd.removePeer, e = helper.ParsePeer(peer)
 	if e != nil {
 		return e.ToError()
 	}
@@ -172,7 +173,7 @@ func (cCmd *Command) ResultPlainOutput() error {
 }
 
 func (cCmd *Command) execRemovePeer(leader *common.Peer) (interface{}, *cmderror.CmdError) {
-	peer, err := ParsePeer(leader.GetAddress())
+	peer, err := helper.ParsePeer(leader.GetAddress())
 	if err != nil {
 		return nil, err
 	}

@@ -25,13 +25,13 @@ package copyset
 import (
 	"context"
 	"fmt"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/helper"
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	basecmd "github.com/opencurve/curve/tools-v2/pkg/cli/command"
-	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/delete/peer"
 	"github.com/opencurve/curve/tools-v2/pkg/config"
 	"github.com/opencurve/curve/tools-v2/pkg/output"
 	"github.com/opencurve/curve/tools-v2/proto/proto/cli2"
@@ -90,7 +90,7 @@ func (sCmd *SnapshotOneCopysetCommand) Init(cmd *cobra.Command, args []string) e
 		pErr.Format("should specified the peer address")
 		return pErr.ToError()
 	}
-	snapshotPeer, err := peer.ParsePeer(args[0])
+	snapshotPeer, err := helper.ParsePeer(args[0])
 	if err != nil {
 		return err.ToError()
 	}

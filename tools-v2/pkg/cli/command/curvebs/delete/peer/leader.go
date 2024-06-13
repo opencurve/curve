@@ -24,9 +24,7 @@ package peer
 
 import (
 	"context"
-	"fmt"
-	"strconv"
-	"strings"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/helper"
 	"time"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
@@ -66,28 +64,6 @@ type Options struct {
 	RetryTimes int32
 }
 
-// ParsePeer parse the peer string
-func ParsePeer(peer string) (*common.Peer, *cmderror.CmdError) {
-	cs := strings.Split(peer, ":")
-	if len(cs) != 3 {
-		pErr := cmderror.ErrGetPeer()
-		pErr.Format(fmt.Sprintf("error format for the peer info %s", peer))
-		return nil, pErr
-	}
-	id, err := strconv.ParseUint(cs[2], 10, 64)
-	if err != nil {
-		pErr := cmderror.ErrGetPeer()
-		pErr.Format(fmt.Sprintf("error format for the peer id %s", cs[2]))
-		return nil, pErr
-	}
-	cs = cs[:2]
-	address := strings.Join(cs, ":")
-	return &common.Peer{
-		Id:      &id,
-		Address: &address,
-	}, nil
-}
-
 // ParseConfiguration parse the conf string into Configuration
 func ParseConfiguration(peers []string) (*Configuration, *cmderror.CmdError) {
 	if len(peers) == 0 {
@@ -98,7 +74,7 @@ func ParseConfiguration(peers []string) (*Configuration, *cmderror.CmdError) {
 
 	configuration := &Configuration{}
 	for _, c := range peers {
-		peer, err := ParsePeer(c)
+		peer, err := helper.ParsePeer(c)
 		if err != nil {
 			return nil, err
 		}
