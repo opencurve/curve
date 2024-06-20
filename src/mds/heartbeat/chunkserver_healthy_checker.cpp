@@ -29,6 +29,7 @@ using ::curve::mds::topology::ChunkServerState;
 using ::curve::mds::topology::ChunkServerStatus;
 using ::curve::mds::topology::ChunkServer;
 using ::curve::mds::topology::kTopoErrCodeSuccess;
+using ::curve::mds::topology::TopoErrCodeToName;
 
 using std::chrono::milliseconds;
 
@@ -127,7 +128,7 @@ void ChunkserverHealthyChecker::UpdateChunkServerOnlineState(
 
     if (kTopoErrCodeSuccess != errCode) {
         LOG(WARNING) << "heartbeatManager update chunkserver get error code: "
-            << errCode;
+            << TopoErrCodeToName(errCode);
     }
 }
 
@@ -168,7 +169,7 @@ bool ChunkserverHealthyChecker::TrySetChunkServerRetiredIfNeed(
         ChunkServerStatus::RETIRED, info.csId);
     if (kTopoErrCodeSuccess != updateErrCode) {
         LOG(WARNING) << "heartbeatManager update chunkserver get error code: "
-            << updateErrCode;
+            << TopoErrCodeToName(updateErrCode);
         return false;
     }
 
