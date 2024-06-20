@@ -31,6 +31,7 @@ import (
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/status/etcd"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/status/mds"
 	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/status/snapshot"
+	"github.com/opencurve/curve/tools-v2/pkg/cli/command/curvebs/status/volume"
 	"github.com/spf13/cobra"
 )
 
@@ -49,6 +50,7 @@ func (statusCmd *StatusCommand) AddSubCommands() {
 		chunkserver.NewChunkServerCommand(),
 		copyset.NewCopysetCommand(),
 		cluster.NewClusterCommand(),
+		volume.NewVolumeCommand(),
 	)
 }
 

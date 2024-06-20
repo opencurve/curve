@@ -509,6 +509,9 @@ var (
 	ErrTargetClient = func() *CmdError {
 		return NewInternalCmdError(83, "get client target error: %s")
 	}
+	ErrBsGetSnapshotStatus = func() *CmdError {
+		return NewInternalCmdError(84, "get snapshot status fail, err: %s")
+	}
 
 	// http error
 	ErrHttpUnreadableResult = func() *CmdError {

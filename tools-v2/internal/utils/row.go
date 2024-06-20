@@ -37,6 +37,7 @@ const (
 	ROW_COPYSET              = "copyset"
 	ROW_COPYSET_ID           = "copysetId"
 	ROW_COPYSET_KEY          = "copysetKey"
+	ROW_COUNT                = "count"
 	ROW_CREATE_TIME          = "createTime"
 	ROW_CREATED              = "created"
 	ROW_CTIME                = "ctime"
