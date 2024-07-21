@@ -2,10 +2,10 @@ package snapshot
 
 import (
 	"encoding/json"
-	"fmt"
-	snapshotutil "github.com/opencurve/curve/tools-v2/internal/utils/snapshot"
 	"strconv"
 	"time"
+
+	snapshotutil "github.com/opencurve/curve/tools-v2/internal/utils/snapshot"
 
 	cmderror "github.com/opencurve/curve/tools-v2/internal/error"
 	cobrautil "github.com/opencurve/curve/tools-v2/internal/utils"
@@ -105,18 +105,22 @@ func (sCmd *SnapShotCommand) RunCommand(cmd *cobra.Command, args []string) error
 		return sCmd.Error.ToError()
 	}
 	rows := make([]map[string]string, 0)
-	for _, item := range snapshotsInfo {
-		row := make(map[string]string)
-		row[cobrautil.ROW_SNAPSHOT_ID] = item.UUID
-		row[cobrautil.ROW_SNAPSHOT_NAME] = item.Name
-		row[cobrautil.ROW_USER] = item.User
-		row[cobrautil.ROW_FILE] = item.File
-		row[cobrautil.ROW_STATUS] = fmt.Sprintf("%d", item.Status)
-		row[cobrautil.ROW_SNAPSHOT_SEQNUM] = fmt.Sprintf("%d", item.SeqNum)
-		row[cobrautil.ROW_FILE_LENGTH] = fmt.Sprintf("%d", item.FileLength)
-		row[cobrautil.ROW_PROGRESS] = fmt.Sprintf("%d", item.Progress)
-		row[cobrautil.ROW_CREATE_TIME] = time.Unix(int64(item.Time/1000000), 0).Format("2006-01-02 15:04:05")
-		rows = append(rows, row)
+	if len(snapshotsInfo) == 0 {
+		rows = append(rows, EmptyOutput())
+	} else {
+		for _, item := range snapshotsInfo {
+			row := make(map[string]string)
+			row[cobrautil.ROW_SNAPSHOT_ID] = item.UUID
+			row[cobrautil.ROW_SNAPSHOT_NAME] = item.Name
+			row[cobrautil.ROW_USER] = item.User
+			row[cobrautil.ROW_FILE] = item.File
+			row[cobrautil.ROW_STATUS] = strconv.Itoa(item.Status)
+			row[cobrautil.ROW_SNAPSHOT_SEQNUM] = strconv.Itoa(item.SeqNum)
+			row[cobrautil.ROW_FILE_LENGTH] = strconv.Itoa(item.FileLength)
+			row[cobrautil.ROW_PROGRESS] = strconv.FormatFloat(item.Progress, 'f', 2, 64)
+			row[cobrautil.ROW_CREATE_TIME] = time.Unix(int64(item.Time/1000000), 0).Format("2006-01-02 15:04:05")
+			rows = append(rows, row)
+		}
 	}
 	list := cobrautil.ListMap2ListSortByKeys(rows, sCmd.Header, []string{cobrautil.ROW_FILE, cobrautil.ROW_SNAPSHOT_NAME, cobrautil.ROW_SNAPSHOT_ID})
 	sCmd.TableNew.AppendBulk(list)
@@ -160,4 +164,24 @@ func ListSnapShot(addrs []string, timeout time.Duration, params map[string]any) 
 		limitValue, _ := strconv.Atoi(params[snapshotutil.QueryLimit].(string))
 		params[snapshotutil.QueryOffset] = strconv.Itoa(offsetValue + limitValue)
 	}
+}
+
+func EmptyOutput() map[string]string {
+	emptyResult := "-"
+	keys := []string{
+		cobrautil.ROW_SNAPSHOT_ID,
+		cobrautil.ROW_SNAPSHOT_NAME,
+		cobrautil.ROW_USER,
+		cobrautil.ROW_FILE,
+		cobrautil.ROW_STATUS,
+		cobrautil.ROW_SNAPSHOT_SEQNUM,
+		cobrautil.ROW_FILE_LENGTH,
+		cobrautil.ROW_PROGRESS,
+		cobrautil.ROW_CREATE_TIME,
+	}
+	row := make(map[string]string)
+	for _, key := range keys {
+		row[key] = emptyResult
+	}
+	return row
 }

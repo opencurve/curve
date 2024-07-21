@@ -65,6 +65,7 @@ A tool for CurveFS & CurveBs.
         - [query segment](#query-segment)
         - [query scan-status](#query-scan-status)
         - [query volume clone-recover](#query-volume-clone-recover)
+        - [query snapshot](#query-snapshot)
       - [status](#status-1)
         - [status etcd](#status-etcd-1)
         - [status mds](#status-mds-1)
@@ -1487,6 +1488,26 @@ Output:
 +------+--------------------------------------+--------------------------------------+----------+-------+----------+--------+----------+--------+----------+---------------------+
 | root | a19b5e5e-b306-488f-8e6d-d87282c869cb | d26e27a8-fcbd-4f7a-adf8-53795217cbb0 |  clone   | /root |   file   | false  |   end    |  done  |    1     | 2006-01-02 15:04:05 |
 +------+--------------------------------------+--------------------------------------+----------+-------+----------+--------+----------+--------+----------+---------------------+
+```
+
+##### query snapshot
+
+query snapshot in curvebs
+
+Usage:
+
+```shell
+curve bs query snapshot --path /test/test111 --snapshotstatus done # other status: "in-progess" "deleting" "errorDeleteing" "canceling" "error"
+```
+
+Output:
+
+```shell
++--------------------------------------+--------------+------+--------+----------------+-------------+----------+---------------------+---------------+
+|              SNAPSHOTID              | SNAPSHOTNAME | USER | STATUS | SNAPSHOTSEQNUM | FILELENGTH  | PROGRESS |     CREATETIME      |     FILE      |
++--------------------------------------+--------------+------+--------+----------------+-------------+----------+---------------------+---------------+
+| 01a18978-cc3b-4762-a14d-38547511b526 | testsnap1    | root | 0      | 1              | 10737418240 | 100      | 2023-12-04 18:53:55 | /test/test111 |
++--------------------------------------+--------------+------+--------+----------------+-------------+----------+---------------------+---------------+
 ```
 
 #### status

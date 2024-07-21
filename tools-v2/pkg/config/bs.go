@@ -150,6 +150,9 @@ const (
 	CURVEBS_DEFAULT_SNAPSHOT_FAILED   = false
 	CURVEBS_FAILED                    = "failed"
 	VIPER_CURVEBS_FAILED              = "curvebs.failed"
+	CURVEBS_SNAPSHOT_STATUS           = "snapshotstatus"
+	VIPER_CURVEBS_SNAPSHOT_STATUS     = "curvebs.snapshotstatus"
+	CURVEBS_DEFAULT_SNAPSHOT_STATUS   = "done"
 	CURVEBS_CHUNK_SIZE                = "chunksize"
 	VIPER_CURVEBS_CHUNK_SIZE          = "curvebs.chunksize"
 	CURVEBS_CHECK_HASH                = "checkhash"
@@ -221,6 +224,7 @@ var (
 		CURVEBS_FILENAME:            VIPER_CURVEBS_FILENAME,
 		CURVEBS_SNAPSHOTNAME:        VIPER_CURVEBS_SNAPSHOTNAME,
 		CURVEBS_SNAPSHOT_FAILED:     VIPER_CURVEBS_SNAPSHOT_FAILED,
+		CURVEBS_SNAPSHOT_STATUS:     VIPER_CURVEBS_SNAPSHOT_STATUS,
 	}
 
 	BSFLAG2DEFAULT = map[string]interface{}{
@@ -247,6 +251,7 @@ var (
 		CURVEBS_CHECK_HASH:      CURVEBS_DEFAULT_CHECK_HASH,
 		CURVEBS_SNAPSHOT_ID:     CURVEBS_DEFAULT_SNAPSHOT_ID,
 		CURVEBS_SNAPSHOT_FAILED: CURVEBS_DEFAULT_SNAPSHOT_FAILED,
+		CURVEBS_SNAPSHOT_STATUS: CURVEBS_DEFAULT_SNAPSHOT_STATUS,
 	}
 )
 
@@ -694,6 +699,10 @@ func AddBsSnapshotIDOptionFlag(cmd *cobra.Command) {
 
 func AddBsSnapshotFailedOptionFlag(cmd *cobra.Command) {
 	AddBsBoolOptionFlag(cmd, CURVEBS_SNAPSHOT_FAILED, "snapshot failed(error)")
+}
+
+func AddSnapshotStatusOptionalFlag(cmd *cobra.Command) {
+	AddBsStringOptionFlag(cmd, CURVEBS_SNAPSHOT_STATUS, "snapshot status")
 }
 
 func AddBsTaskTypeOptionFlag(cmd *cobra.Command) {
