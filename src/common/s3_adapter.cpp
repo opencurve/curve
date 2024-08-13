@@ -61,8 +61,9 @@ class PreallocatedIOStream : public Aws::IOStream {
 };
 
 Aws::String GetObjectRequestRange(uint64_t offset, uint64_t len) {
+    // https://www.rfc-editor.org/rfc/rfc9110.html#name-range
     auto range =
-        "bytes=" + std::to_string(offset) + "-" + std::to_string(offset + len);
+        "bytes=" + std::to_string(offset) + "-" + std::to_string(offset + len - 1);
     return {range.data(), range.size()};
 }
 
